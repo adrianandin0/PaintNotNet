@@ -10,10 +10,10 @@ class RuedaColor(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedSize(100, 100)
+        self.setFixedSize(80, 80)
         self.hue = 0.0
-        self.sat = 1.0
-        self.val = 1.0
+        self.sat = 0.0
+        self.val = 0.0
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -86,8 +86,9 @@ class RuedaColor(QWidget):
 class MuestraColoresActuales(QWidget):
     def __init__(self):
         super().__init__()
-        self.setFixedSize(40, 40)
-        self.color_principal = QColor(255, 50, 50)
+        self.setFixedSize(32, 32)
+        # COLOR PRINCIPAL INICIAL A NEGRO
+        self.color_principal = QColor(0, 0, 0)
         self.color_secundario = QColor(255, 255, 255)
 
     def set_colores(self, principal, secundario):
@@ -101,11 +102,11 @@ class MuestraColoresActuales(QWidget):
 
         painter.setBrush(self.color_secundario)
         painter.setPen(QPen(QColor(180, 180, 180), 1))
-        painter.drawRect(14, 14, 22, 22)
+        painter.drawRect(10, 10, 18, 18)
 
         painter.setBrush(self.color_principal)
         painter.setPen(QPen(QColor(255, 255, 255), 1))
-        painter.drawRect(4, 4, 22, 22)
+        painter.drawRect(2, 2, 18, 18)
 
 
 class MuestraColor(QFrame):
@@ -114,7 +115,7 @@ class MuestraColor(QFrame):
         self.color = QColor(color_hex) if color_hex else QColor(0, 0, 0, 0)
         self.vacio = vacio
         self.callback_clic = callback_clic
-        self.setFixedSize(18, 18)
+        self.setFixedSize(14, 14)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.actualizar_aspecto()
 
@@ -157,16 +158,18 @@ class PanelColores(QGroupBox):
     def __init__(self, callback_color_cambiado):
         super().__init__("COLORES")
         self.callback_color_cambiado = callback_color_cambiado
-        self.color_principal = QColor(255, 50, 50)
+        
+        # NEGRO POR DEFECTO
+        self.color_principal = QColor(0, 0, 0)
         self.color_secundario = QColor(255, 255, 255)
         self.bloquear_señales = False
 
         layout_principal = QVBoxLayout(self)
-        layout_principal.setSpacing(1)
-        layout_principal.setContentsMargins(2, 8, 2, 2)
+        layout_principal.setContentsMargins(4, 12, 4, 6)
+        layout_principal.setSpacing(2)
 
         layout_rueda_y_muestra = QHBoxLayout()
-        layout_rueda_y_muestra.setSpacing(4)
+        layout_rueda_y_muestra.setSpacing(2)
         layout_rueda_y_muestra.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.muestra_dual = MuestraColoresActuales()
@@ -195,13 +198,12 @@ class PanelColores(QGroupBox):
 
         linea_sep = QFrame()
         linea_sep.setFrameShape(QFrame.Shape.HLine)
-        linea_sep.setFrameShadow(QFrame.Shadow.Sunken)
-        linea_sep.setStyleSheet("border: 1px solid #444444; margin-top: 2px; margin-bottom: 2px;")
+        linea_sep.setStyleSheet("border: 1px solid #444444; margin: 2px 0;")
         layout_principal.addWidget(linea_sep)
 
         lbl_guardados = QLabel("GUARDADOS")
         lbl_guardados.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_guardados.setStyleSheet("font-size: 9px; font-weight: bold; color: #2a82da;")
+        lbl_guardados.setStyleSheet("font-size: 8px; font-weight: bold; color: #2a82da;")
         layout_principal.addWidget(lbl_guardados)
 
         self.slots_usuario = []
@@ -216,7 +218,8 @@ class PanelColores(QGroupBox):
         layout_principal.addLayout(grid_usuario)
 
         grid_inputs = QGridLayout()
-        grid_inputs.setSpacing(2)
+        grid_inputs.setSpacing(1)
+        grid_inputs.setContentsMargins(0, 1, 0, 0)
 
         validator_rgb = QIntValidator(0, 255)
         regex_hex = QRegularExpression("^#?([a-fA-F0-9]{6})$")
@@ -224,22 +227,22 @@ class PanelColores(QGroupBox):
 
         self.input_r = QLineEdit()
         self.input_r.setValidator(validator_rgb)
-        self.input_r.setFixedWidth(32)
+        self.input_r.setFixedWidth(28)
         self.input_r.textChanged.connect(self.al_cambiar_inputs_rgb)
 
         self.input_g = QLineEdit()
         self.input_g.setValidator(validator_rgb)
-        self.input_g.setFixedWidth(32)
+        self.input_g.setFixedWidth(28)
         self.input_g.textChanged.connect(self.al_cambiar_inputs_rgb)
 
         self.input_b = QLineEdit()
         self.input_b.setValidator(validator_rgb)
-        self.input_b.setFixedWidth(32)
+        self.input_b.setFixedWidth(28)
         self.input_b.textChanged.connect(self.al_cambiar_inputs_rgb)
 
         self.input_hex = QLineEdit()
         self.input_hex.setValidator(validator_hex)
-        self.input_hex.setFixedWidth(54)
+        self.input_hex.setFixedWidth(46)
         self.input_hex.textChanged.connect(self.al_cambiar_input_hex)
 
         grid_inputs.addWidget(QLabel("R:"), 0, 0)

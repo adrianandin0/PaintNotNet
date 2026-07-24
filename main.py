@@ -21,7 +21,6 @@ class PaintNotNet(QMainWindow):
         self.setGeometry(100, 100, 1100, 800)
         self.archivo_actual = None
 
-        # 1. Área Central con Lienzo
         self.area_scroll = QScrollArea()
         self.area_scroll.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.area_scroll.setWidgetResizable(False)
@@ -30,10 +29,7 @@ class PaintNotNet(QMainWindow):
         self.area_scroll.setWidget(self.lienzo)
         self.setCentralWidget(self.area_scroll)
 
-        # 2. Barra de Herramientas Lateral
         self.crear_barra_herramientas()
-
-        # 3. Menús Superiores
         self.crear_menus()
 
     def crear_menus(self):
@@ -51,6 +47,8 @@ class PaintNotNet(QMainWindow):
         barra = QToolBar("Herramientas")
         barra.setContextMenuPolicy(Qt.ContextMenuPolicy.PreventContextMenu)
         barra.setMovable(False)
+        barra.setFixedWidth(160)
+        
         self.addToolBar(Qt.ToolBarArea.LeftToolBarArea, barra)
 
         # Panel Herramientas
@@ -61,13 +59,21 @@ class PaintNotNet(QMainWindow):
         self.panel_propiedades = PanelPropiedades(
             self.lienzo.grosor_pincel,
             self.lienzo.opacidad_pincel,
+            self.lienzo.suavizado_pincel,
+            self.lienzo.forma_pincel,
             self.cambiar_grosor,
-            self.cambiar_opacidad
+            self.cambiar_opacidad,
+            self.cambiar_suavizado,
+            self.cambiar_forma
         )
         barra.addWidget(self.panel_propiedades)
 
         # Panel Texto
-        self.panel_texto = PanelTexto(self.lienzo.fuente_texto, self.cambiar_fuente)
+        self.panel_texto = PanelTexto(
+            self.lienzo.fuente_texto, 
+            self.cambiar_fuente, 
+            self.lienzo.color_secundario
+        )
         barra.addWidget(self.panel_texto)
         self.panel_texto.setVisible(False)
 
@@ -82,27 +88,57 @@ class PaintNotNet(QMainWindow):
         else:
             self.panel_texto.setVisible(True)
 
+        es_pincel = (nombre == "pincel")
+        self.panel_propiedades.actualizar_estado_pincel(es_pincel)
+
         self.lienzo.herramienta = nombre
 
     def cambiar_grosor(self, valor):
         self.lienzo.grosor_pincel = valor
 
-    def cambiar_opacidad(self, porcentaje):
-        alfa = int((porcentaje / 100.0) * 255)
-        self.lienzo.opacidad_pincel = alfa
+    def cambiar_opacidad(self, alfa):
+        # Aseguramos que el valor alfa se mantenga estrictamente entre 0 y 255
+        alfa_clamped = max(0, min(255, int(alfa)))
+        self.lienzo.opacidad_pincel = alfa_clamped
+
+    def cambiar_suavizado(self, porcentaje):
+        self.lienzo.suavizado_pincel = porcentaje
+
+    def cambiar_forma(self, forma):
+        self.lienzo.forma_pincel = forma
 
     def cambiar_fuente(self, fuente):
         self.lienzo.fuente_texto = fuente
+        borde, sombra = self.panel_texto.obtener_configuraciones()
+        self.lienzo.config_borde = borde
+        self.lienzo.config_sombra = sombra
+
         if self.lienzo.editor_texto:
             self.lienzo.editor_texto.fuente = fuente
             self.lienzo.editor_texto.actualizar_estilo()
+        
+        self.lienzo.update()
 
     def cambiar_colores(self, principal, secundario):
         self.lienzo.color_principal = principal
         self.lienzo.color_secundario = secundario
+
+        # 1. Actualizamos los colores de uso directo en el lienzo
+        self.lienzo.color_actual_uso = principal
+
+        # 2. Notificamos al panel de texto para que actualice la muestra visual del borde
+        self.panel_texto.set_color_secundario(secundario)
+
+        # 3. Actualizamos la caja interactiva activa (si existe)
         if self.lienzo.editor_texto:
             self.lienzo.editor_texto.color = principal
+            borde, sombra = self.panel_texto.obtener_configuraciones()
+            self.lienzo.config_borde = borde
+            self.lienzo.config_sombra = sombra
             self.lienzo.editor_texto.actualizar_estilo()
+
+        # 4. Redibujamos el lienzo en vivo
+        self.lienzo.update()
 
 
 if __name__ == '__main__':
@@ -128,13 +164,13 @@ if __name__ == '__main__':
             font-size: 10px;
             border: 1px solid #5a5a5a;
             border-radius: 3px;
-            margin-top: 6px;
-            padding-top: 0px;
+            margin-top: 10px;
+            padding-top: 4px;
         }
         QGroupBox::title {
             subcontrol-origin: margin;
             subcontrol-position: top center;
-            padding: 0 3px;
+            padding: 0 4px;
             color: #2a82da;
         }
         QComboBox, QSpinBox, QFontComboBox, QLineEdit {
