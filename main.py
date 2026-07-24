@@ -1,6 +1,6 @@
 import sys
 from PyQt6.QtWidgets import QApplication, QMainWindow, QScrollArea, QToolBar
-from PyQt6.QtGui import QColor
+from PyQt6.QtGui import QColor, QCloseEvent, QShortcut, QKeySequence
 from PyQt6.QtCore import Qt
 
 from lienzo import Lienzo
@@ -17,20 +17,36 @@ from gui.menu_imagen import MenuImagen
 class PaintNotNet(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("PaintNotNet - Nuevo Archivo")
         self.setGeometry(100, 100, 1100, 800)
         self.archivo_actual = None
+        self.lienzo_modificado = False
 
         self.area_scroll = QScrollArea()
         self.area_scroll.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.area_scroll.setWidgetResizable(False)
 
         self.lienzo = Lienzo(800, 600)
+        self.lienzo.callback_modificado = self.marcar_modificado
         self.area_scroll.setWidget(self.lienzo)
         self.setCentralWidget(self.area_scroll)
 
         self.crear_barra_herramientas()
         self.crear_menus()
+        self.actualizar_titulo_ventana()
+
+        # Shortcut Global para ESC (Garantiza que funcione sin romper el foco del texto)
+        self.shortcut_esc = QShortcut(QKeySequence(Qt.Key.Key_Escape), self)
+        self.shortcut_esc.activated.connect(self.lienzo.cancelar_o_deseleccionar)
+
+    def marcar_modificado(self):
+        if not self.lienzo_modificado:
+            self.lienzo_modificado = True
+            self.actualizar_titulo_ventana()
+
+    def actualizar_titulo_ventana(self):
+        nombre = self.archivo_actual if self.archivo_actual else "Sin Titulo"
+        asterisco = " *" if self.lienzo_modificado else ""
+        self.setWindowTitle(f"PaintNotNet - {nombre}{asterisco}")
 
     def crear_menus(self):
         menu_bar = self.menuBar()
@@ -48,14 +64,12 @@ class PaintNotNet(QMainWindow):
         barra.setContextMenuPolicy(Qt.ContextMenuPolicy.PreventContextMenu)
         barra.setMovable(False)
         barra.setFixedWidth(160)
-        
+
         self.addToolBar(Qt.ToolBarArea.LeftToolBarArea, barra)
 
-        # Panel Herramientas
         self.panel_herramientas = PanelHerramientas(self.cambiar_herramienta)
         barra.addWidget(self.panel_herramientas)
 
-        # Panel Propiedades
         self.panel_propiedades = PanelPropiedades(
             self.lienzo.grosor_pincel,
             self.lienzo.opacidad_pincel,
@@ -68,16 +82,14 @@ class PaintNotNet(QMainWindow):
         )
         barra.addWidget(self.panel_propiedades)
 
-        # Panel Texto
         self.panel_texto = PanelTexto(
-            self.lienzo.fuente_texto, 
-            self.cambiar_fuente, 
+            self.lienzo.fuente_texto,
+            self.cambiar_fuente,
             self.lienzo.color_secundario
         )
         barra.addWidget(self.panel_texto)
         self.panel_texto.setVisible(False)
 
-        # Panel Colores
         self.panel_colores = PanelColores(self.cambiar_colores)
         barra.addWidget(self.panel_colores)
 
@@ -97,7 +109,6 @@ class PaintNotNet(QMainWindow):
         self.lienzo.grosor_pincel = valor
 
     def cambiar_opacidad(self, alfa):
-        # Aseguramos que el valor alfa se mantenga estrictamente entre 0 y 255
         alfa_clamped = max(0, min(255, int(alfa)))
         self.lienzo.opacidad_pincel = alfa_clamped
 
@@ -116,20 +127,15 @@ class PaintNotNet(QMainWindow):
         if self.lienzo.editor_texto:
             self.lienzo.editor_texto.fuente = fuente
             self.lienzo.editor_texto.actualizar_estilo()
-        
+
         self.lienzo.update()
 
     def cambiar_colores(self, principal, secundario):
         self.lienzo.color_principal = principal
         self.lienzo.color_secundario = secundario
-
-        # 1. Actualizamos los colores de uso directo en el lienzo
         self.lienzo.color_actual_uso = principal
-
-        # 2. Notificamos al panel de texto para que actualice la muestra visual del borde
         self.panel_texto.set_color_secundario(secundario)
 
-        # 3. Actualizamos la caja interactiva activa (si existe)
         if self.lienzo.editor_texto:
             self.lienzo.editor_texto.color = principal
             borde, sombra = self.panel_texto.obtener_configuraciones()
@@ -137,8 +143,14 @@ class PaintNotNet(QMainWindow):
             self.lienzo.config_sombra = sombra
             self.lienzo.editor_texto.actualizar_estilo()
 
-        # 4. Redibujamos el lienzo en vivo
         self.lienzo.update()
+
+    def closeEvent(self, event: QCloseEvent):
+        if hasattr(self, 'menu_archivo'):
+            if not self.menu_archivo.confirmar_descarte_cambios():
+                event.ignore()
+                return
+        event.accept()
 
 
 if __name__ == '__main__':

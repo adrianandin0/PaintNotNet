@@ -21,19 +21,20 @@ class Lienzo(QWidget):
 
         self.ultimo_punto = None
         self.trayectoria_actual = None
-        
+
         self.color_principal = QColor(0, 0, 0)
         self.color_secundario = QColor(255, 255, 255)
         self.color_actual_uso = self.color_principal
-        
+
         self.grosor_pincel = 4
-        self.opacidad_pincel = 255  # 255 Sólido, 0 Invisible
+        self.opacidad_pincel = 255
         self.suavizado_pincel = 100
         self.forma_pincel = "Circular"
         self.herramienta = "lapiz"
 
         self.fuente_texto = QFont("Sans Serif", 20)
         self.editor_texto = None
+        self.callback_modificado = None
 
         # Configuraciones de Borde y Sombra/Halo
         self.config_borde = {'activo': False, 'grosor': 2, 'color': self.color_secundario}
@@ -46,6 +47,22 @@ class Lienzo(QWidget):
         self.modo_transformacion = None
         self.offset_mover = QPoint()
         self.rect_original_transform = None
+
+    def crear_nuevo_lienzo(self, ancho, alto, es_transparente=False):
+        self.fijar_texto_si_existe()
+        self.fijar_seleccion_flotante()
+
+        self.capa_activa = QImage(ancho, alto, QImage.Format.Format_ARGB32_Premultiplied)
+        if es_transparente:
+            self.capa_activa.fill(Qt.GlobalColor.transparent)
+        else:
+            self.capa_activa.fill(Qt.GlobalColor.white)
+
+        self.capa_trazo_temp = QImage(ancho, alto, QImage.Format.Format_ARGB32_Premultiplied)
+        self.capa_trazo_temp.fill(Qt.GlobalColor.transparent)
+
+        self.setFixedSize(ancho, alto)
+        self.update()
 
     def cargar_imagen(self, ruta):
         imagen_temporal = QImage(ruta)
@@ -64,14 +81,19 @@ class Lienzo(QWidget):
         return self.capa_activa.save(ruta)
 
     def fijar_seleccion_flotante(self):
+        """Fija la imagen flotante sobre el lienzo y borra el marco de selección"""
         if self.imagen_seleccionada and self.rect_seleccion:
             painter = QPainter(self.capa_activa)
             painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
             painter.drawImage(self.rect_seleccion, self.imagen_seleccionada)
             painter.end()
-            self.imagen_seleccionada = None
-            self.rect_seleccion = None
-            self.update()
+
+        # Limpiamos las referencias para eliminar el recuadro punteado
+        self.imagen_seleccionada = None
+        self.rect_seleccion = None
+        if hasattr(self, 'callback_modificado') and self.callback_modificado:
+            self.callback_modificado()
+        self.update()
 
     def extraer_píxeles_seleccionados(self):
         if self.rect_seleccion and not self.rect_seleccion.isEmpty() and not self.imagen_seleccionada:
@@ -91,6 +113,7 @@ class Lienzo(QWidget):
         self.copiar_seleccion()
         self.imagen_seleccionada = None
         self.rect_seleccion = None
+        if self.callback_modificado: self.callback_modificado()
         self.update()
 
     def borrar_seleccion(self):
@@ -102,6 +125,7 @@ class Lienzo(QWidget):
             painter.end()
         self.imagen_seleccionada = None
         self.rect_seleccion = None
+        if self.callback_modificado: self.callback_modificado()
         self.update()
 
     def pegar_portapapeles(self):
@@ -111,6 +135,7 @@ class Lienzo(QWidget):
             self.imagen_seleccionada = img.convertToFormat(QImage.Format.Format_ARGB32_Premultiplied)
             self.rect_seleccion = QRect(0, 0, img.width(), img.height())
             self.herramienta = "seleccion"
+            if self.callback_modificado: self.callback_modificado()
             self.update()
 
     def aplicar_balde(self, x, y, color_a_usar):
@@ -133,14 +158,14 @@ class Lienzo(QWidget):
         region_rellenada = mask[1:alto+1, 1:ancho+1] > 0
         arr[region_rellenada, :3] = img_rgb[region_rellenada]
         arr[region_rellenada, 3] = a
+        if self.callback_modificado: self.callback_modificado()
         self.update()
 
     def renderizar_efectos_texto(self, painter, pos_x, pos_y, texto, fuente):
-        """Renderiza Halo/Resplandor MÁS OSCURO Y DEFINIDO, Borde y Texto Principal"""
         path = QPainterPath()
         path.addText(QPointF(pos_x, pos_y), fuente, texto)
 
-        # 1. RESPLANDOR / HALO SUAVE (MÁS OSCURO Y INTENSO)
+        # 1. HALO / SOMBRA
         if self.config_sombra.get('activo', False):
             radio_ext = self.config_sombra.get('dist', 6)
             vx = self.config_sombra.get('vec_x', 0.5)
@@ -149,11 +174,10 @@ class Lienzo(QWidget):
             centro_off_x = vx * radio_ext
             centro_off_y = vy * radio_ext
 
-            # Aumentamos opacidad por pasada para un halo más oscuro
             pasadas = max(4, int(radio_ext))
             for i in range(pasadas, 0, -1):
                 radio_pasada = (i / float(pasadas)) * radio_ext
-                opacidad_pasada = 0.22 / (i * 0.3 + 1.0) # Halo más denso/oscuro
+                opacidad_pasada = 0.22 / (i * 0.3 + 1.0)
 
                 ox = pos_x + (centro_off_x * (i / float(pasadas)))
                 oy = pos_y + (centro_off_y * (i / float(pasadas)))
@@ -163,19 +187,19 @@ class Lienzo(QWidget):
 
                 pen_halo = QPen(QColor(0, 0, 0, int(255 * opacidad_pasada)), radio_pasada * 2.2,
                                 Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
-                
+
                 painter.setPen(pen_halo)
                 painter.setBrush(Qt.BrushStyle.NoBrush)
                 painter.drawPath(path_halo)
 
-        # 2. BORDE (OUTLINE VECTORIAL)
+        # 2. BORDE
         if self.config_borde.get('activo', False):
             grosor = self.config_borde.get('grosor', 2)
-            # Usamos el color secundario actualizado en vivo
-            color_borde = self.color_secundario if self.config_borde.get('color') is None else self.config_borde.get('color')
+            color_borde = self.config_borde.get('color', self.color_secundario)
 
             color_borde_alfa = QColor(color_borde)
-            color_borde_alfa.setAlpha(self.opacidad_pincel)
+            alfa_seguro = max(0, min(255, int(self.opacidad_pincel)))
+            color_borde_alfa.setAlpha(alfa_seguro)
 
             pen_borde = QPen(color_borde_alfa, grosor, Qt.PenStyle.SolidLine,
                              Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
@@ -183,10 +207,11 @@ class Lienzo(QWidget):
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.drawPath(path)
 
-        # 3. TEXTO PRINCIPAL RELLENO CON TRANSPARENCIA REAL
+        # 3. TEXTO PRINCIPAL
         color_texto_alfa = QColor(self.color_actual_uso)
-        color_texto_alfa.setAlpha(self.opacidad_pincel)
-        
+        alfa_seguro = max(0, min(255, int(self.opacidad_pincel)))
+        color_texto_alfa.setAlpha(alfa_seguro)
+
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(color_texto_alfa)
         painter.drawPath(path)
@@ -204,28 +229,37 @@ class Lienzo(QWidget):
 
                 self.renderizar_efectos_texto(painter, pos_x, pos_y, texto, self.editor_texto.fuente)
                 painter.end()
+                if self.callback_modificado: self.callback_modificado()
 
             self.editor_texto.deleteLater()
             self.editor_texto = None
             self.update()
 
+    def cancelar_o_deseleccionar(self):
+        """Método invocado directamente por la tecla ESC"""
+        if self.editor_texto:
+            self.fijar_texto_si_existe()
+        elif self.rect_seleccion:
+            self.fijar_seleccion_flotante()
+            self.rect_seleccion = None
+            self.imagen_seleccionada = None
+            self.update()
+
     def paintEvent(self, event):
         painter = QPainter(self)
-        
+
         # Fondo ajedrez
         tamano_cuadro = 16
         for y in range(0, self.height(), tamano_cuadro):
             for x in range(0, self.width(), tamano_cuadro):
                 color = QColor(200, 200, 200) if (x // tamano_cuadro + y // tamano_cuadro) % 2 == 0 else QColor(255, 255, 255)
                 painter.fillRect(x, y, tamano_cuadro, tamano_cuadro, color)
-                
+
         painter.drawImage(0, 0, self.capa_activa)
 
-        # Capa de dibujo de trazo temporal (Mezclada con Alpha Puro)
         if not self.capa_trazo_temp.isNull():
             painter.drawImage(0, 0, self.capa_trazo_temp)
 
-        # PREVIEW EN VIVO DEL TEXTO EDITÁNDOSE
         if self.editor_texto:
             texto = self.editor_texto.input_texto.text().strip()
             if texto:
@@ -235,16 +269,14 @@ class Lienzo(QWidget):
                 pos_y = self.editor_texto.y() + fm.ascent() + 4
                 self.renderizar_efectos_texto(painter, pos_x, pos_y, texto, self.editor_texto.fuente)
 
-        # Capa flotante de la selección
         if self.imagen_seleccionada and self.rect_seleccion:
             painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
             painter.drawImage(self.rect_seleccion, self.imagen_seleccionada)
 
-        # Manijas de Selección
         if self.rect_seleccion and not self.rect_seleccion.isEmpty():
             pen_negro = QPen(Qt.GlobalColor.black, 1, Qt.PenStyle.DashLine)
             pen_blanco = QPen(Qt.GlobalColor.white, 1, Qt.PenStyle.SolidLine)
-            
+
             painter.setPen(pen_blanco)
             painter.drawRect(self.rect_seleccion)
             painter.setPen(pen_negro)
@@ -310,7 +342,6 @@ class Lienzo(QWidget):
                 if self.herramienta != "texto": return
 
         self.ultimo_punto = pos
-        
         self.trayectoria_actual = QPainterPath()
         self.trayectoria_actual.moveTo(pos_f)
 
@@ -338,7 +369,7 @@ class Lienzo(QWidget):
             if not self.editor_texto:
                 from herramientas.panel_texto import CajaTextoInteractiva
                 self.editor_texto = CajaTextoInteractiva(
-                    self, pos.x(), pos.y(), self.color_actual_uso, self.fuente_texto, 
+                    self, pos.x(), pos.y(), self.color_actual_uso, self.fuente_texto,
                     self.config_borde, self.config_sombra
                 )
         else:
@@ -433,9 +464,8 @@ class Lienzo(QWidget):
 
     def mouseReleaseEvent(self, event):
         if event.button() in (Qt.MouseButton.LeftButton, Qt.MouseButton.RightButton):
-            if self.herramienta in ("lapiz", "pincel"):
+            if self.herramienta in ("lapiz", "pincel", "goma"):
                 painter = QPainter(self.capa_activa)
-                # Volcamos la capa de trazo a la activa preservando la transparencia alfa real
                 painter.drawImage(0, 0, self.capa_trazo_temp)
                 painter.end()
                 self.capa_trazo_temp.fill(Qt.GlobalColor.transparent)
@@ -443,4 +473,5 @@ class Lienzo(QWidget):
             self.modo_transformacion = None
             self.ultimo_punto = None
             self.trayectoria_actual = None
+            if self.callback_modificado: self.callback_modificado()
             self.update()

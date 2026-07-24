@@ -1,6 +1,6 @@
 import math
-from PyQt6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout, QFontComboBox, 
-                             QSpinBox, QToolButton, QWidget, QLineEdit, QCheckBox, 
+from PyQt6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout, QFontComboBox,
+                             QSpinBox, QToolButton, QWidget, QLineEdit, QCheckBox,
                              QSlider, QLabel, QFrame)
 from PyQt6.QtGui import QFont, QFontMetrics, QColor, QPainter, QPen
 from PyQt6.QtCore import Qt, QPoint, QPointF, pyqtSignal
@@ -100,25 +100,19 @@ class CajaTextoInteractiva(QWidget):
         self.ajustar_tamano()
         if self.parent(): self.parent().update()
 
-    def actualizar_configuracion_borde(self, nueva_config_borde):
-        self.config_borde = nueva_config_borde
-        if self.parent():
-            self.parent().update()
-    def set_color_secundario(self, color):
-        self.color_secundario = color
-        self.muestra_color_borde.set_color(color)
-        self.emitir_cambio()  # Emitimos el cambio para que el lienzo se entere al instante
-
     def actualizar_estilo(self):
         self.input_texto.setFont(self.fuente)
+
+        # Hacemos el texto del input 100% transparente y sin fondo opaco
+        # para que se vea UNICAMENTE el renderizado real del lienzo sin sombras dobles
         self.input_texto.setStyleSheet("""
             QLineEdit {
                 background-color: transparent;
                 border: 1px dashed #2a82da;
                 border-radius: 2px;
                 color: transparent;
-                selection-background-color: #2a82da;
-                padding: 2px;
+                selection-background-color: rgba(42, 130, 218, 0.4);
+                padding: 0px 4px;
             }
         """)
         self.btn_manija.setStyleSheet("""
@@ -236,7 +230,7 @@ class PanelTexto(QGroupBox):
         self.chk_borde.toggled.connect(self.emitir_cambio)
 
         self.spin_grosor_borde = QSpinBox()
-        self.spin_grosor_borde.setRange(1, 9999) # Ampliado
+        self.spin_grosor_borde.setRange(1, 9999)
         self.spin_grosor_borde.setValue(2)
         self.spin_grosor_borde.setFixedWidth(40)
         self.spin_grosor_borde.valueChanged.connect(self.emitir_cambio)
@@ -272,7 +266,6 @@ class PanelTexto(QGroupBox):
     def set_color_secundario(self, color):
         self.color_secundario = color
         self.muestra_color_borde.set_color(color)
-        # Notificamos el cambio para que el lienzo refresque el borde
         self.emitir_cambio()
 
     def obtener_configuraciones(self):
