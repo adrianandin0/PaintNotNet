@@ -1,3 +1,20 @@
+# Entorno virtual de Python
 venv/
+.venv/
+env/
+
+# Archivos de compilación de PyInstaller
+build/
+dist/
+*.spec
+
+# Archivos de caché de Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# Archivos de configuración local o temporales de IDEs/Editores
+.vscode/
+.idea/
+*.kate-swp

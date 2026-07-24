@@ -1,6 +1,6 @@
 import sys
 from PyQt6.QtWidgets import QApplication, QMainWindow, QScrollArea, QToolBar
-from PyQt6.QtGui import QColor, QCloseEvent, QShortcut, QKeySequence
+from PyQt6.QtGui import QColor, QCloseEvent, QShortcut, QKeySequence, QIcon
 from PyQt6.QtCore import Qt
 
 from lienzo import Lienzo
@@ -20,6 +20,8 @@ class PaintNotNet(QMainWindow):
         self.setGeometry(100, 100, 1100, 800)
         self.archivo_actual = None
         self.lienzo_modificado = False
+
+        self.setWindowIcon(QIcon("gui/icono.png"))
 
         self.area_scroll = QScrollArea()
         self.area_scroll.setAlignment(Qt.AlignmentFlag.AlignCenter)
