@@ -1,12 +1,11 @@
 import os
-from PyQt6.QtWidgets import (QFileDialog, QMessageBox, QDialog, QVBoxLayout, 
-                             QHBoxLayout, QLabel, QSpinBox, QRadioButton, 
+from PyQt6.QtWidgets import (QFileDialog, QMessageBox, QDialog, QVBoxLayout,
+                             QHBoxLayout, QLabel, QSpinBox, QRadioButton,
                              QPushButton, QButtonGroup)
 from PyQt6.QtCore import Qt
 
 
 class DialogoNuevoArchivo(QDialog):
-    """Diálogo para configurar ancho, alto y fondo del nuevo lienzo"""
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Nuevo Lienzo")
@@ -15,7 +14,6 @@ class DialogoNuevoArchivo(QDialog):
         layout = QVBoxLayout(self)
         layout.setSpacing(8)
 
-        # 1. Ancho y Alto
         layout_ancho = QHBoxLayout()
         layout_ancho.addWidget(QLabel("Ancho (px):"))
         self.spin_ancho = QSpinBox()
@@ -33,7 +31,6 @@ class DialogoNuevoArchivo(QDialog):
         layout.addLayout(layout_ancho)
         layout.addLayout(layout_alto)
 
-        # 2. Opciones de Fondo (Exclusivas)
         layout.addWidget(QLabel("Color de Fondo:"))
         self.rad_blanco = QRadioButton("Fondo Blanco")
         self.rad_transparente = QRadioButton("Fondo Transparente")
@@ -46,7 +43,6 @@ class DialogoNuevoArchivo(QDialog):
         layout.addWidget(self.rad_blanco)
         layout.addWidget(self.rad_transparente)
 
-        # 3. Botones Aceptar / Cancelar
         layout_btns = QHBoxLayout()
         btn_ok = QPushButton("Crear")
         btn_cancel = QPushButton("Cancelar")
@@ -62,13 +58,22 @@ class DialogoNuevoArchivo(QDialog):
         return (
             self.spin_ancho.value(),
             self.spin_alto.value(),
-            self.rad_transparente.isChecked()  # True si es transparente
+            self.rad_transparente.isChecked()
         )
 
 
 class MenuArchivo:
     def __init__(self, ventana_principal):
         self.ventana = ventana_principal
+
+    def obtener_home_real(self):
+        """Devuelve el home del usuario real incluso si se ejecuta con sudo"""
+        usuario_real = os.environ.get('SUDO_USER') or os.environ.get('LOGNAME') or os.environ.get('USER')
+        if usuario_real and usuario_real != 'root':
+            ruta_home = os.path.join('/home', usuario_real)
+            if os.path.exists(ruta_home):
+                return ruta_home
+        return os.path.expanduser("~")
 
     def crear_menu(self, menu_bar):
         menu_archivo = menu_bar.addMenu("Archivo")
@@ -80,6 +85,10 @@ class MenuArchivo:
         accion_abrir = menu_archivo.addAction("Abrir...")
         accion_abrir.setShortcut("Ctrl+O")
         accion_abrir.triggered.connect(self.abrir_archivo)
+
+        accion_insertar = menu_archivo.addAction("Insertar...")
+        accion_insertar.setShortcut("Ctrl+I")
+        accion_insertar.triggered.connect(self.insertar_imagen)
 
         menu_archivo.addSeparator()
 
@@ -115,10 +124,12 @@ class MenuArchivo:
             if not self.confirmar_descarte_cambios():
                 return
 
+        dir_home = self.obtener_home_real()
+
         ruta, _ = QFileDialog.getOpenFileName(
             self.ventana,
             "Abrir Imagen",
-            "",
+            dir_home,
             "Imágenes (*.png *.jpg *.jpeg *.bmp);;Todos los archivos (*)"
         )
         if ruta:
@@ -127,27 +138,69 @@ class MenuArchivo:
                 self.ventana.lienzo_modificado = False
                 self.ventana.actualizar_titulo_ventana()
 
+    def insertar_imagen(self):
+        """Inserta una imagen sobre el lienzo actual como selección flotante"""
+        dir_home = self.obtener_home_real()
+
+        ruta, _ = QFileDialog.getOpenFileName(
+            self.ventana,
+            "Insertar Imagen",
+            dir_home,
+            "Imágenes (*.png *.jpg *.jpeg *.bmp);;Todos los archivos (*)"
+        )
+        if ruta:
+            if self.ventana.lienzo.insertar_imagen(ruta):
+                if hasattr(self.ventana, 'panel_herramientas'):
+                    self.ventana.panel_herramientas.seleccionar("seleccion")
+
     def guardar_como(self):
-        ruta_inicial = self.ventana.archivo_actual if self.ventana.archivo_actual else "sin_titulo.png"
-        ruta, _ = QFileDialog.getSaveFileName(
+        dir_home = self.obtener_home_real()
+
+        filtro_png = "Imagen PNG (*.png)"
+        filtro_jpg = "Imagen JPG (*.jpg *.jpeg)"
+        filtro_bmp = "Imagen BMP (*.bmp)"
+
+        filtros = f"{filtro_png};;{filtro_jpg};;{filtro_bmp}"
+
+        nombre_sugerido = "sin_titulo.png"
+        if self.ventana.archivo_actual:
+            nombre_sugerido = os.path.basename(self.ventana.archivo_actual)
+
+        ruta_inicial = os.path.join(dir_home, nombre_sugerido)
+
+        ruta_elegida, filtro_seleccionado = QFileDialog.getSaveFileName(
             self.ventana,
             "Guardar Imagen Como",
             ruta_inicial,
-            "Imagen PNG (*.png);;Imagen JPG (*.jpg *.jpeg);;Imagen BMP (*.bmp)"
+            filtros
         )
-        if ruta:
-            if self.ventana.lienzo.guardar_imagen(ruta):
-                self.ventana.archivo_actual = ruta
+
+        if ruta_elegida:
+            ext_por_defecto = {
+                filtro_png: ".png",
+                filtro_jpg: ".jpg",
+                filtro_bmp: ".bmp"
+            }
+
+            _, ext_actual = os.path.splitext(ruta_elegida)
+
+            # Si el usuario no escribió extensión, le asignamos la estándar según el filtro seleccionado
+            if not ext_actual:
+                extension_estandar = ext_por_defecto.get(filtro_seleccionado, ".png")
+                ruta_elegida += extension_estandar
+
+            if self.ventana.lienzo.guardar_imagen(ruta_elegida):
+                self.ventana.archivo_actual = ruta_elegida
                 self.ventana.lienzo_modificado = False
                 self.ventana.actualizar_titulo_ventana()
                 return True
+
         return False
 
     def guardar_archivo(self):
         if not self.ventana.archivo_actual:
             return self.guardar_como()
 
-        # Si el archivo ya existe, preguntamos si pisar, hacer copia o cancelar
         msg_box = QMessageBox(self.ventana)
         msg_box.setWindowTitle("Guardar Imagen")
         msg_box.setText("¿Desea guardar los cambios o generar una copia?")
@@ -173,18 +226,16 @@ class MenuArchivo:
                 self.ventana.actualizar_titulo_ventana()
                 return True
 
-        return False  # Cancelar no hace nada
+        return False
 
     def generar_nombre_copia(self, ruta_original):
         directorio, nombre_archivo = os.path.split(ruta_original)
         nombre_base, extension = os.path.splitext(nombre_archivo)
 
-        # Intento 1: "archivo copia.ext"
         candidato = os.path.join(directorio, f"{nombre_base} copia{extension}")
         if not os.path.exists(candidato):
             return candidato
 
-        # Intentos subsiguientes: "archivo copia 2.ext", "archivo copia 3.ext"...
         contador = 2
         while True:
             candidato = os.path.join(directorio, f"{nombre_base} copia {contador}{extension}")
@@ -200,11 +251,10 @@ class MenuArchivo:
             self.ventana.close()
 
     def confirmar_descarte_cambios(self):
-        """Muestra cuadro para Sí (guardar), No (descartar), Cancelar"""
         msg_box = QMessageBox(self.ventana)
         msg_box.setWindowTitle("Cambios no guardados")
         msg_box.setText("Se realizaron cambios en el lienzo. ¿Desea guardarlos antes de continuar?")
-        
+
         btn_si = msg_box.addButton("Sí", QMessageBox.ButtonRole.YesRole)
         btn_no = msg_box.addButton("No", QMessageBox.ButtonRole.NoRole)
         btn_cancelar = msg_box.addButton("Cancelar", QMessageBox.ButtonRole.RejectRole)
@@ -215,6 +265,6 @@ class MenuArchivo:
         if btn == btn_si:
             return self.guardar_archivo()
         elif btn == btn_no:
-            return True  # Continúa descartando
+            return True
         else:
-            return False  # Cancelar aborta la acción
+            return False

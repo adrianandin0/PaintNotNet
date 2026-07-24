@@ -34,7 +34,7 @@ class PaintNotNet(QMainWindow):
         self.crear_menus()
         self.actualizar_titulo_ventana()
 
-        # Shortcut Global para ESC (Garantiza que funcione sin romper el foco del texto)
+        # Shortcut Global para ESC
         self.shortcut_esc = QShortcut(QKeySequence(Qt.Key.Key_Escape), self)
         self.shortcut_esc.activated.connect(self.lienzo.cancelar_o_deseleccionar)
 
