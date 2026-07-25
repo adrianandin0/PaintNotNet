@@ -1,323 +1,133 @@
-import math
-from PyQt6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout, QLabel, 
-                             QLineEdit, QWidget, QGridLayout, QFrame)
-from PyQt6.QtGui import (QPainter, QColor, QPen, QIntValidator, QRegularExpressionValidator,
-                         QConicalGradient, QRadialGradient)
-from PyQt6.QtCore import Qt, QPointF, QRegularExpression, pyqtSignal
-
-class RuedaColor(QWidget):
-    colorCambiado = pyqtSignal(QColor, int)
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setFixedSize(80, 80)
-        self.hue = 0.0
-        self.sat = 0.0
-        self.val = 0.0
-
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        
-        radio = self.width() / 2.0
-        centro = QPointF(radio, radio)
-
-        cg = QConicalGradient(centro, 0.0)
-        for deg in range(0, 360, 30):
-            cg.setColorAt(deg / 360.0, QColor.fromHsvF(deg / 360.0, 1.0, 1.0))
-        cg.setColorAt(1.0, QColor.fromHsvF(0.0, 1.0, 1.0))
-        
-        painter.setBrush(cg)
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.drawEllipse(0, 0, self.width(), self.height())
-
-        rg = QRadialGradient(centro, radio)
-        rg.setColorAt(0.0, QColor(255, 255, 255, 255))
-        rg.setColorAt(1.0, QColor(255, 255, 255, 0))
-        
-        painter.setBrush(rg)
-        painter.drawEllipse(0, 0, self.width(), self.height())
-
-        angulo_rad = math.radians(self.hue * 360)
-        dist = self.sat * radio
-        px = int(centro.x() + dist * math.cos(angulo_rad))
-        py = int(centro.y() - dist * math.sin(angulo_rad))
-
-        painter.setPen(QPen(Qt.GlobalColor.black, 2))
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.drawEllipse(QPointF(px, py), 3, 3)
-        painter.setPen(QPen(Qt.GlobalColor.white, 1))
-        painter.drawEllipse(QPointF(px, py), 4, 4)
-
-    def mousePressEvent(self, event):
-        self.procesar_mouse(event.pos(), event.button())
-
-    def mouseMoveEvent(self, event):
-        if event.buttons() & (Qt.MouseButton.LeftButton | Qt.MouseButton.RightButton):
-            btn = Qt.MouseButton.LeftButton if (event.buttons() & Qt.MouseButton.LeftButton) else Qt.MouseButton.RightButton
-            self.procesar_mouse(event.pos(), btn)
-
-    def procesar_mouse(self, pos, boton):
-        radio = self.width() / 2.0
-        dx = pos.x() - radio
-        dy = radio - pos.y()
-        
-        dist = math.sqrt(dx * dx + dy * dy)
-        self.sat = min(1.0, dist / radio)
-        
-        angulo = math.atan2(dy, dx)
-        if angulo < 0:
-            angulo += 2 * math.pi
-        self.hue = angulo / (2 * math.pi)
-
-        color = QColor.fromHsvF(self.hue, self.sat, self.val)
-        btn_code = 1 if boton == Qt.MouseButton.LeftButton else 2
-        self.colorCambiado.emit(color, btn_code)
-        self.update()
-
-    def set_color(self, color):
-        h, s, v, _ = color.getHsvF()
-        if h >= 0: self.hue = h
-        self.sat = s
-        self.val = v if v > 0 else 1.0
-        self.update()
+from PyQt6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
+    QColorDialog, QGridLayout, QLabel, QFrame
+)
+from PyQt6.QtGui import QColor
+from PyQt6.QtCore import Qt, QSize, pyqtSignal
 
 
-class MuestraColoresActuales(QWidget):
-    def __init__(self):
+class PanelColores(QWidget):
+    """Panel flotante de colores adaptado a 66px de ancho."""
+    color_primario_cambiado = pyqtSignal(QColor)
+    color_secundario_cambiado = pyqtSignal(QColor)
+
+    def __init__(self, main_window=None):
         super().__init__()
-        self.setFixedSize(32, 32)
-        # COLOR PRINCIPAL INICIAL A NEGRO
-        self.color_principal = QColor(0, 0, 0)
-        self.color_secundario = QColor(255, 255, 255)
+        self.main_window = main_window
 
-    def set_colores(self, principal, secundario):
-        self.color_principal = principal
-        self.color_secundario = secundario
-        self.update()
+        self.color_primario = QColor(0, 0, 0)         # Negro por defecto
+        self.color_secundario = QColor(255, 255, 255) # Blanco por defecto
+        self.modo_color = "primario"                   # "primario" o "secundario"
 
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        layout = QVBoxLayout()
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.setSpacing(4)
 
-        painter.setBrush(self.color_secundario)
-        painter.setPen(QPen(QColor(180, 180, 180), 1))
-        painter.drawRect(10, 10, 18, 18)
+        # --- 1. Muestra de Colores Activos (Primario / Secundario) ---
+        muestra_layout = QHBoxLayout()
+        muestra_layout.setSpacing(2)
 
-        painter.setBrush(self.color_principal)
-        painter.setPen(QPen(QColor(255, 255, 255), 1))
-        painter.drawRect(2, 2, 18, 18)
+        self.btn_primario = QPushButton()
+        self.btn_primario.setFixedSize(26, 26)
+        self.btn_primario.setToolTip("Color Primario")
+        self.btn_primario.clicked.connect(lambda: self.set_modo("primario"))
 
+        self.btn_secundario = QPushButton()
+        self.btn_secundario.setFixedSize(26, 26)
+        self.btn_secundario.setToolTip("Color Secundario")
+        self.btn_secundario.clicked.connect(lambda: self.set_modo("secundario"))
 
-class MuestraColor(QFrame):
-    def __init__(self, color_hex, callback_clic, vacio=False):
-        super().__init__()
-        self.color = QColor(color_hex) if color_hex else QColor(0, 0, 0, 0)
-        self.vacio = vacio
-        self.callback_clic = callback_clic
-        self.setFixedSize(14, 14)
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.actualizar_aspecto()
+        muestra_layout.addWidget(self.btn_primario)
+        muestra_layout.addWidget(self.btn_secundario)
+        layout.addLayout(muestra_layout)
 
-    def actualizar_aspecto(self):
-        if self.vacio and self.color.alpha() == 0:
-            self.setStyleSheet("""
-                QFrame {
-                    background-color: transparent;
-                    border: 1px dashed #555555;
-                    margin: 0px;
-                }
-                QFrame:hover {
-                    border: 1px solid #2a82da;
-                    background-color: rgba(42, 130, 218, 0.2);
-                }
-            """)
-        else:
-            self.setStyleSheet(f"""
-                QFrame {{
-                    background-color: {self.color.name()};
-                    border: 1px solid #2b2b2b;
-                    margin: 0px;
-                }}
-                QFrame:hover {{
-                    border: 1px solid #ffffff;
-                }}
-            """)
+        # --- 2. Botón Abrir Rueda / Selector Avanzado ---
+        btn_mas_colores = QPushButton("Color...")
+        btn_mas_colores.setFixedHeight(22)
+        btn_mas_colores.setStyleSheet("font-size: 10px; padding: 0;")
+        btn_mas_colores.setToolTip("Abrir selector de color avanzado")
+        btn_mas_colores.clicked.connect(self.abrir_selector_dialogo)
+        layout.addWidget(btn_mas_colores)
 
-    def set_color(self, color):
-        self.color = color
-        self.vacio = False
-        self.actualizar_aspecto()
+        # --- 3. Paleta Rápida (4 Columnas x 10 Filas, Cuadritos de 10x10 px) ---
+        grid_paleta = QGridLayout()
+        grid_paleta.setSpacing(1)
 
-    def mousePressEvent(self, event):
-        btn_code = 1 if event.button() == Qt.MouseButton.LeftButton else 2
-        self.callback_clic(self, btn_code)
-
-
-class PanelColores(QGroupBox):
-    def __init__(self, callback_color_cambiado):
-        super().__init__("COLORES")
-        self.callback_color_cambiado = callback_color_cambiado
-        
-        # NEGRO POR DEFECTO
-        self.color_principal = QColor(0, 0, 0)
-        self.color_secundario = QColor(255, 255, 255)
-        self.bloquear_señales = False
-
-        layout_principal = QVBoxLayout(self)
-        layout_principal.setContentsMargins(4, 12, 4, 6)
-        layout_principal.setSpacing(2)
-
-        layout_rueda_y_muestra = QHBoxLayout()
-        layout_rueda_y_muestra.setSpacing(2)
-        layout_rueda_y_muestra.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        self.muestra_dual = MuestraColoresActuales()
-        self.rueda = RuedaColor()
-        self.rueda.colorCambiado.connect(self.al_cambiar_rueda)
-
-        layout_rueda_y_muestra.addWidget(self.muestra_dual)
-        layout_rueda_y_muestra.addWidget(self.rueda)
-        layout_principal.addLayout(layout_rueda_y_muestra)
-
-        colores_preset = [
-            "#000000", "#333333", "#666666", "#999999", "#CCCCCC", "#FFFFFF", "#4A2E19", "#8B5A2B", "#D2B48C",
-            "#800000", "#FF0000", "#FF4500", "#FF7F00", "#FFA500", "#FFD700", "#FFFF00", "#B8860B", "#D2691E",
-            "#006400", "#008000", "#00FF00", "#32CD32", "#00F5FF", "#00FFFF", "#00CED1", "#20B2AA", "#008B8B",
-            "#000080", "#0000FF", "#1E90FF", "#4169E1", "#8A2BE2", "#9400D3", "#FF00FF", "#C71585", "#FF69B4"
+        # 40 colores ordenados para la paleta compacta
+        paleta_colores = [
+            # Fila 1 a 5: Escala de Grises y Primarios
+            "#000000", "#404040", "#808080", "#C0C0C0",
+            "#FFFFFF", "#800000", "#FF0000", "#804000",
+            "#FF8000", "#808000", "#FFFF00", "#408000",
+            "#00FF00", "#008000", "#008040", "#00FF80",
+            "#008080", "#00FFFF", "#004080", "#0080FF",
+            # Fila 6 a 10: Azul, Violeta, Rosa y Tonos Piel/Cálidos
+            "#0000FF", "#000080", "#400080", "#8000FF",
+            "#800080", "#FF00FF", "#800040", "#FF0080",
+            "#400000", "#804040", "#FF8080", "#FFC0C0",
+            "#FFE0C0", "#806040", "#C08040", "#FFC080",
+            "#808040", "#FFFF80", "#80FF80", "#80FFFF"
         ]
 
-        grid_preset = QGridLayout()
-        grid_preset.setSpacing(0)
-        grid_preset.setContentsMargins(0, 0, 0, 0)
-        for i, color_hex in enumerate(colores_preset):
-            col_box = MuestraColor(color_hex, self.al_seleccionar_preset)
-            grid_preset.addWidget(col_box, i // 9, i % 9)
+        for idx, hex_color in enumerate(paleta_colores):
+            row = idx // 4
+            col = idx % 4
+            btn_color = QPushButton()
+            btn_color.setFixedSize(10, 10)
+            btn_color.setStyleSheet(f"background-color: {hex_color}; border: none;")
+            btn_color.clicked.connect(lambda checked, c=hex_color: self.seleccionar_hex_paleta(c))
+            grid_paleta.addWidget(btn_color, row, col)
 
-        layout_principal.addLayout(grid_preset)
+        layout.addLayout(grid_paleta)
 
-        linea_sep = QFrame()
-        linea_sep.setFrameShape(QFrame.Shape.HLine)
-        linea_sep.setStyleSheet("border: 1px solid #444444; margin: 2px 0;")
-        layout_principal.addWidget(linea_sep)
+        # --- 4. Información RGB / HEX Numérica Compacta ---
+        self.lbl_info = QLabel("R: 0 G: 0\nB: 0\n#000000")
+        self.lbl_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_info.setStyleSheet("font-size: 9px; color: #aaa; margin-top: 2px;")
+        layout.addWidget(self.lbl_info)
 
-        lbl_guardados = QLabel("GUARDADOS")
-        lbl_guardados.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_guardados.setStyleSheet("font-size: 8px; font-weight: bold; color: #2a82da;")
-        layout_principal.addWidget(lbl_guardados)
+        self.setLayout(layout)
 
-        self.slots_usuario = []
-        grid_usuario = QGridLayout()
-        grid_usuario.setSpacing(0)
-        grid_usuario.setContentsMargins(0, 0, 0, 0)
-        for i in range(9):
-            col_box = MuestraColor(None, self.al_clic_slot_guardado, vacio=True)
-            self.slots_usuario.append(col_box)
-            grid_usuario.addWidget(col_box, 0, i)
+        # Mismo ancho exacto que el panel de herramientas (66px)
+        self.setFixedWidth(66)
+        self.actualizar_vista_muestra()
 
-        layout_principal.addLayout(grid_usuario)
+    def set_modo(self, modo):
+        self.modo_color = modo
+        self.actualizar_vista_muestra()
 
-        grid_inputs = QGridLayout()
-        grid_inputs.setSpacing(1)
-        grid_inputs.setContentsMargins(0, 1, 0, 0)
+    def seleccionar_hex_paleta(self, hex_code):
+        color = QColor(hex_code)
+        self.aplicar_color(color)
 
-        validator_rgb = QIntValidator(0, 255)
-        regex_hex = QRegularExpression("^#?([a-fA-F0-9]{6})$")
-        validator_hex = QRegularExpressionValidator(regex_hex)
+    def abrir_selector_dialogo(self):
+        color_actual = self.color_primario if self.modo_color == "primario" else self.color_secundario
+        nuevo_color = QColorDialog.getColor(color_actual, self, "Seleccionar Color")
+        if nuevo_color.isValid():
+            self.aplicar_color(nuevo_color)
 
-        self.input_r = QLineEdit()
-        self.input_r.setValidator(validator_rgb)
-        self.input_r.setFixedWidth(28)
-        self.input_r.textChanged.connect(self.al_cambiar_inputs_rgb)
-
-        self.input_g = QLineEdit()
-        self.input_g.setValidator(validator_rgb)
-        self.input_g.setFixedWidth(28)
-        self.input_g.textChanged.connect(self.al_cambiar_inputs_rgb)
-
-        self.input_b = QLineEdit()
-        self.input_b.setValidator(validator_rgb)
-        self.input_b.setFixedWidth(28)
-        self.input_b.textChanged.connect(self.al_cambiar_inputs_rgb)
-
-        self.input_hex = QLineEdit()
-        self.input_hex.setValidator(validator_hex)
-        self.input_hex.setFixedWidth(46)
-        self.input_hex.textChanged.connect(self.al_cambiar_input_hex)
-
-        grid_inputs.addWidget(QLabel("R:"), 0, 0)
-        grid_inputs.addWidget(self.input_r, 0, 1)
-        grid_inputs.addWidget(QLabel("G:"), 0, 2)
-        grid_inputs.addWidget(self.input_g, 0, 3)
-        grid_inputs.addWidget(QLabel("B:"), 1, 0)
-        grid_inputs.addWidget(self.input_b, 1, 1)
-        grid_inputs.addWidget(QLabel("HEX:"), 1, 2)
-        grid_inputs.addWidget(self.input_hex, 1, 3)
-
-        layout_principal.addLayout(grid_inputs)
-        self.actualizar_inputs_desde_color(self.color_principal)
-
-    def al_cambiar_rueda(self, color, boton):
-        self.aplicar_cambio_color(color, boton)
-
-    def al_seleccionar_preset(self, widget, boton):
-        self.rueda.set_color(widget.color)
-        self.aplicar_cambio_color(widget.color, boton)
-
-    def al_clic_slot_guardado(self, widget, boton):
-        if widget.vacio:
-            color_a_guardar = self.color_principal if boton == 1 else self.color_secundario
-            widget.set_color(color_a_guardar)
-        else:
-            self.rueda.set_color(widget.color)
-            self.aplicar_cambio_color(widget.color, boton)
-
-    def aplicar_cambio_color(self, color, boton):
-        if boton == 1:
-            self.color_principal = color
-            self.actualizar_inputs_desde_color(color)
+    def aplicar_color(self, color):
+        if self.modo_color == "primario":
+            self.color_primario = color
+            if self.main_window and hasattr(self.main_window, 'canvas'):
+                self.main_window.canvas.color_primario = color
+            self.color_primario_cambiado.emit(color)
         else:
             self.color_secundario = color
+            if self.main_window and hasattr(self.main_window, 'canvas'):
+                self.main_window.canvas.color_secundario = color
+            self.color_secundario_cambiado.emit(color)
 
-        self.muestra_dual.set_colores(self.color_principal, self.color_secundario)
-        self.callback_color_cambiado(self.color_principal, self.color_secundario)
+        self.actualizar_vista_muestra()
 
-    def actualizar_inputs_desde_color(self, color):
-        self.bloquear_señales = True
-        self.input_r.setText(str(color.red()))
-        self.input_g.setText(str(color.green()))
-        self.input_b.setText(str(color.blue()))
-        self.input_hex.setText(color.name().upper())
-        self.bloquear_señales = False
+    def actualizar_vista_muestra(self):
+        # Borde blanco para indicar cuál está activo
+        style_pri = f"background-color: {self.color_primario.name()}; border: {'2px solid white' if self.modo_color == 'primario' else '1px solid #444'};"
+        style_sec = f"background-color: {self.color_secundario.name()}; border: {'2px solid white' if self.modo_color == 'secundario' else '1px solid #444'};"
 
-    def al_cambiar_inputs_rgb(self):
-        if self.bloquear_señales: return
-        r = int(self.input_r.text()) if self.input_r.text() else 0
-        g = int(self.input_g.text()) if self.input_g.text() else 0
-        b = int(self.input_b.text()) if self.input_b.text() else 0
-        self.color_principal = QColor(r, g, b)
-        self.rueda.set_color(self.color_principal)
-        self.muestra_dual.set_colores(self.color_principal, self.color_secundario)
-        
-        self.bloquear_señales = True
-        self.input_hex.setText(self.color_principal.name().upper())
-        self.bloquear_señales = False
-        
-        self.callback_color_cambiado(self.color_principal, self.color_secundario)
+        self.btn_primario.setStyleSheet(style_pri)
+        self.btn_secundario.setStyleSheet(style_sec)
 
-    def al_cambiar_input_hex(self):
-        if self.bloquear_señales: return
-        hex_val = self.input_hex.text()
-        if not hex_val.startswith("#"): hex_val = "#" + hex_val
-        if len(hex_val) == 7:
-            color = QColor(hex_val)
-            if color.isValid():
-                self.color_principal = color
-                self.rueda.set_color(color)
-                self.muestra_dual.set_colores(self.color_principal, self.color_secundario)
-                self.bloquear_señales = True
-                self.input_r.setText(str(color.red()))
-                self.input_g.setText(str(color.green()))
-                self.input_b.setText(str(color.blue()))
-                self.bloquear_señales = False
-                self.callback_color_cambiado(self.color_principal, self.color_secundario)
+        # Actualiza valores RGB / HEX del color activo
+        c = self.color_primario if self.modo_color == "primario" else self.color_secundario
+        self.lbl_info.setText(f"R:{c.red()} G:{c.green()}\nB:{c.blue()}\n{c.name().upper()}")
