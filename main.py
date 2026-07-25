@@ -11,6 +11,7 @@ from gui.text_panel import TextPanelWidget
 from gui.menu_archivo import MenuArchivo
 from gui.menu_editar import MenuEditar
 from gui.menu_imagen import MenuImagen
+from gui.layers_panel import LayersPanelWidget
 
 class PaintNotNet(QMainWindow):
     def __init__(self):
@@ -56,6 +57,20 @@ class PaintNotNet(QMainWindow):
         self.text_dock.setFixedHeight(225)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.text_dock)
 
+        # ==========================================
+        # 4. NUEVO: Dock de Capas (A la derecha)
+        # ==========================================
+        self.layers_dock = QDockWidget("Capas", self)
+        self.layers_dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
+        self.layers_panel = LayersPanelWidget(main_window=self)
+        self.layers_dock.setWidget(self.layers_panel)
+        self.layers_dock.setFixedWidth(148)
+        self.layers_dock.setFixedHeight(320)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.layers_dock)
+
+        # Apilar el panel de capas DEBAJO del panel de texto
+        self.splitDockWidget(self.text_dock, self.layers_dock, Qt.Orientation.Vertical)
+
         self.setWindowIcon(QIcon("gui/icono.png"))
 
         # ==========================================
@@ -66,6 +81,7 @@ class PaintNotNet(QMainWindow):
         self.area_scroll.setWidgetResizable(False)
 
         self.canvas = CanvasWidget(800, 600)
+        self.canvas.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.lienzo = self.canvas  # <--- AGREGAR ESTA LÍNEA AQUÍ
         self.canvas.callback_modificado = self.marcar_modificado
 
@@ -83,9 +99,18 @@ class PaintNotNet(QMainWindow):
         self.crear_menus()
         self.actualizar_titulo_ventana()
 
-        # Shortcut Global para ESC
+        # --- DENTRO DEL __init__ DE TU MAINWINDOW ---
         self.shortcut_esc = QShortcut(QKeySequence(Qt.Key.Key_Escape), self)
-        self.shortcut_esc.activated.connect(self.canvas.cancelar_o_deseleccionar)
+        self.shortcut_esc.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        self.shortcut_esc.activated.connect(self._ejecutar_escape_global)
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Escape:
+            if hasattr(self, 'canvas') and hasattr(self.canvas.active_tool_obj, 'commit_text'):
+                self.canvas.active_tool_obj.commit_text(self.canvas, self.canvas.color_primario)
+                self.canvas.update()
+                return
+        super().keyPressEvent(event)
 
     def marcar_modificado(self):
         if not self.lienzo_modificado:
@@ -109,13 +134,17 @@ class PaintNotNet(QMainWindow):
         self.menu_imagen = MenuImagen(self)
         self.menu_imagen.crear_menu(menu_bar)
 
+    def _ejecutar_escape_global(self):
+        if hasattr(self, 'canvas') and hasattr(self.canvas.active_tool_obj, 'commit_text'):
+            self.canvas.active_tool_obj.commit_text(self.canvas, self.canvas.color_primario)
+            self.canvas.update()
+
     def closeEvent(self, event: QCloseEvent):
         if hasattr(self, 'menu_archivo'):
             if not self.menu_archivo.confirmar_descarte_cambios():
                 event.ignore()
                 return
         event.accept()
-
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

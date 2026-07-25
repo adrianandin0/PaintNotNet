@@ -14,8 +14,8 @@ class LightDirectionWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setFixedSize(32, 32)
-        self.light_x = 0.7
-        self.light_y = 0.7
+        self.light_x = 0.0
+        self.light_y = 0.0
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -251,3 +251,4 @@ class TextPanelWidget(QWidget):
         self.text_config_changed.emit(config)
         if self.main_window and hasattr(self.main_window, 'canvas'):
             self.main_window.canvas.actualizar_config_texto(config)
+            self.main_window.canvas.update()  # <--- FORZAR REDIBUJADO EN TIEMPO REAL

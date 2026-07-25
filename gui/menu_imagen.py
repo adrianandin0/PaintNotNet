@@ -1,14 +1,80 @@
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
                              QSpinBox, QCheckBox, QRadioButton, QPushButton,
-                             QButtonGroup)
+                             QButtonGroup, QGroupBox, QGridLayout)
 from PyQt6.QtCore import Qt
 
 
+class AnclajeWidget(QGroupBox):
+    """Matriz 3x3 de botones para elegir hacia dónde se expande/achica el lienzo."""
+    def __init__(self, parent=None):
+        super().__init__("Anclaje", parent)
+
+        layout = QGridLayout(self)
+        layout.setSpacing(3)
+        layout.setContentsMargins(8, 8, 8, 8)
+
+        self.button_group = QButtonGroup(self)
+
+        # Mapeo de posiciones (Fila, Columna) -> (ID, Ícono/Flecha)
+        self.anchors = {
+            (0, 0): ("top-left", "↖"),
+            (0, 1): ("top-center", "↑"),
+            (0, 2): ("top-right", "↗"),
+            (1, 0): ("middle-left", "←"),
+            (1, 1): ("center", "•"),
+            (1, 2): ("middle-right", "→"),
+            (2, 0): ("bottom-left", "↙"),
+            (2, 1): ("bottom-center", "↓"),
+            (2, 2): ("bottom-right", "↘"),
+        }
+
+        self.selected_anchor = "top-left"  # Por defecto arriba-izquierda
+
+        btn_style = """
+            QPushButton {
+                background-color: #3b3b3b;
+                color: #ffffff;
+                border: 1px solid #555555;
+                font-weight: bold;
+                font-size: 13px;
+                border-radius: 3px;
+            }
+            QPushButton:checked {
+                background-color: #007acc;
+                border: 1px solid #00aaff;
+            }
+            QPushButton:hover {
+                background-color: #4f4f4f;
+            }
+        """
+
+        for (r, c), (anchor_id, label) in self.anchors.items():
+            btn = QPushButton(label)
+            btn.setCheckable(True)
+            btn.setFixedSize(28, 28)
+            btn.setStyleSheet(btn_style)
+            btn.setProperty("anchor_id", anchor_id)
+
+            if anchor_id == self.selected_anchor:
+                btn.setChecked(True)
+
+            self.button_group.addButton(btn)
+            layout.addWidget(btn, r, c)
+
+        self.button_group.buttonClicked.connect(self._on_button_clicked)
+
+    def _on_button_clicked(self, button):
+        self.selected_anchor = button.property("anchor_id")
+
+    def obtener_anclaje(self):
+        return self.selected_anchor
+
+
 class DialogoTamanoBase(QDialog):
-    def __init__(self, titulo, ancho_actual, alto_actual, parent=None):
+    def __init__(self, titulo, ancho_actual, alto_actual, parent=None, incluir_anclaje=False):
         super().__init__(parent)
         self.setWindowTitle(titulo)
-        self.setFixedWidth(280)
+        self.setFixedWidth(290)
         self.ancho_orig = ancho_actual
         self.alto_orig = alto_actual
         self.ratio = ancho_actual / float(alto_actual) if alto_actual > 0 else 1.0
@@ -52,6 +118,12 @@ class DialogoTamanoBase(QDialog):
         self.chk_proporcional = QCheckBox("Mantener proporciones")
         self.chk_proporcional.setChecked(True)
         layout.addWidget(self.chk_proporcional)
+
+        # Anclaje (Solo si se solicita, ej: Tamaño del Lienzo)
+        self.widget_anclaje = None
+        if incluir_anclaje:
+            self.widget_anclaje = AnclajeWidget(self)
+            layout.addWidget(self.widget_anclaje, alignment=Qt.AlignmentFlag.AlignCenter)
 
         # Conectar Eventos
         self.rad_px.toggled.connect(self.cambiar_modo)
@@ -112,6 +184,11 @@ class DialogoTamanoBase(QDialog):
             return ancho_f, alto_f
         return val_w, val_h
 
+    def obtener_anclaje(self):
+        if self.widget_anclaje:
+            return self.widget_anclaje.obtener_anclaje()
+        return "top-left"
+
 
 class MenuImagen:
     def __init__(self, ventana_principal):
@@ -144,14 +221,15 @@ class MenuImagen:
 
     def cambiar_tamano_lienzo(self):
         lienzo = self.ventana.lienzo
-        dialogo = DialogoTamanoBase("Tamaño del Lienzo", lienzo.width(), lienzo.height(), self.ventana)
+        dialogo = DialogoTamanoBase("Tamaño del Lienzo", lienzo.width(), lienzo.height(), self.ventana, incluir_anclaje=True)
         if dialogo.exec() == QDialog.DialogCode.Accepted:
             nuevo_w, nuevo_h = dialogo.obtener_dimensiones_finales()
-            lienzo.redimensionar_lienzo(nuevo_w, nuevo_h)
+            anclaje = dialogo.obtener_anclaje()
+            lienzo.redimensionar_lienzo(nuevo_w, nuevo_h, anchor=anclaje)
 
     def cambiar_tamano_imagen(self):
         lienzo = self.ventana.lienzo
-        dialogo = DialogoTamanoBase("Tamaño de la Imagen", lienzo.width(), lienzo.height(), self.ventana)
+        dialogo = DialogoTamanoBase("Tamaño de la Imagen", lienzo.width(), lienzo.height(), self.ventana, incluir_anclaje=False)
         if dialogo.exec() == QDialog.DialogCode.Accepted:
             nuevo_w, nuevo_h = dialogo.obtener_dimensiones_finales()
             lienzo.escalar_imagen(nuevo_w, nuevo_h)
