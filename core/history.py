@@ -1,28 +1,48 @@
 class HistoryManager:
-    """Maneja las pilas de Undo / Redo."""
-    def __init__(self, max_states=30):
+    """Maneja el historial lineal no destructivo de modificaciones con rama activa."""
+    def __init__(self, max_states=20):
         self.max_states = max_states
-        self.undo_stack = []
-        self.redo_stack = []
+        self.history_stack = []
+        self.current_index = -1
+        self.on_change = None
 
-    def push_state(self, state):
-        self.undo_stack.append(state)
-        if len(self.undo_stack) > self.max_states:
-            self.undo_stack.pop(0)
-        self.redo_stack.clear()
+    def push_state(self, state, action_name="Acción"):
+        if self.current_index < len(self.history_stack) - 1:
+            self.history_stack = self.history_stack[:self.current_index + 1]
 
-    def undo(self, current_state):
-        if not self.undo_stack:
-            return None
-        self.redo_stack.append(current_state)
-        return self.undo_stack.pop()
+        self.history_stack.append((state, action_name))
+        if len(self.history_stack) > self.max_states:
+            self.history_stack.pop(0)
 
-    def redo(self, current_state):
-        if not self.redo_stack:
-            return None
-        self.undo_stack.append(current_state)
-        return self.redo_stack.pop()
+        self.current_index = len(self.history_stack) - 1
+        self._notify()
+
+    def undo(self, current_state=None):
+        if self.current_index > 0:
+            self.current_index -= 1
+            self._notify()
+            return self.history_stack[self.current_index][0]
+        return None
+
+    def redo(self, current_state=None):
+        if self.current_index < len(self.history_stack) - 1:
+            self.current_index += 1
+            self._notify()
+            return self.history_stack[self.current_index][0]
+        return None
+
+    def jump_to_index(self, index):
+        if 0 <= index < len(self.history_stack):
+            self.current_index = index
+            self._notify()
+            return self.history_stack[self.current_index][0]
+        return None
 
     def clear(self):
-        self.undo_stack.clear()
-        self.redo_stack.clear()
+        self.history_stack.clear()
+        self.current_index = -1
+        self._notify()
+
+    def _notify(self):
+        if callable(self.on_change):
+            self.on_change()

@@ -1,4 +1,4 @@
-from PyQt6.QtGui import QPainter, QFont, QPen, QColor, QFontMetrics, QPainterPath
+from PyQt6.QtGui import QPainter, QFont, QPen, QColor, QFontMetrics, QPainterPath, QBrush
 from PyQt6.QtCore import Qt, QPoint, QRect, QObject, QEvent
 from tools.base_tool import BaseTool
 
@@ -144,12 +144,17 @@ class TextTool(BaseTool, QObject):
     def _render_text_effects(self, painter, canvas, color_primario, is_commit=False):
         cfg = self._get_config_dict(canvas)
 
-        font = QFont(
-            cfg.get("font_family", "Arial"),
-            cfg.get("font_size", 24),
-            QFont.Weight.Bold if cfg.get("bold", False) else QFont.Weight.Normal,
-            cfg.get("italic", False)
-        )
+        font_obj = cfg.get("font", None)
+        if isinstance(font_obj, QFont):
+            font = QFont(font_obj)
+            font.setPointSize(cfg.get("size", cfg.get("font_size", 24)))
+        else:
+            family = cfg.get("font_family", "Arial")
+            size = cfg.get("size", cfg.get("font_size", 24))
+            font = QFont(family, size)
+
+        font.setBold(cfg.get("bold", False))
+        font.setItalic(cfg.get("italic", False))
         font.setUnderline(cfg.get("underline", False))
         font.setStrikeOut(cfg.get("strike", False))
 
@@ -160,48 +165,81 @@ class TextTool(BaseTool, QObject):
         line_height = metrics.height()
 
         # Config de Borde
-        borde_enabled = cfg.get("borde_enabled", False)
+        borde_enabled = cfg.get("has_borde", cfg.get("borde_enabled", False))
         borde_size = cfg.get("borde_size", 3)
         color_secundario = getattr(canvas, 'color_secundario', QColor(255, 255, 255))
 
-        # Config de Resplandor / Glow Sombra
-        sombra_enabled = cfg.get("sombra_enabled", False)
-        off_x = int(cfg.get("sombra_offset_x", 0))
-        off_y = int(cfg.get("sombra_offset_y", 0))
+        # Config de Sombra
+        sombra_enabled = cfg.get("has_sombra", cfg.get("sombra_enabled", False))
+        sombra_dist = cfg.get("sombra_dist", 5)
+        sombra_color = cfg.get("sombra_color", QColor(0, 0, 0))
+        sombra_dx = cfg.get("sombra_dx", 0.0)
+        sombra_dy = cfg.get("sombra_dy", 0.0)
 
+        if "sombra_offset_x" in cfg:
+            off_x = cfg["sombra_offset_x"]
+            off_y = cfg["sombra_offset_y"]
+        else:
+            off_x = sombra_dx * sombra_dist
         y = self.pos.y()
         for idx, line in enumerate(self.text_lines):
             x = self.pos.x()
 
             if line:
-                # 1. RESPLANDOR EXTERNO / OUTER GLOW (Capas concéntricas para difusión suave)
+                # 1. RESPLANDOR NEÓN (Degradado con sombra_color desde el texto hasta el radio de sombra_dist)
                 if sombra_enabled:
-                    glow_steps = 4
-                    base_alpha = 120 // glow_steps
-                    for step in range(glow_steps, 0, -1):
-                        glow_path = QPainterPath()
-                        # Si off_x y off_y son 0 (luz al centro), el glow se expande parejo a todos los lados
-                        glow_path.addText(x + (off_x * step / glow_steps), y + (off_y * step / glow_steps), font, line)
+                    glow_radius = max(1, int(sombra_dist))
 
-                        glow_pen = QPen(
-                            QColor(0, 0, 0, base_alpha),
-                            step * 2,
+                    # El origen del resplandor se desplaza según la fuente de luz
+                    max_offset = min(glow_radius * 0.3, 40.0)
+                    cx = x + (sombra_dx * max_offset)
+                    cy = y + (sombra_dy * max_offset)
+
+                    num_steps = min(glow_radius, 30)
+                    step_size = max(1, glow_radius // num_steps)
+
+                    for r in range(glow_radius, 0, -step_size):
+                        t = r / glow_radius
+                        alpha = int(210 * ((1.0 - t) ** 1.5))
+                        if alpha <= 0:
+                            continue
+
+                        glow_path = QPainterPath()
+                        glow_path.addText(cx, cy, font, line)
+
+                        pen_color = QColor(
+                            sombra_color.red(),
+                            sombra_color.green(),
+                            sombra_color.blue(),
+                            min(255, alpha)
+                        )
+
+                        pen_glow = QPen(
+                            pen_color,
+                            r * 2,
                             Qt.PenStyle.SolidLine,
                             Qt.PenCapStyle.RoundCap,
                             Qt.PenJoinStyle.RoundJoin
                         )
-                        painter.strokePath(glow_path, glow_pen)
+                        painter.strokePath(glow_path, pen_glow)
 
                 # 2. BORDE CON COLOR SECUNDARIO
                 if borde_enabled:
                     path = QPainterPath()
                     path.addText(x, y, font, line)
-                    pen_borde = QPen(color_secundario, borde_size, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+                    pen_borde = QPen(
+                        color_secundario,
+                        borde_size * 2,
+                        Qt.PenStyle.SolidLine,
+                        Qt.PenCapStyle.RoundCap,
+                        Qt.PenJoinStyle.RoundJoin
+                    )
                     painter.strokePath(path, pen_borde)
 
                 # 3. TEXTO PRINCIPAL
-                painter.setPen(color_primario)
-                painter.drawText(x, y, line)
+                path_main = QPainterPath()
+                path_main.addText(x, y, font, line)
+                painter.fillPath(path_main, QBrush(color_primario))
 
             # 4. CURSOR INTERACTIVO
             if not is_commit and idx == self.cursor_line:
@@ -245,7 +283,7 @@ class TextTool(BaseTool, QObject):
 
     def _get_bounding_rect(self, canvas):
         cfg = self._get_config_dict(canvas)
-        font = QFont(cfg.get("font_family", "Arial"), cfg.get("font_size", 24))
+        font = QFont(cfg.get("font_family", "Arial"), cfg.get("size", cfg.get("font_size", 24)))
         metrics = QFontMetrics(font)
 
         max_width = 100
@@ -253,4 +291,10 @@ class TextTool(BaseTool, QObject):
             max_width = max(max_width, metrics.horizontalAdvance(line))
 
         total_height = max(metrics.height(), len(self.text_lines) * metrics.height())
-        return QRect(self.pos.x() - 10, self.pos.y() - metrics.ascent() - 10, max_width + 20, total_height + 20)
+
+        margin = 20
+        if cfg.get("has_sombra", False) or cfg.get("sombra_enabled", False):
+            glow_r = int(cfg.get("sombra_dist", 5))
+            margin += min(glow_r * 2, 200)
+
+        return QRect(self.pos.x() - margin // 2, self.pos.y() - metrics.ascent() - margin // 2, max_width + margin, total_height + margin)

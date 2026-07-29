@@ -7,11 +7,19 @@ from PyQt6.QtCore import Qt
 class AnclajeWidget(QGroupBox):
     """Matriz 3x3 de botones para elegir hacia dónde se expande/achica el lienzo."""
     def __init__(self, parent=None):
-        super().__init__("Anclaje", parent)
+        super().__init__("", parent)
+        self.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #444444;
+                border-radius: 4px;
+                margin-top: 4px;
+                padding-top: 4px;
+            }
+        """)
 
         layout = QGridLayout(self)
         layout.setSpacing(3)
-        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setContentsMargins(6, 6, 6, 6)
 
         self.button_group = QButtonGroup(self)
 
@@ -133,6 +141,8 @@ class DialogoTamanoBase(QDialog):
         # Botones Confirmar / Cancelar
         layout_btns = QHBoxLayout()
         btn_ok = QPushButton("Aceptar")
+        btn_ok.setDefault(True)
+        btn_ok.setAutoDefault(True)
         btn_cancel = QPushButton("Cancelar")
         btn_ok.clicked.connect(self.accept)
         btn_cancel.clicked.connect(self.reject)
@@ -141,6 +151,12 @@ class DialogoTamanoBase(QDialog):
         layout.addLayout(layout_btns)
 
         self._bloqueo_signals = False
+
+    def keyPressEvent(self, event):
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            self.accept()
+            return
+        super().keyPressEvent(event)
 
     def cambiar_modo(self):
         self._bloqueo_signals = True
@@ -221,7 +237,7 @@ class MenuImagen:
 
     def cambiar_tamano_lienzo(self):
         lienzo = self.ventana.lienzo
-        dialogo = DialogoTamanoBase("Tamaño del Lienzo", lienzo.width(), lienzo.height(), self.ventana, incluir_anclaje=True)
+        dialogo = DialogoTamanoBase("Tamaño del Lienzo", lienzo.layer_mgr.width, lienzo.layer_mgr.height, self.ventana, incluir_anclaje=True)
         if dialogo.exec() == QDialog.DialogCode.Accepted:
             nuevo_w, nuevo_h = dialogo.obtener_dimensiones_finales()
             anclaje = dialogo.obtener_anclaje()
@@ -229,7 +245,18 @@ class MenuImagen:
 
     def cambiar_tamano_imagen(self):
         lienzo = self.ventana.lienzo
-        dialogo = DialogoTamanoBase("Tamaño de la Imagen", lienzo.width(), lienzo.height(), self.ventana, incluir_anclaje=False)
-        if dialogo.exec() == QDialog.DialogCode.Accepted:
-            nuevo_w, nuevo_h = dialogo.obtener_dimensiones_finales()
-            lienzo.escalar_imagen(nuevo_w, nuevo_h)
+        engine = lienzo.selection_engine
+
+        if engine.has_selection():
+            sel_rect = engine.active_rect
+            ancho_init = max(1, int(round(sel_rect.width())))
+            alto_init = max(1, int(round(sel_rect.height())))
+            dialogo = DialogoTamanoBase("Tamaño de la Selección", ancho_init, alto_init, self.ventana, incluir_anclaje=False)
+            if dialogo.exec() == QDialog.DialogCode.Accepted:
+                nuevo_w, nuevo_h = dialogo.obtener_dimensiones_finales()
+                lienzo.escalar_seleccion(nuevo_w, nuevo_h)
+        else:
+            dialogo = DialogoTamanoBase("Tamaño de la Imagen", lienzo.layer_mgr.width, lienzo.layer_mgr.height, self.ventana, incluir_anclaje=False)
+            if dialogo.exec() == QDialog.DialogCode.Accepted:
+                nuevo_w, nuevo_h = dialogo.obtener_dimensiones_finales()
+                lienzo.escalar_imagen(nuevo_w, nuevo_h)

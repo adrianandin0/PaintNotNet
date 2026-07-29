@@ -4,11 +4,18 @@ class BaseTool:
         self.name = name
         self.icon_path = icon_path
 
-    def mouse_press(self, canvas, event):
+    def mouse_press(self, canvas, event, color_activo=None):
         pass
 
-    def mouse_move(self, canvas, event):
+    def mouse_move(self, canvas, event, color_activo=None):
         pass
 
-    def mouse_release(self, canvas, event):
+    def mouse_release(self, canvas, event, color_activo=None):
         pass
+
+    def draw_preview(self, painter, canvas):
+        pass
+
+    def key_press(self, canvas, event, color_activo=None):
+        return False
+

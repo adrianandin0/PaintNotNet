@@ -14,6 +14,9 @@ from tools.brush import BrushTool
 from tools.eyedropper import EyedropperTool
 from tools.pencil import PencilTool
 from tools.text import TextTool
+from tools.magic_wand import MagicWandTool
+from tools.line import LineTool
+from tools.gradient import GradientTool
 from tools.placeholder import PlaceholderTool
 
 
@@ -36,27 +39,36 @@ class ToolPanelWidget(QWidget):
             [SelectRectTool(), MoveSelectOnlyTool()],
             [SelectFreeTool(), MoveSelectPixelsTool()],
             [SelectEllipseTool(), ZoomTool()],
-            [BucketTool(), EraserTool()],
+            [BucketTool(), GradientTool()],
             [BrushTool(), EyedropperTool()],
-            [PencilTool(), TextTool()],
-            [PlaceholderTool(1), PlaceholderTool(2)],
-            [PlaceholderTool(3), PlaceholderTool(4)],
+            [PencilTool(), EraserTool()],
+            [MagicWandTool(), LineTool()],
+            [TextTool(), PlaceholderTool(4)],
             [PlaceholderTool(5), PlaceholderTool(6)],
         ]
+
+        def _make_tool_handler(tool_obj):
+            return lambda *args: self.select_tool(tool_obj)
 
         for row_idx, row in enumerate(self.tools_grid):
             for col_idx, tool in enumerate(row):
                 btn = QToolButton()
                 btn.setCheckable(True)
                 btn.setToolTip(tool.name)
-                btn.setFixedSize(32, 32) # Botones algo más amplios para el ancho 82px
+                btn.setProperty("tool_obj", tool)
+                btn.setFixedSize(32, 32)
                 btn.setIconSize(QSize(24, 24))
 
-                btn.setIcon(QIcon(tool.icon_path))
-                btn.clicked.connect(lambda checked, t=tool: self.select_tool(t))
+                if tool.icon_path:
+                    btn.setIcon(QIcon(tool.icon_path))
+                btn.clicked.connect(_make_tool_handler(tool))
+
+                if isinstance(tool, PencilTool):
+                    btn.setChecked(True)
 
                 self.button_group.addButton(btn)
                 grid.addWidget(btn, row_idx, col_idx)
+
 
         layout.addLayout(grid)
         layout.addStretch() # Empuja todo suavemente arriba

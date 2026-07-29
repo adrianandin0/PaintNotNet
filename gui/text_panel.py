@@ -1,10 +1,21 @@
 import math
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
-    QSpinBox, QFontComboBox, QCheckBox, QGroupBox, QSizePolicy
+    QSpinBox, QFontComboBox, QCheckBox, QGroupBox, QColorDialog
 )
 from PyQt6.QtGui import QFont, QPainter, QBrush, QPen, QColor
-from PyQt6.QtCore import Qt, QPointF, pyqtSignal
+from PyQt6.QtCore import Qt, QPointF, pyqtSignal, QSettings
+
+
+class ShadowColorButton(QPushButton):
+    """Botón inteligente para casilleros de sombra con soporte para clic izq, der, Shift y Ctrl."""
+    color_interacted = pyqtSignal(Qt.MouseButton, bool, bool)
+
+    def mousePressEvent(self, event):
+        is_shift = bool(event.modifiers() & Qt.KeyboardModifier.ShiftModifier)
+        is_ctrl = bool(event.modifiers() & Qt.KeyboardModifier.ControlModifier)
+        self.color_interacted.emit(event.button(), is_shift, is_ctrl)
+        super().mousePressEvent(event)
 
 
 class LightDirectionWidget(QWidget):
@@ -13,7 +24,7 @@ class LightDirectionWidget(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedSize(32, 32)
+        self.setFixedSize(22, 22)
         self.light_x = 0.0
         self.light_y = 0.0
 
@@ -24,21 +35,17 @@ class LightDirectionWidget(QWidget):
         radius = (self.width() - 4) / 2.0
         center = QPointF(self.width() / 2.0, self.height() / 2.0)
 
-        # Fondo circular
         painter.setBrush(QBrush(QColor("#2B2B2B")))
         painter.setPen(QPen(QColor("#555555"), 1))
         painter.drawEllipse(center, radius, radius)
 
-        # Guías de centro
         painter.setPen(QPen(QColor("#444444"), 1, Qt.PenStyle.DashLine))
         painter.drawLine(int(center.x()), 2, int(center.x()), self.height() - 2)
         painter.drawLine(2, int(center.y()), self.width() - 2, int(center.y()))
 
-        # Posición de la bolita
         ix = center.x() + (self.light_x * radius)
         iy = center.y() + (self.light_y * radius)
 
-        # Bolita indicadora
         painter.setBrush(QBrush(QColor("#00AAFF")))
         painter.setPen(QPen(Qt.GlobalColor.white, 1))
         painter.drawEllipse(QPointF(ix, iy), 3.0, 3.0)
@@ -71,7 +78,7 @@ class LightDirectionWidget(QWidget):
 
 
 class TextPanelWidget(QWidget):
-    """Panel de configuración de texto con diseño optimizado."""
+    """Panel de configuración de texto con esfera de sombra elevada."""
     text_config_changed = pyqtSignal(dict)
 
     def __init__(self, main_window=None):
@@ -86,25 +93,25 @@ class TextPanelWidget(QWidget):
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         # --- 1. Fuente y Tamaño ---
-        lbl_fuente = QLabel("FUENTE:")
+        lbl_fuente = QLabel("Fuente:")
         lbl_fuente.setStyleSheet(lbl_style)
         layout.addWidget(lbl_fuente)
 
         self.font_combo = QFontComboBox()
-        self.font_combo.setFixedHeight(18)
+        self.font_combo.setFixedHeight(20)
         self.font_combo.setStyleSheet("font-size: 9px; color: #FFFFFF;")
         self.font_combo.currentFontChanged.connect(self.emitir_configuracion)
         layout.addWidget(self.font_combo)
 
         tam_layout = QHBoxLayout()
         tam_layout.setSpacing(2)
-        lbl_tam = QLabel("TAMAÑO:")
+        lbl_tam = QLabel("Tamaño:")
         lbl_tam.setStyleSheet(lbl_style)
 
         self.spin_size = QSpinBox()
         self.spin_size.setRange(1, 9999)
         self.spin_size.setValue(24)
-        self.spin_size.setFixedHeight(18)
+        self.spin_size.setFixedHeight(20)
         self.spin_size.setStyleSheet("font-size: 9px; color: #FFFFFF;")
         self.spin_size.valueChanged.connect(self.emitir_configuracion)
 
@@ -119,26 +126,26 @@ class TextPanelWidget(QWidget):
 
         self.btn_bold = QPushButton("B")
         self.btn_bold.setCheckable(True)
-        self.btn_bold.setFixedSize(22, 18)
-        self.btn_bold.setStyleSheet("font-weight: bold; font-size: 10px; color: #FFFFFF;")
+        self.btn_bold.setFixedSize(25, 21)
+        self.btn_bold.setStyleSheet("font-weight: bold; font-size: 11px; color: #FFFFFF;")
         self.btn_bold.toggled.connect(self.emitir_configuracion)
 
         self.btn_italic = QPushButton("I")
         self.btn_italic.setCheckable(True)
-        self.btn_italic.setFixedSize(22, 18)
-        self.btn_italic.setStyleSheet("font-style: italic; font-size: 10px; color: #FFFFFF;")
+        self.btn_italic.setFixedSize(25, 21)
+        self.btn_italic.setStyleSheet("font-style: italic; font-size: 11px; color: #FFFFFF;")
         self.btn_italic.toggled.connect(self.emitir_configuracion)
 
         self.btn_underline = QPushButton("U")
         self.btn_underline.setCheckable(True)
-        self.btn_underline.setFixedSize(22, 18)
-        self.btn_underline.setStyleSheet("text-decoration: underline; font-size: 10px; color: #FFFFFF;")
+        self.btn_underline.setFixedSize(25, 21)
+        self.btn_underline.setStyleSheet("text-decoration: underline; font-size: 11px; color: #FFFFFF;")
         self.btn_underline.toggled.connect(self.emitir_configuracion)
 
         self.btn_strike = QPushButton("S")
         self.btn_strike.setCheckable(True)
-        self.btn_strike.setFixedSize(22, 18)
-        self.btn_strike.setStyleSheet("text-decoration: line-through; font-size: 10px; color: #FFFFFF;")
+        self.btn_strike.setFixedSize(25, 21)
+        self.btn_strike.setStyleSheet("text-decoration: line-through; font-size: 11px; color: #FFFFFF;")
         self.btn_strike.toggled.connect(self.emitir_configuracion)
 
         styles_layout.addWidget(self.btn_bold)
@@ -147,32 +154,31 @@ class TextPanelWidget(QWidget):
         styles_layout.addWidget(self.btn_strike)
         layout.addLayout(styles_layout)
 
-        # Style estandarizado de GroupBox con Título Blanco
         group_style = (
-            "QGroupBox { font-size: 9px; color: #FFFFFF; font-weight: normal; margin-top: 6px; padding-top: 2px; border: 1px solid #444; }"
+            "QGroupBox { font-size: 9px; color: #FFFFFF; font-weight: normal; margin-top: 8px; padding-top: 4px; border: 1px solid #444; }"
             "QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top center; padding: 0 3px; color: #FFFFFF; background-color: transparent; }"
         )
 
-        # --- 3. BORDE ---
-        group_borde = QGroupBox("BORDE")
+        # --- 3. Borde ---
+        group_borde = QGroupBox("Borde")
         group_borde.setStyleSheet(group_style)
         borde_layout = QVBoxLayout()
         borde_layout.setContentsMargins(2, 2, 2, 2)
         borde_layout.setSpacing(2)
 
-        self.chk_borde = QCheckBox("ACTIVAR")
+        self.chk_borde = QCheckBox("Mostrar")
         self.chk_borde.setStyleSheet(lbl_style)
         self.chk_borde.toggled.connect(self.emitir_configuracion)
         borde_layout.addWidget(self.chk_borde)
 
         b_size_layout = QHBoxLayout()
         b_size_layout.setSpacing(2)
-        lbl_b_size = QLabel("GROSOR:")
+        lbl_b_size = QLabel("Grosor:")
         lbl_b_size.setStyleSheet(lbl_style)
         self.spin_borde_size = QSpinBox()
         self.spin_borde_size.setRange(1, 100)
         self.spin_borde_size.setValue(3)
-        self.spin_borde_size.setFixedHeight(18)
+        self.spin_borde_size.setFixedHeight(20)
         self.spin_borde_size.setStyleSheet("font-size: 9px; color: #FFFFFF;")
         self.spin_borde_size.valueChanged.connect(self.emitir_configuracion)
         b_size_layout.addWidget(lbl_b_size)
@@ -182,18 +188,18 @@ class TextPanelWidget(QWidget):
         group_borde.setLayout(borde_layout)
         layout.addWidget(group_borde)
 
-        # --- 4. SOMBRA (Fila Superior: ACTIVAR + LUZ CIRCULAR / Fila Inferior: DISTANCIA) ---
-        group_sombra = QGroupBox("SOMBRA")
+        # --- 4. Sombra ---
+        group_sombra = QGroupBox("Sombra")
         group_sombra.setStyleSheet(group_style)
         sombra_layout = QVBoxLayout()
-        sombra_layout.setContentsMargins(2, 2, 2, 2)
-        sombra_layout.setSpacing(2)
+        sombra_layout.setContentsMargins(2, 2, 2, 4)
+        sombra_layout.setSpacing(3)
 
-        # FILA 1: ACTIVAR a la izquierda + LUZ + Círculo a la derecha (Exacto como marcaste en violeta)
         top_sombra_row = QHBoxLayout()
+        top_sombra_row.setContentsMargins(0, 0, 0, 0)
         top_sombra_row.setSpacing(2)
 
-        self.chk_sombra = QCheckBox("ACTIVAR")
+        self.chk_sombra = QCheckBox("Mostrar")
         self.chk_sombra.setStyleSheet(lbl_style)
         self.chk_sombra.toggled.connect(self.emitir_configuracion)
 
@@ -203,52 +209,163 @@ class TextPanelWidget(QWidget):
         self.light_widget.lightVectorChanged.connect(self.emitir_configuracion)
 
         top_sombra_row.addWidget(self.chk_sombra)
-        top_sombra_row.addStretch() # Empuja LUZ y el círculo a la derecha
+        top_sombra_row.addStretch()
         top_sombra_row.addWidget(lbl_luz)
-        top_sombra_row.addWidget(self.light_widget)
+        top_sombra_row.addWidget(self.light_widget, alignment=Qt.AlignmentFlag.AlignTop)
         sombra_layout.addLayout(top_sombra_row)
 
-        # FILA 2: DISTANCIA abajo
         s_dist_layout = QHBoxLayout()
+        s_dist_layout.setContentsMargins(0, 2, 0, 0)
         s_dist_layout.setSpacing(2)
-        lbl_dist = QLabel("DISTANCIA:")
+        lbl_dist = QLabel("Tamaño:")
         lbl_dist.setStyleSheet(lbl_style)
         self.spin_sombra_dist = QSpinBox()
-        self.spin_sombra_dist.setRange(1, 200)
+        self.spin_sombra_dist.setRange(1, 9999)
         self.spin_sombra_dist.setValue(5)
-        self.spin_sombra_dist.setFixedHeight(18)
+        self.spin_sombra_dist.setFixedHeight(20)
         self.spin_sombra_dist.setStyleSheet("font-size: 9px; color: #FFFFFF;")
         self.spin_sombra_dist.valueChanged.connect(self.emitir_configuracion)
         s_dist_layout.addWidget(lbl_dist)
         s_dist_layout.addWidget(self.spin_sombra_dist)
         sombra_layout.addLayout(s_dist_layout)
 
+        # 3ra fila: Color de Sombra con 5 casilleros
+        s_color_layout = QHBoxLayout()
+        s_color_layout.setContentsMargins(0, 4, 0, 0)
+        s_color_layout.setSpacing(2)
+
+        lbl_s_col = QLabel("Color:")
+        lbl_s_col.setStyleSheet(lbl_style)
+        s_color_layout.addWidget(lbl_s_col)
+
+        self.sombra_custom_color = self.cargar_sombra_custom_settings()
+        self.sombra_color = QColor("#FFFFFF")
+        self.sombra_color_btns = []
+
+        colores_predeterminados = [
+            (QColor("#FFFFFF"), "Blanco"),
+            (QColor("#000000"), "Negro"),
+            (QColor("#1A1423"), "Sombra natural oscura"),
+            (QColor("#FFF3D1"), "Luz solar"),
+            (None, "Slot personalizado")
+        ]
+
+        def _make_shadow_color_handler(slot_idx):
+            return lambda button_type, is_shift, is_ctrl: self._seleccionar_color_sombra(slot_idx, button_type, is_shift, is_ctrl)
+
+        for idx, (col, nombre) in enumerate(colores_predeterminados):
+            btn = ShadowColorButton()
+            btn.setFixedSize(16, 16)
+            if col:
+                btn.setProperty("color_val", col)
+                btn.setToolTip(f"{nombre} ({col.name().upper()})")
+            btn.color_interacted.connect(_make_shadow_color_handler(idx))
+            self.sombra_color_btns.append(btn)
+            s_color_layout.addWidget(btn)
+
+        sombra_layout.addLayout(s_color_layout)
+
         group_sombra.setLayout(sombra_layout)
         layout.addWidget(group_sombra)
 
         self.setLayout(layout)
         self.setFixedWidth(140)
-        self.setFixedHeight(220) # Se recortó aún más el alto
-        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
-    def get_config(self):
+        self.actualizar_ui_colores_sombra(active_idx=0)
+
+    def cargar_sombra_custom_settings(self):
+        settings = QSettings("PaintNotNet", "TextShadow")
+        val = settings.value("custom_shadow_color", None)
+        if val:
+            c = QColor(val)
+            if c.isValid():
+                return c
+        return None
+
+    def guardar_sombra_custom_settings(self, color):
+        settings = QSettings("PaintNotNet", "TextShadow")
+        if color and color.isValid():
+            settings.setValue("custom_shadow_color", color.name(QColor.NameFormat.HexArgb))
+        else:
+            settings.remove("custom_shadow_color")
+
+    def _seleccionar_color_sombra(self, idx, button_type, is_shift, is_ctrl):
+        if idx == 4:
+            if is_ctrl:
+                # Ctrl + Clic: ELIMINAR COLOR ALMACENADO
+                self.sombra_custom_color = None
+                self.guardar_sombra_custom_settings(None)
+                self.sombra_color = self.sombra_color_btns[0].property("color_val")
+                self.actualizar_ui_colores_sombra(active_idx=0)
+                self.emitir_configuracion()
+                return
+
+            if self.sombra_custom_color is None or is_shift:
+                # Slot vacío o Shift+Clic: GUARDAR / REEMPLAZAR
+                canvas = getattr(self.main_window, 'lienzo', None) or getattr(self.main_window, 'canvas', None) if self.main_window else None
+                col_pri = getattr(canvas, 'color_primario', QColor(0, 0, 0)) if canvas else QColor(0, 0, 0)
+                col_sec = getattr(canvas, 'color_secundario', QColor(255, 255, 255)) if canvas else QColor(255, 255, 255)
+                color_panel = col_pri if button_type == Qt.MouseButton.LeftButton else col_sec
+
+                self.sombra_custom_color = QColor(color_panel)
+                self.guardar_sombra_custom_settings(self.sombra_custom_color)
+
+            self.sombra_color = QColor(self.sombra_custom_color)
+        else:
+            btn = self.sombra_color_btns[idx]
+            self.sombra_color = btn.property("color_val")
+
+        self.actualizar_ui_colores_sombra(active_idx=idx)
+        self.emitir_configuracion()
+
+    def actualizar_ui_colores_sombra(self, active_idx=0):
+        for i in range(4):
+            btn = self.sombra_color_btns[i]
+            c_val = btn.property("color_val")
+            is_active = (i == active_idx)
+            border_color = "#0078D7" if is_active else "#555555"
+            border_w = "2px" if is_active else "1px"
+            btn.setStyleSheet(f"background-color: {c_val.name()}; border: {border_w} solid {border_color}; border-radius: 2px;")
+
+        btn5 = self.sombra_color_btns[4]
+        is_active5 = (active_idx == 4)
+        if self.sombra_custom_color is None:
+            border_color = "#0078D7" if is_active5 else "#777777"
+            border_w = "2px" if is_active5 else "1px"
+            btn5.setStyleSheet(f"background-color: #2D2D2D; border: {border_w} dashed {border_color}; border-radius: 2px;")
+            btn5.setToolTip("Slot vacío: Clic para Guardar color activo del panel")
+        else:
+            border_color = "#0078D7" if is_active5 else "#555555"
+            border_w = "2px" if is_active5 else "1px"
+            rgba_str = f"rgba({self.sombra_custom_color.red()}, {self.sombra_custom_color.green()}, {self.sombra_custom_color.blue()}, {self.sombra_custom_color.alpha()/255.0})"
+            btn5.setStyleSheet(f"background-color: {rgba_str}; border: {border_w} solid {border_color}; border-radius: 2px;")
+            btn5.setToolTip("Color guardado (Shift+Clic Reemplazar, Ctrl+Clic Eliminar)")
+
+    def obtener_configuracion(self):
+        font_obj = self.font_combo.currentFont()
+        font_family = font_obj.family() if isinstance(font_obj, QFont) else str(font_obj)
+        dist = self.spin_sombra_dist.value()
         return {
-            "font_family": self.font_combo.currentFont().family(),
+            "font": font_obj,
+            "font_family": font_family,
+            "size": self.spin_size.value(),
             "font_size": self.spin_size.value(),
             "bold": self.btn_bold.isChecked(),
             "italic": self.btn_italic.isChecked(),
             "underline": self.btn_underline.isChecked(),
             "strike": self.btn_strike.isChecked(),
+            "has_borde": self.chk_borde.isChecked(),
             "borde_enabled": self.chk_borde.isChecked(),
             "borde_size": self.spin_borde_size.value(),
+            "has_sombra": self.chk_sombra.isChecked(),
             "sombra_enabled": self.chk_sombra.isChecked(),
-            "sombra_offset_x": self.light_widget.light_x * self.spin_sombra_dist.value(),
-            "sombra_offset_y": self.light_widget.light_y * self.spin_sombra_dist.value(),
+            "sombra_dist": dist,
+            "sombra_color": self.sombra_color,
+            "sombra_offset_x": self.light_widget.light_x * dist,
+            "sombra_offset_y": self.light_widget.light_y * dist,
+            "sombra_dx": self.light_widget.light_x,
+            "sombra_dy": self.light_widget.light_y
         }
 
     def emitir_configuracion(self):
-        config = self.get_config()
-        self.text_config_changed.emit(config)
-        if self.main_window and hasattr(self.main_window, 'canvas'):
-            self.main_window.canvas.actualizar_config_texto(config)
-            self.main_window.canvas.update()  # <--- FORZAR REDIBUJADO EN TIEMPO REAL
+        self.text_config_changed.emit(self.obtener_configuracion())
