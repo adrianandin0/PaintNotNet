@@ -24,9 +24,13 @@ echo.
 echo [i] Idioma seleccionado: %SELECTED_LANG%
 echo.
 
-:: 2. Compilar ejecutable ejecutable (.exe) usando gui/paintdotnet.ico
+:: 2. Compilar ejecutable ejecutable (.exe) usando PaintNotNet.spec
 echo [i] Compilando PaintNotNet con PyInstaller...
-pyinstaller --noconfirm --name PaintNotNet --windowed --icon=gui/paintdotnet.ico --add-data "gui/iconos;gui/iconos" --add-data "gui/icono.png;gui" --add-data "locales;locales" main.py
+if exist "venv\Scripts\pyinstaller.exe" (
+    venv\Scripts\pyinstaller.exe --noconfirm --workpath build_pkg --distpath dist_pkg PaintNotNet.spec
+) else (
+    pyinstaller --noconfirm --workpath build_pkg --distpath dist_pkg PaintNotNet.spec
+)
 
 :: 3. Definir carpeta de instalación del usuario (%LOCALAPPDATA%\PaintNotNet)
 set "INSTALL_DIR=%LOCALAPPDATA%\PaintNotNet"
@@ -34,11 +38,16 @@ echo.
 echo [i] Instalando archivos en: %INSTALL_DIR%...
 
 mkdir "%INSTALL_DIR%" 2>nul
-xcopy /E /Y /I "dist\PaintNotNet\*" "%INSTALL_DIR%\"
+xcopy /E /Y /I "dist_pkg\PaintNotNet\*" "%INSTALL_DIR%\"
 
-:: 4. Crear Accesos Directos con el icono .ico (Escritorio y Menú Inicio)
-powershell -Command "$s=(New-Object -COM WScript.Shell).CreateShortcut('%USERPROFILE%\Desktop\PaintNotNet.lnk'); $s.TargetPath='%INSTALL_DIR%\PaintNotNet.exe'; $s.IconLocation='%INSTALL_DIR%\gui\paintdotnet.ico'; $s.Save()"
-powershell -Command "$s=(New-Object -COM WScript.Shell).CreateShortcut('%APPDATA%\Microsoft\Windows\Start Menu\Programs\PaintNotNet.lnk'); $s.TargetPath='%INSTALL_DIR%\PaintNotNet.exe'; $s.IconLocation='%INSTALL_DIR%\gui\paintdotnet.ico'; $s.Save()"
+:: Copiar expresamente el archivo de icono a la raíz de la instalación y a gui/
+mkdir "%INSTALL_DIR%\gui" 2>nul
+copy /Y "%~dp0gui\paintdotnet.ico" "%INSTALL_DIR%\gui\paintdotnet.ico" >nul 2>&1
+copy /Y "%~dp0gui\paintdotnet.ico" "%INSTALL_DIR%\paintdotnet.ico" >nul 2>&1
+
+:: 4. Crear Accesos Directos apuntando al archivo de icono .ico (Escritorio y Menú Inicio)
+powershell -Command "$s=(New-Object -COM WScript.Shell).CreateShortcut('%USERPROFILE%\Desktop\PaintNotNet.lnk'); $s.TargetPath='%INSTALL_DIR%\PaintNotNet.exe'; $s.IconLocation='%INSTALL_DIR%\paintdotnet.ico,0'; $s.Save()"
+powershell -Command "$s=(New-Object -COM WScript.Shell).CreateShortcut('%APPDATA%\Microsoft\Windows\Start Menu\Programs\PaintNotNet.lnk'); $s.TargetPath='%INSTALL_DIR%\PaintNotNet.exe'; $s.IconLocation='%INSTALL_DIR%\paintdotnet.ico,0'; $s.Save()"
 
 :: 5. Pre-configurar el idioma en el archivo de preferencias de usuario
 set "CONFIG_FILE=%INSTALL_DIR%\PaintNotNet.conf"
@@ -48,6 +57,9 @@ if not exist "%CONFIG_FILE%" (
         echo language=%SELECTED_LANG%
     ) > "%CONFIG_FILE%"
 )
+
+:: 6. Refrescar la caché de íconos de Windows Explorer
+ie4uinit.exe -ClearIconCache >nul 2>&1
 
 echo.
 echo ==============================================================

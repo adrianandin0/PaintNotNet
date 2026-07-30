@@ -12,6 +12,7 @@ a = Analysis(
     datas=[
         ('gui/iconos', 'gui/iconos'),
         ('gui/icono.png', 'gui'),
+        ('gui/paintdotnet.ico', 'gui'),
         ('locales', 'locales'),
     ],
     hiddenimports=[
@@ -51,7 +52,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='gui/icono.png',
+    icon='gui/paintdotnet.ico' if sys.platform == 'win32' else 'gui/icono.png',
 )
 
 coll = COLLECT(

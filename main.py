@@ -98,7 +98,9 @@ class PaintNotNet(QMainWindow):
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.advanced_color_dock)
         self.splitDockWidget(self.history_dock, self.advanced_color_dock, Qt.Orientation.Vertical)
 
-        self.setWindowIcon(QIcon("gui/icono.png"))
+        import sys
+        ico_path = "gui/paintdotnet.ico" if sys.platform == "win32" and os.path.exists("gui/paintdotnet.ico") else "gui/icono.png"
+        self.setWindowIcon(QIcon(ico_path))
 
         # ==========================================
         # ÁREA CENTRAL MULTI-PESTAÑA (TABBED MDI)
