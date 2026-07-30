@@ -6,11 +6,29 @@ class MenuOpciones:
         self.main_window = main_window
 
     def crear_menu(self, menu_bar):
-        menu = menu_bar.addMenu("Opciones")
+        self.menu_bar = menu_bar
+        self.retraducir_menu()
 
-        action_pref = menu.addAction("Preferencias de Usuario...")
+    def retraducir_menu(self):
+        from core.i18n import t
+        if hasattr(self, 'menu') and self.menu:
+            self.menu_bar.removeAction(self.menu.menuAction())
+
+        self.menu = self.menu_bar.addMenu(t("Opciones"))
+
+        action_pref = self.menu.addAction(t("Preferencias de usuario..."))
         action_pref.triggered.connect(self._abrir_preferencias)
+
+        action_atajos = self.menu.addAction(t("Atajos de teclado..."))
+        action_atajos.triggered.connect(self._abrir_atajos)
 
     def _abrir_preferencias(self):
         dlg = DialogoOpciones(self.main_window)
         dlg.exec()
+
+    def _abrir_atajos(self):
+        from gui.dialogo_atajos import DialogoAtajos
+        dlg = DialogoAtajos(self.main_window)
+        if dlg.exec():
+            if hasattr(self.main_window, 'tool_panel'):
+                self.main_window.tool_panel.actualizar_insignias_atajos()

@@ -97,41 +97,44 @@ class MenuArchivo:
         return os.path.expanduser("~")
 
     def crear_menu(self, menu_bar):
-        menu_archivo = menu_bar.addMenu("Archivo")
+        self.menu_bar = menu_bar
+        self.retraducir_menu()
 
-        accion_nuevo = menu_archivo.addAction("Nuevo")
+    def retraducir_menu(self):
+        from core.i18n import t
+        if hasattr(self, 'menu_archivo') and self.menu_archivo:
+            self.menu_bar.removeAction(self.menu_archivo.menuAction())
+
+        self.menu_archivo = self.menu_bar.addMenu(t("Archivo"))
+
+        accion_nuevo = self.menu_archivo.addAction(t("Nuevo"))
         accion_nuevo.setShortcut("Ctrl+N")
         accion_nuevo.triggered.connect(self.nuevo_archivo)
 
-        accion_abrir = menu_archivo.addAction("Abrir...")
+        accion_abrir = self.menu_archivo.addAction(t("Abrir..."))
         accion_abrir.setShortcut("Ctrl+O")
         accion_abrir.triggered.connect(self.abrir_archivo)
 
-        # Submenú de Archivos Recientes
-        self.menu_recientes = menu_archivo.addMenu("Recientes")
+        self.menu_recientes = self.menu_archivo.addMenu(t("Recientes"))
         self.actualizar_menu_recientes()
 
-        accion_insertar = menu_archivo.addAction("Insertar...")
+        accion_insertar = self.menu_archivo.addAction(t("Insertar..."))
         accion_insertar.setShortcut("Ctrl+I")
         accion_insertar.triggered.connect(self.insertar_imagen)
 
-        menu_archivo.addSeparator()
+        self.menu_archivo.addSeparator()
 
-        accion_guardar = menu_archivo.addAction("Guardar")
+        accion_guardar = self.menu_archivo.addAction(t("Guardar"))
         accion_guardar.setShortcut("Ctrl+S")
         accion_guardar.triggered.connect(self.guardar_archivo)
 
-        accion_guardar_capa = menu_archivo.addAction("Guardar capa...")
-        accion_guardar_capa.setShortcut("Ctrl+Shift+L")
-        accion_guardar_capa.triggered.connect(self.guardar_capa)
-
-        accion_guardar_como = menu_archivo.addAction("Guardar como...")
+        accion_guardar_como = self.menu_archivo.addAction(t("Guardar como..."))
         accion_guardar_como.setShortcut("Ctrl+Shift+S")
         accion_guardar_como.triggered.connect(self.guardar_como)
 
-        menu_archivo.addSeparator()
+        self.menu_archivo.addSeparator()
 
-        accion_salir = menu_archivo.addAction("Salir")
+        accion_salir = self.menu_archivo.addAction(t("Salir"))
         accion_salir.setShortcut("Ctrl+Q")
         accion_salir.triggered.connect(self.salir_programa)
 
@@ -272,43 +275,7 @@ class MenuArchivo:
                 if hasattr(self.ventana, 'panel_herramientas'):
                     self.ventana.panel_herramientas.seleccionar("seleccion")
 
-    def guardar_capa(self):
-        dir_home = self.obtener_home_real()
-        canvas = self.ventana.lienzo
-        capa_activa = canvas.layer_mgr.capas[canvas.layer_mgr.indice_activo]
-        nombre_sugerido = f"{capa_activa.name}.png"
-        ruta_inicial = os.path.join(dir_home, nombre_sugerido)
 
-        filtro_png = "Imagen PNG (*.png)"
-        filtro_jpg = "Imagen JPG (*.jpg *.jpeg)"
-        filtro_bmp = "Imagen BMP (*.bmp)"
-
-        filtros = f"{filtro_png};;{filtro_jpg};;{filtro_bmp}"
-
-        ruta_elegida, filtro_seleccionado = QFileDialog.getSaveFileName(
-            self.ventana,
-            "Guardar Capa Actual",
-            ruta_inicial,
-            filtros
-        )
-
-        if ruta_elegida:
-            ext_por_defecto = {
-                filtro_png: ".png",
-                filtro_jpg: ".jpg",
-                filtro_bmp: ".bmp"
-            }
-
-            _, ext_actual = os.path.splitext(ruta_elegida)
-
-            if not ext_actual:
-                extension_estandar = ext_por_defecto.get(filtro_seleccionado, ".png")
-                ruta_elegida += extension_estandar
-
-            if canvas.guardar_imagen(ruta_elegida):
-                return True
-
-        return False
 
     def guardar_como(self, target_canvas=None):
         dir_home = self.obtener_home_real()
@@ -422,10 +389,11 @@ class MenuArchivo:
             self.ventana.close()
 
     def confirmar_descarte_cambios(self, target_canvas=None):
+        from core.i18n import t
         canvas = target_canvas if target_canvas else self.ventana.lienzo
         msg_box = QMessageBox(self.ventana)
-        msg_box.setWindowTitle("Cambios no guardados")
-        
+        msg_box.setWindowTitle(t("Cambios no guardados"))
+
         nombre_doc = "el archivo"
         if canvas:
             if getattr(canvas, 'nombre_personalizado', None):
@@ -433,11 +401,12 @@ class MenuArchivo:
             elif canvas.archivo_actual:
                 nombre_doc = f'"{os.path.basename(canvas.archivo_actual)}"'
 
-        msg_box.setText(f"Se realizaron cambios en {nombre_doc}. ¿Desea guardarlos antes de continuar?")
+        msg_fmt = t("Se realizaron cambios en %1. ¿Desea guardarlos antes de continuar?")
+        msg_box.setText(msg_fmt.replace("%1", nombre_doc))
 
-        btn_si = msg_box.addButton("Sí", QMessageBox.ButtonRole.YesRole)
-        btn_no = msg_box.addButton("No", QMessageBox.ButtonRole.NoRole)
-        btn_cancelar = msg_box.addButton("Cancelar", QMessageBox.ButtonRole.RejectRole)
+        btn_si = msg_box.addButton(t("Sí"), QMessageBox.ButtonRole.YesRole)
+        btn_no = msg_box.addButton(t("No"), QMessageBox.ButtonRole.NoRole)
+        btn_cancelar = msg_box.addButton(t("Cancelar"), QMessageBox.ButtonRole.RejectRole)
 
         msg_box.exec()
         btn = msg_box.clickedButton()

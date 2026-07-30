@@ -6,8 +6,16 @@ class MenuAcerca:
         self.main_window = main_window
 
     def crear_menu(self, menu_bar):
-        action = menu_bar.addAction("Acerca de...")
-        action.triggered.connect(self._abrir_acerca)
+        self.menu_bar = menu_bar
+        self.retraducir_menu()
+
+    def retraducir_menu(self):
+        from core.i18n import t
+        if hasattr(self, 'action') and self.action:
+            self.menu_bar.removeAction(self.action)
+
+        self.action = self.menu_bar.addAction(t("Acerca de..."))
+        self.action.triggered.connect(self._abrir_acerca)
 
     def _abrir_acerca(self):
         dlg = DialogoAcerca(self.main_window)

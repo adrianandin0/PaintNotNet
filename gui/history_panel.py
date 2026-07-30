@@ -19,16 +19,17 @@ class HistoryPanelWidget(QWidget):
         self.list_widget.itemClicked.connect(self._on_item_clicked)
         layout.addWidget(self.list_widget)
 
+        from core.i18n import t
         btn_layout = QHBoxLayout()
         self.btn_undo = QPushButton()
         self.btn_undo.setIcon(QIcon("gui/iconos/back.png"))
         self.btn_undo.setIconSize(QSize(16, 16))
-        self.btn_undo.setToolTip("Deshacer (Ctrl+Z)")
+        self.btn_undo.setToolTip(f"{t('Deshacer')} (Ctrl+Z)")
 
         self.btn_redo = QPushButton()
         self.btn_redo.setIcon(QIcon("gui/iconos/forward.png"))
         self.btn_redo.setIconSize(QSize(16, 16))
-        self.btn_redo.setToolTip("Rehacer (Ctrl+Y)")
+        self.btn_redo.setToolTip(f"{t('Rehacer')} (Ctrl+Y)")
 
         self.btn_undo.clicked.connect(self._on_undo_clicked)
         self.btn_redo.clicked.connect(self._on_redo_clicked)

@@ -196,8 +196,8 @@ class CanvasWidget(QWidget):
                 h = min(tamano_cuadro, l_height - y)
                 painter.fillRect(x, y, w, h, color)
 
-        # 1. Dibujar lienzo real
-        pixmap = self.layer_mgr.get_qpixmap()
+        # 1. Dibujar lienzo real (componiendo el trazo temporal en el orden Z de la capa activa)
+        pixmap = self.layer_mgr.get_qpixmap(capa_trazo_temp=self.capa_trazo_temp)
         painter.drawPixmap(0, 0, pixmap)
 
         # 1b. Dibujar capa flotante si se está moviendo contenido (pixeles recortados al lienzo)
@@ -205,13 +205,6 @@ class CanvasWidget(QWidget):
             painter.save()
             painter.setClipRect(0, 0, l_width, l_height)
             painter.drawImage(self.selection_engine.original_image_pos, self.selection_engine.floating_image)
-            painter.restore()
-
-        # 2. Dibujar trazo temporal por encima (recortado al lienzo)
-        if not self.capa_trazo_temp.isNull():
-            painter.save()
-            painter.setClipRect(0, 0, l_width, l_height)
-            painter.drawImage(0, 0, self.capa_trazo_temp)
             painter.restore()
 
         # 3. Previsualización de herramienta activa (ej. Texto, Selección)
@@ -427,6 +420,21 @@ class CanvasWidget(QWidget):
             return img_jpg.save(ruta)
 
         return img_a_guardar.save(ruta)
+
+    def invertir_seleccion(self):
+        w, h = self.layer_mgr.width, self.layer_mgr.height
+        rect_total = QRectF(0, 0, w, h)
+        full_path = QPainterPath()
+        full_path.addRect(rect_total)
+
+        if self.selection_engine.has_selection():
+            inverted_path = full_path.subtracted(self.selection_engine.active_path)
+            self.selection_engine.set_path(inverted_path)
+        else:
+            self.selection_engine.set_rectangle(rect_total)
+
+        self.marcar_modificado()
+        self.update()
 
     def cargar_imagen(self, ruta):
         _, ext = os.path.splitext(ruta)

@@ -287,21 +287,29 @@ class MenuAjustes:
         self.ventana = ventana_principal
 
     def crear_menu(self, menu_bar):
-        menu_ajustes = menu_bar.addMenu("Ajustes")
+        self.menu_bar = menu_bar
+        self.retraducir_menu()
 
-        accion_tono_sat = menu_ajustes.addAction("Tono / Saturación...")
+    def retraducir_menu(self):
+        from core.i18n import t
+        if hasattr(self, 'menu_ajustes') and self.menu_ajustes:
+            self.menu_bar.removeAction(self.menu_ajustes.menuAction())
+
+        self.menu_ajustes = self.menu_bar.addMenu(t("Ajustes"))
+
+        accion_tono_sat = self.menu_ajustes.addAction(t("Tono / Saturación..."))
         accion_tono_sat.triggered.connect(self.tono_saturacion)
 
-        accion_brillo_cont = menu_ajustes.addAction("Brillo / Contraste...")
+        accion_brillo_cont = self.menu_ajustes.addAction(t("Brillo / Contraste..."))
         accion_brillo_cont.triggered.connect(self.brillo_contraste)
 
-        accion_bw = menu_ajustes.addAction("Blanco y negro")
+        accion_bw = self.menu_ajustes.addAction(t("Blanco y Negro"))
         accion_bw.setShortcut("Ctrl+Shift+B")
         accion_bw.triggered.connect(self.blanco_y_negro)
 
-        menu_ajustes.addSeparator()
+        self.menu_ajustes.addSeparator()
 
-        accion_invertir = menu_ajustes.addAction("Invertir colores")
+        accion_invertir = self.menu_ajustes.addAction(t("Invertir colores"))
         accion_invertir.setShortcut("Ctrl+Shift+I")
         accion_invertir.triggered.connect(self.invertir_colores)
 

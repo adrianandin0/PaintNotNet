@@ -6,8 +6,8 @@ DEFAULT_SHORTCUTS = {
     "Selección Rectangular": "S",
     "Mover Selección": "M",
     "Selección Libre": "L",
-    "Mover Contenido": "Z",
-    "Selección Elíptica": "E",
+    "Mover Contenido": "V",
+    "Selección Elíptica": "C",
     "Invertir Selección": "I",
     "Balde de Pintura": "F",
     "Degradado": "G",
@@ -41,18 +41,19 @@ class DialogoAtajos(QDialog):
     """Diálogo para configurar atajos de teclado personalizados para las herramientas."""
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Atajos de Teclado")
+        from core.i18n import t
+        self.setWindowTitle(t("Atajos de Teclado"))
         self.setFixedSize(450, 520)
 
         layout = QVBoxLayout()
 
-        lbl_info = QLabel("Haz doble clic en una celda o presiona una tecla para cambiar el atajo (un único carácter):")
+        lbl_info = QLabel(t("Haz doble clic en una celda o presiona una tecla para cambiar el atajo (un único carácter):"))
         lbl_info.setWordWrap(True)
         layout.addWidget(lbl_info)
 
         self.tabla = QTableWidget()
         self.tabla.setColumnCount(2)
-        self.tabla.setHorizontalHeaderLabels(["Herramienta", "Tecla de Atajo"])
+        self.tabla.setHorizontalHeaderLabels([t("Herramienta"), t("Tecla de Atajo")])
         self.tabla.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.tabla.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
 
@@ -63,13 +64,13 @@ class DialogoAtajos(QDialog):
 
         # Botones inferiores
         btn_layout = QHBoxLayout()
-        btn_reset = QPushButton("Restablecer por Defecto")
+        btn_reset = QPushButton(t("Restablecer por Defecto"))
         btn_reset.clicked.connect(self.restablecer_defecto)
-        
-        btn_cancel = QPushButton("Cancelar")
+
+        btn_cancel = QPushButton(t("Cancelar"))
         btn_cancel.clicked.connect(self.reject)
 
-        btn_ok = QPushButton("Guardar")
+        btn_ok = QPushButton(t("Guardar"))
         btn_ok.setDefault(True)
         btn_ok.clicked.connect(self.guardar_y_cerrar)
 
@@ -82,11 +83,13 @@ class DialogoAtajos(QDialog):
         self.setLayout(layout)
 
     def cargar_tabla(self):
+        from core.i18n import t
         self.tabla.setRowCount(0)
         for i, (tool_name, key) in enumerate(self.atajos_actuales.items()):
             self.tabla.insertRow(i)
 
-            item_tool = QTableWidgetItem(tool_name)
+            item_tool = QTableWidgetItem(t(tool_name))
+            item_tool.setData(Qt.ItemDataRole.UserRole, tool_name)
             item_tool.setFlags(item_tool.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.tabla.setItem(i, 0, item_tool)
 
@@ -101,7 +104,8 @@ class DialogoAtajos(QDialog):
     def guardar_y_cerrar(self):
         nuevos_atajos = {}
         for row in range(self.tabla.rowCount()):
-            tool_name = self.tabla.item(row, 0).text()
+            item_tool = self.tabla.item(row, 0)
+            tool_name = item_tool.data(Qt.ItemDataRole.UserRole) or item_tool.text()
             key_text = self.tabla.item(row, 1).text().strip().upper()
             char = key_text[0] if key_text else ""
             nuevos_atajos[tool_name] = char

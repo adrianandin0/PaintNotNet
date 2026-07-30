@@ -107,6 +107,14 @@ class ToolPanelWidget(QWidget):
         self.setFixedWidth(82)
 
         self.actualizar_insignias_atajos()
+        self.retraducir_tooltips()
+
+    def retraducir_tooltips(self):
+        from core.i18n import t
+        for btn in self.button_group.buttons():
+            tool = btn.property("tool_obj")
+            if tool and hasattr(tool, 'name'):
+                btn.setToolTip(t(tool.name))
 
     def actualizar_insignias_atajos(self):
         from gui.dialogo_atajos import cargar_atajos
@@ -128,6 +136,11 @@ class ToolPanelWidget(QWidget):
                 break
 
         if self.main_window and hasattr(self.main_window, 'canvas'):
-            self.main_window.canvas.set_active_tool(tool)
             if isinstance(tool, InvertSelectionTool):
                 self.main_window.canvas.invertir_seleccion()
+                prev_tool = getattr(self, 'herramienta_anterior', None)
+                if prev_tool and not isinstance(prev_tool, InvertSelectionTool):
+                    self.select_tool(prev_tool)
+            else:
+                self.herramienta_anterior = tool
+                self.main_window.canvas.set_active_tool(tool)

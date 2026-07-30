@@ -65,20 +65,23 @@ class LayerManager:
 
         self.indice_activo = min_idx
 
-    def get_qimage(self):
+    def get_qimage(self, capa_trazo_temp=None):
         imagen_final = QImage(self.width, self.height, QImage.Format.Format_ARGB32_Premultiplied)
         imagen_final.fill(Qt.GlobalColor.transparent)
 
         painter = QPainter(imagen_final)
-        for capa in reversed(self.capas):
+        for i, capa in enumerate(reversed(self.capas)):
             if capa.visible:
                 painter.drawImage(0, 0, capa.image)
+                idx_real = len(self.capas) - 1 - i
+                if idx_real == self.indice_activo and capa_trazo_temp and not capa_trazo_temp.isNull():
+                    painter.drawImage(0, 0, capa_trazo_temp)
         painter.end()
 
         return imagen_final
 
-    def get_qpixmap(self):
-        return QPixmap.fromImage(self.get_qimage())
+    def get_qpixmap(self, capa_trazo_temp=None):
+        return QPixmap.fromImage(self.get_qimage(capa_trazo_temp=capa_trazo_temp))
 
     def resize_canvas(self, new_width, new_height):
         for capa in self.capas:

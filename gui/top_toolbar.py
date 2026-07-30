@@ -50,9 +50,9 @@ class TopToolBarWidget(QToolBar):
         self.addSeparator()
 
         # 6. Selector de Grosor / Ancho Global
-        lbl_grosor = QLabel(" Ancho: ")
-        lbl_grosor.setStyleSheet("font-size: 11px; font-weight: bold;")
-        self.addWidget(lbl_grosor)
+        self.lbl_grosor = QLabel(" Grosor: ")
+        self.lbl_grosor.setStyleSheet("font-size: 11px; font-weight: bold;")
+        self.addWidget(self.lbl_grosor)
 
         self.spin_grosor = QSpinBox()
         self.spin_grosor.setRange(1, 100)
@@ -343,3 +343,22 @@ class TopToolBarWidget(QToolBar):
 
     def _on_linea_fin_changed(self, idx):
         pass
+
+    def retraducir_toolbar(self):
+        from core.i18n import t
+        self.action_nueva_pestana.setToolTip(f"{t('Nuevo')} (Ctrl+N)")
+        self.action_abrir.setToolTip(f"{t('Abrir...')} (Ctrl+O)")
+        self.action_guardar.setToolTip(f"{t('Guardar')} (Ctrl+S)")
+        self.action_cortar.setToolTip(f"{t('Cortar')} (Ctrl+X)")
+        self.action_copiar.setToolTip(f"{t('Copiar')} (Ctrl+C)")
+        self.action_pegar.setToolTip(f"{t('Pegar')} (Ctrl+V)")
+        if hasattr(self, 'lbl_grosor'):
+            self.lbl_grosor.setText(f" {t('Grosor:')} ")
+        if hasattr(self, 'lbl_tol'):
+            self.lbl_tol.setText(f" {t('Tolerancia:')} ")
+        if hasattr(self, 'lbl_formas_tipo'):
+            self.lbl_formas_tipo.setText(f" {t('Forma:')} ")
+        if hasattr(self, 'lbl_formas_estilo'):
+            self.lbl_formas_estilo.setText(f" {t('Estilo:')} ")
+        if hasattr(self, 'chk_formas_redondeado'):
+            self.chk_formas_redondeado.setText(t("Redondeado"))

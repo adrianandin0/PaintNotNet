@@ -211,39 +211,49 @@ class MenuImagen:
         self.ventana = ventana_principal
 
     def crear_menu(self, menu_bar):
-        menu_img = menu_bar.addMenu("Imagen")
+        self.menu_bar = menu_bar
+        self.retraducir_menu()
 
-        accion_tam_lienzo = menu_img.addAction("Tamaño del lienzo...")
-        accion_tam_lienzo.triggered.connect(self.cambiar_tamano_lienzo)
+    def retraducir_menu(self):
+        from core.i18n import t
+        if hasattr(self, 'menu_img') and self.menu_img:
+            self.menu_bar.removeAction(self.menu_img.menuAction())
 
-        accion_tam_img = menu_img.addAction("Tamaño de la imagen...")
+        self.menu_img = self.menu_bar.addMenu(t("Imagen"))
+
+        accion_tam_img = self.menu_img.addAction(t("Cambiar Tamaño de Imagen..."))
         accion_tam_img.triggered.connect(self.cambiar_tamano_imagen)
 
-        menu_img.addSeparator()
+        accion_tam_lienzo = self.menu_img.addAction(t("Cambiar Tamaño de Lienzo..."))
+        accion_tam_lienzo.triggered.connect(self.cambiar_tamano_lienzo)
 
-        accion_v_horiz = menu_img.addAction("Voltear horizontalmente")
+        self.menu_img.addSeparator()
+
+        accion_v_horiz = self.menu_img.addAction(t("Voltearse Horizontalmente"))
         accion_v_horiz.triggered.connect(lambda: self.ventana.lienzo.voltear_contenido(horizontal=True))
 
-        accion_v_vert = menu_img.addAction("Voltear verticalmente")
+        accion_v_vert = self.menu_img.addAction(t("Voltearse Verticalmente"))
         accion_v_vert.triggered.connect(lambda: self.ventana.lienzo.voltear_contenido(horizontal=False))
 
-        menu_img.addSeparator()
+        self.menu_img.addSeparator()
 
-        accion_rot_90_der = menu_img.addAction("Rotar 90° a la derecha")
+        accion_rot_90_der = self.menu_img.addAction(t("Rotar 90° a la Derecha"))
         accion_rot_90_der.triggered.connect(lambda: self.ventana.lienzo.rotar_contenido(grados=90))
 
-        accion_rot_90_izq = menu_img.addAction("Rotar 90° a la izquierda")
+        accion_rot_90_izq = self.menu_img.addAction(t("Rotar 90° a la Izquierda"))
         accion_rot_90_izq.triggered.connect(lambda: self.ventana.lienzo.rotar_contenido(grados=-90))
 
     def cambiar_tamano_lienzo(self):
+        from core.i18n import t
         lienzo = self.ventana.lienzo
-        dialogo = DialogoTamanoBase("Tamaño del Lienzo", lienzo.layer_mgr.width, lienzo.layer_mgr.height, self.ventana, incluir_anclaje=True)
+        dialogo = DialogoTamanoBase(t("Cambiar Tamaño de Lienzo..."), lienzo.layer_mgr.width, lienzo.layer_mgr.height, self.ventana, incluir_anclaje=True)
         if dialogo.exec() == QDialog.DialogCode.Accepted:
             nuevo_w, nuevo_h = dialogo.obtener_dimensiones_finales()
             anclaje = dialogo.obtener_anclaje()
             lienzo.redimensionar_lienzo(nuevo_w, nuevo_h, anchor=anclaje)
 
     def cambiar_tamano_imagen(self):
+        from core.i18n import t
         lienzo = self.ventana.lienzo
         engine = lienzo.selection_engine
 
@@ -251,12 +261,12 @@ class MenuImagen:
             sel_rect = engine.active_rect
             ancho_init = max(1, int(round(sel_rect.width())))
             alto_init = max(1, int(round(sel_rect.height())))
-            dialogo = DialogoTamanoBase("Tamaño de la Selección", ancho_init, alto_init, self.ventana, incluir_anclaje=False)
+            dialogo = DialogoTamanoBase(t("Cambiar Tamaño de Imagen..."), ancho_init, alto_init, self.ventana, incluir_anclaje=False)
             if dialogo.exec() == QDialog.DialogCode.Accepted:
                 nuevo_w, nuevo_h = dialogo.obtener_dimensiones_finales()
                 lienzo.escalar_seleccion(nuevo_w, nuevo_h)
         else:
-            dialogo = DialogoTamanoBase("Tamaño de la Imagen", lienzo.layer_mgr.width, lienzo.layer_mgr.height, self.ventana, incluir_anclaje=False)
+            dialogo = DialogoTamanoBase(t("Cambiar Tamaño de Imagen..."), lienzo.layer_mgr.width, lienzo.layer_mgr.height, self.ventana, incluir_anclaje=False)
             if dialogo.exec() == QDialog.DialogCode.Accepted:
                 nuevo_w, nuevo_h = dialogo.obtener_dimensiones_finales()
                 lienzo.escalar_imagen(nuevo_w, nuevo_h)

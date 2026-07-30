@@ -54,43 +54,62 @@ class MenuEditar:
             c.borrar_todo()
 
     def crear_menu(self, menu_bar):
-        menu_editar = menu_bar.addMenu("Editar")
+        self.menu_bar = menu_bar
+        self.retraducir_menu()
+
+    def retraducir_menu(self):
+        from core.i18n import t
+        if hasattr(self, 'menu_editar') and self.menu_editar:
+            self.menu_bar.removeAction(self.menu_editar.menuAction())
+
+        self.menu_editar = self.menu_bar.addMenu(t("Editar"))
 
         # 1. Deshacer / Rehacer
-        accion_deshacer = menu_editar.addAction("Deshacer")
+        accion_deshacer = self.menu_editar.addAction(t("Deshacer"))
         accion_deshacer.setShortcut("Ctrl+Z")
         accion_deshacer.triggered.connect(self.deshacer)
 
-        accion_rehacer = menu_editar.addAction("Rehacer")
+        accion_rehacer = self.menu_editar.addAction(t("Rehacer"))
         accion_rehacer.setShortcut("Ctrl+Y")
         accion_rehacer.triggered.connect(self.rehacer)
 
-        menu_editar.addSeparator()
+        self.menu_editar.addSeparator()
 
         # 2. Cortar / Copiar / Pegar
-        accion_cortar = menu_editar.addAction("Cortar")
+        accion_cortar = self.menu_editar.addAction(t("Cortar"))
         accion_cortar.setShortcut("Ctrl+X")
         accion_cortar.triggered.connect(self.cortar)
 
-        accion_copiar = menu_editar.addAction("Copiar")
+        accion_copiar = self.menu_editar.addAction(t("Copiar"))
         accion_copiar.setShortcut("Ctrl+C")
         accion_copiar.triggered.connect(self.copiar)
 
-        accion_pegar = menu_editar.addAction("Pegar")
+        accion_pegar = self.menu_editar.addAction(t("Pegar"))
         accion_pegar.setShortcut("Ctrl+V")
         accion_pegar.triggered.connect(self.pegar)
 
-        menu_editar.addSeparator()
+        self.menu_editar.addSeparator()
 
         # 3. Selecciones y Borrado
-        accion_sel_todo = menu_editar.addAction("Seleccionar todo")
+        accion_sel_todo = self.menu_editar.addAction(t("Seleccionar Todo"))
         accion_sel_todo.setShortcut("Ctrl+A")
         accion_sel_todo.triggered.connect(self.seleccionar_todo)
 
-        accion_borrar_sel = menu_editar.addAction("Borrar selección")
-        accion_borrar_sel.setShortcut("Delete")
-        accion_borrar_sel.triggered.connect(self.borrar_seleccion)
+        accion_desel = self.menu_editar.addAction(t("Deseleccionar"))
+        accion_desel.setShortcut("Ctrl+D")
+        accion_desel.triggered.connect(self.desechar_seleccion)
 
-        accion_borrar_todo = menu_editar.addAction("Borrar todo")
-        accion_borrar_todo.setShortcut("Ctrl+Shift+Delete")
-        accion_borrar_todo.triggered.connect(self.borrar_todo)
+        accion_invert = self.menu_editar.addAction(t("Invertir Selección"))
+        accion_invert.setShortcut("Ctrl+I")
+        accion_invert.triggered.connect(self.invertir_seleccion)
+
+    def desechar_seleccion(self):
+        c = self._get_canvas()
+        if c and hasattr(c, 'selection_engine'):
+            c.selection_engine.clear_selection()
+            c.update()
+
+    def invertir_seleccion(self):
+        c = self._get_canvas()
+        if c and hasattr(c, 'invertir_seleccion'):
+            c.invertir_seleccion()

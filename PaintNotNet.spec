@@ -12,6 +12,7 @@ a = Analysis(
     datas=[
         ('gui/iconos', 'gui/iconos'),
         ('gui/icono.png', 'gui'),
+        ('locales', 'locales'),
     ],
     hiddenimports=[
         'PyQt6',

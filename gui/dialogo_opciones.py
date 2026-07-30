@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import QSettings, QSize, Qt
 from PyQt6.QtGui import QIcon
+from core.i18n import t
 
 
 class DialogoOpciones(QDialog):
@@ -54,25 +55,25 @@ class DialogoOpciones(QDialog):
         layout.setSpacing(6)
 
         # 1. Idioma
-        group_lang = QGroupBox("Idioma / Language")
+        group_lang = QGroupBox(t("Idioma / Language"))
         layout_lang = QHBoxLayout()
         layout_lang.setContentsMargins(8, 6, 8, 6)
         layout_lang.setSpacing(8)
 
         self.combo_lang = QComboBox()
-        self.combo_lang.addItems(["Español", "English", "Português"])
+        self.combo_lang.addItems(["Español", "English"])
         default_lang = self.settings.value("language", "Español")
         idx_lang = self.combo_lang.findText(str(default_lang))
         if idx_lang >= 0:
             self.combo_lang.setCurrentIndex(idx_lang)
 
-        layout_lang.addWidget(QLabel("Idioma:"))
+        layout_lang.addWidget(QLabel(t("Idioma:")))
         layout_lang.addWidget(self.combo_lang)
         group_lang.setLayout(layout_lang)
         layout.addWidget(group_lang)
 
         # 2. Directorio Predeterminado
-        group_dir = QGroupBox("Directorio predeterminado")
+        group_dir = QGroupBox(t("Directorio predeterminado"))
         layout_dir = QHBoxLayout()
         layout_dir.setContentsMargins(8, 6, 8, 6)
         layout_dir.setSpacing(6)
@@ -94,7 +95,7 @@ class DialogoOpciones(QDialog):
         layout.addWidget(group_dir)
 
         # 3. Formato Predeterminado
-        group_format = QGroupBox("Formato predeterminado")
+        group_format = QGroupBox(t("Formato predeterminado"))
         layout_format = QHBoxLayout()
         layout_format.setContentsMargins(8, 6, 8, 6)
         layout_format.setSpacing(8)
@@ -112,13 +113,13 @@ class DialogoOpciones(QDialog):
         if idx >= 0:
             self.combo_format.setCurrentIndex(idx)
 
-        layout_format.addWidget(QLabel("Formato:"))
+        layout_format.addWidget(QLabel(t("Formato:")))
         layout_format.addWidget(self.combo_format)
         group_format.setLayout(layout_format)
         layout.addWidget(group_format)
 
         # 4. Guardar cambios al cerrar
-        self.chk_save_on_close = QCheckBox("Guardar cambios al cerrar")
+        self.chk_save_on_close = QCheckBox(t("Guardar cambios al cerrar"))
         save_on_close = self.settings.value("save_on_close", True, type=bool)
         self.chk_save_on_close.setChecked(save_on_close)
         layout.addWidget(self.chk_save_on_close)
@@ -137,8 +138,16 @@ class DialogoOpciones(QDialog):
             self.input_dir.setText(folder)
 
     def _on_accept(self):
-        self.settings.setValue("language", self.combo_lang.currentText())
+        from core.i18n import I18nManager
+        nuevo_idioma = self.combo_lang.currentText()
+        self.settings.setValue("language", nuevo_idioma)
         self.settings.setValue("default_dir", self.input_dir.text())
         self.settings.setValue("default_format", self.combo_format.currentText())
         self.settings.setValue("save_on_close", self.chk_save_on_close.isChecked())
+
+        I18nManager().establecer_idioma(nuevo_idioma)
+
+        if self.parent() and hasattr(self.parent(), 'retraducir_ui'):
+            self.parent().retraducir_ui()
+
         self.accept()

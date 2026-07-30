@@ -334,9 +334,20 @@ class PaintNotNet(QMainWindow):
             tb = self.tab_widget.tabBar()
             tb.setTabButton(index, tb.ButtonPosition.RightSide, None)
             area_scroll = self.tab_widget.widget(index)
+            if area_scroll and hasattr(area_scroll, 'widget'):
+                canvas = area_scroll.widget()
+                if canvas and hasattr(canvas, 'selection_engine'):
+                    canvas.selection_engine.clear_selection()
+
             self.tab_widget.removeTab(index)
+
+            new_index = self.tab_widget.currentIndex()
+            if new_index >= 0:
+                self._on_tab_changed(new_index)
+
             if area_scroll:
                 area_scroll.deleteLater()
+
             self.reaplicar_botones_cerrar_pestanas()
 
     def cerrar_pestana_confirmada(self, index):
@@ -423,6 +434,62 @@ class PaintNotNet(QMainWindow):
 
     def marcar_modificado(self):
         self.marcar_modificado_pestana()
+
+    def retraducir_ui(self):
+        from core.i18n import t
+        if hasattr(self, 'menu_archivo'):
+            self.menu_archivo.retraducir_menu()
+        if hasattr(self, 'menu_editar'):
+            self.menu_editar.retraducir_menu()
+        if hasattr(self, 'menu_imagen'):
+            self.menu_imagen.retraducir_menu()
+        if hasattr(self, 'menu_opciones'):
+            self.menu_opciones.retraducir_menu()
+        if hasattr(self, 'menu_ver'):
+            self.menu_ver.retraducir_menu()
+        if hasattr(self, 'menu_ajustes'):
+            self.menu_ajustes.retraducir_menu()
+        if hasattr(self, 'menu_acerca'):
+            self.menu_acerca.retraducir_menu()
+
+        if hasattr(self, 'top_toolbar') and hasattr(self.top_toolbar, 'retraducir_toolbar'):
+            self.top_toolbar.retraducir_toolbar()
+
+        if hasattr(self, 'tool_panel') and hasattr(self.tool_panel, 'retraducir_tooltips'):
+            self.tool_panel.retraducir_tooltips()
+
+        if hasattr(self, 'tools_dock'):
+            self.tools_dock.setWindowTitle(t("Herramientas"))
+        if hasattr(self, 'layers_dock'):
+            self.layers_dock.setWindowTitle(t("Capas"))
+        if hasattr(self, 'history_dock'):
+            self.history_dock.setWindowTitle(t("Historial"))
+        if hasattr(self, 'color_dock'):
+            self.color_dock.setWindowTitle(t("Color"))
+
+        self.actualizar_titulo_ventana()
+
+    def keyPressEvent(self, event):
+        focus_widget = QApplication.focusWidget()
+        from PyQt6.QtWidgets import QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox
+        if focus_widget and isinstance(focus_widget, (QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox)):
+            super().keyPressEvent(event)
+            return
+
+        key_text = event.text().upper()
+        if key_text and len(key_text) == 1 and not (event.modifiers() & (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier)):
+            from gui.dialogo_atajos import cargar_atajos
+            atajos = cargar_atajos()
+
+            for tool_name, char in atajos.items():
+                if char and char.upper() == key_text:
+                    for btn in self.tool_panel.button_group.buttons():
+                        tool = btn.property("tool_obj")
+                        if tool and hasattr(tool, 'name') and tool.name == tool_name:
+                            self.tool_panel.select_tool(tool)
+                            return
+
+        super().keyPressEvent(event)
 
     def crear_menus(self):
         menu_bar = self.menuBar()
