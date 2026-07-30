@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 if [ "$EUID" -ne 0 ]; then
-    echo "Ejecuta con sudo: sudo $0"
+    echo "Ejecuta con sudo: sudo $0 / Please run with sudo: sudo $0"
     exit 1
 fi
 rm -rf /opt/paintnotnet

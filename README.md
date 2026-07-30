@@ -1,11 +1,12 @@
 <p align="center">
-  <img src="gui/icono.png" width="128" alt="Logo PaintNotNet">
+  <img src="gui/icono.png" width="128" alt="PaintNotNet Logo">
 </p>
 
 <h1 align="center">PaintNotNet</h1>
 
 <p align="center">
-  <b>Un editor de imágenes liviano, potente y moderno para Linux e inspirado en Paint.NET</b>
+  <b>Un editor de imágenes liviano, potente y moderno para Linux e inspirado en Paint.NET</b><br>
+  <b>A lightweight, powerful, and modern image editor for Linux inspired by Paint.NET</b>
 </p>
 
 <p align="center">
@@ -15,89 +16,125 @@
   <a href="https://x.com/adrian_and_ino"><img src="https://img.shields.io/badge/X-@adrian__and__ino-black?style=flat-square&logo=x" alt="X Profile"></a>
 </p>
 
----
-
-## 🎨 Acerca del Proyecto
-
-**PaintNotNet** es una aplicación de edición de imágenes desarrollada en Python 3 y PyQt6. Diseñada para ofrecer una experiencia fluida, rápida y familiar para los usuarios que buscan una alternativa intuitiva a software como Paint.NET en entornos Linux.
+<p align="center">
+  <img src="gui/screenshot.png" alt="PaintNotNet Screenshot" width="90%">
+</p>
 
 ---
 
-## ✨ Características Principales
-
-### 🛠️ Herramientas de Dibujo y Selección
-- **Herramientas de Selección**: Selección Rectangular, Elíptica y Lasso Libre con transformación e interacción completa en el área del viewport sin recortes.
-- **Herramientas de Movimiento**: Mover Contenido (`Mover Selección Pixels`) y Mover Selección (`Marco`). Permite rotar, escalar y desplazar selecciones de forma fluida.
-- **Herramientas de Pintura**: Lápiz, Pincel con grosor y suavizado, Goma de Borrar, Balde de Pintura (Relleno por tolerancia) y Herramienta de Líneas/Curvas.
-- **Herramientas de Texto**: Inserción de texto dinámico con fuente personalizada, tamaño, estilo (Negrita, Cursiva, Subrayado), bordes y sombras configurables.
-- **Selector de Color / Cuentagotas**: Selector de colores rápido y Panel de Color Avanzado con ruedas cromáticas, sliders RGB/HSV/CMYK e historial de colores guardados.
-
-### 📚 Manejo de Capas e Historial
-- **Sistema de Capas Completo**: Creación, duplicación, reordenamiento, combinación hacia abajo, eliminación y alternado de visibilidad de capas.
-- **Historial Completo (Undo / Redo)**: Motor de snapshots para deshacer (`Ctrl+Z`) y rehacer (`Ctrl+Y`) cualquier acción o modificación de tamaño.
-- **Formato Nativo `.pnn`**: Guarda y carga proyectos completos preservando capas, transparencias y estructuras de trabajo.
-
-### 🖼️ Manejo de Lienzo e Imágenes
-- **Área de Trabajo Ilimitada**: Manipulación de tiradores y marcos de selección extendidos por todo el espacio oscuro del viewport.
-- **Redimensionado Inteligente**: "Tamaño del Lienzo..." y "Tamaño de la Imagen..." (adaptativo a la selección o al lienzo entero con opción de centrado).
-- **Ajustes de Imagen**: Inversión de colores, escala de grises (blanco y negro), brillo/contraste y tono/saturación.
-- **Detección del Portapapeles**: Sugiere automáticamente las dimensiones de imágenes copiadas en el portapapeles al crear nuevos lienzos (`Ctrl+N`).
+## 🌐 Language / Idioma
+- 🇪🇸 [Español](#-acerca-del-proyecto-español)
+- 🇬🇧 [English](#-about-the-project-english)
 
 ---
 
-## 🚀 Instalación y Uso
+## 🇪🇸 Acerca del Proyecto (Español)
 
-### Requisitos Previos
-- Python 3.10 o superior
-- PyQt6
+**PaintNotNet** es una aplicación de edición de imágenes desarrollada en Python 3 y PyQt6. Diseñada para ofrecer una experiencia fluida, rápida y familiar para los usuarios que buscan una alternativa intuitiva a software como Paint.NET en entornos Linux y Windows.
 
-### Ejecutar desde el Código Fuente
+### ✨ Características Principales
 
-### Option A: Instalador Automático Universal para Linux (Recomendado)
+#### 🌐 Soporte Multi-Idioma (i18n)
+- **Cambio de Idioma en Vivo**: Soporte nativo para **Español** e **Inglés**. Permite alternar el idioma de menús, herramientas y diálogos instantáneamente sin reiniciar desde *Opciones -> Preferencias de usuario*.
+- **Instalador Interactivo en Linux**: `install.sh` consulta el idioma deseado al inicio y pre-configura la aplicación automáticamente.
 
-Ejecuta el script instalador universal que detecta tu distribución, instala las dependencias de sistema necesarias (XCB, OpenGL, EGL, DBus) e integra la aplicación en tu menú de sistema:
+#### 🛠️ Herramientas de Dibujo, Selección y Formas
+- **Herramientas de Selección**: Selección Rectangular, Elíptica, Lasso Libre y Varita Mágica por tolerancia.
+- **Transformación Libre**: Mover Contenido (`V`), Mover Selección (`M`) e Invertir Selección (`I`) sin límites de lienzo.
+- **Pintura y Efectos**: Lápiz, Pincel (con grosor y suavizado), Goma de Borrar, Balde de Pintura, Degradado, Herramienta de Líneas/Curvas y Difuminado.
+- **Inserción de Texto y Formas**: Formas geométricas ajustables (Rectángulos, Elipses, Estrellas, Polígonos con bordes redondeados) y motor de texto dinámico.
+- **Selector de Color**: Panel de Color Avanzado (rueda cromática, sliders RGB/HSV/CMYK e historial de paletas).
 
+#### 📚 Capas, Historial y Formato Nativo `.pnn`
+- **Gestión de Capas**: Creación, duplicación, reordenamiento, combinación hacia abajo, eliminación y alternado de visibilidad.
+- **Historial Completo (Undo / Redo)**: Deshacer (`Ctrl+Z`) y rehacer (`Ctrl+Y`) con previsualización en vivo.
+- **Formato Nativo `.pnn`**: Guarda proyectos preservando capas, transparencias y estados de trabajo. Asociación automática al hacer doble clic en archivos `.pnn`.
+
+#### ⌨️ Atajos de Teclado Personalizables
+- **Configuración de Atajos**: Personaliza las teclas de acceso rápido para todas las 18 herramientas desde *Opciones -> Atajos de teclado...* con actualización de insignias en tiempo real.
+
+---
+
+## 🇬🇧 About the Project (English)
+
+**PaintNotNet** is an image editing application built with Python 3 and PyQt6. Designed to deliver a smooth, fast, and familiar workflow for users seeking an intuitive alternative to tools like Paint.NET on Linux and Windows.
+
+### ✨ Key Features
+
+#### 🌐 Multi-Language Support (i18n)
+- **Live Language Switcher**: Native support for **Spanish** and **English**. Switch menu titles, tooltips, and dialogs dynamically without restarting from *Options -> User Preferences*.
+- **Interactive Linux Installer**: `install.sh` prompts for your preferred language upfront and sets it as the default automatically.
+
+#### 🛠️ Drawing, Selection & Shape Tools
+- **Selection Tools**: Rectangle, Ellipse, Freeform Lasso, and Magic Wand with tolerance selection.
+- **Free Transformation**: Move Selected Pixels (`V`), Move Selection (`M`), and Invert Selection (`I`) beyond viewport boundaries.
+- **Paint & FX Tools**: Pencil, Paintbrush (with width and smoothing), Eraser, Paint Bucket, Gradient, Line/Curve Tool, and Blur.
+- **Text & Shapes**: Adjustable geometric shapes (Rectangles, Ellipses, Stars, Polygons with rounded corners) and dynamic text layer engine.
+- **Color Picker**: Advanced Color Panel (color wheel, RGB/HSV/CMYK sliders, and saved palette history).
+
+#### 📚 Layers, History & Native `.pnn` Format
+- **Layer Management**: Create, duplicate, reorder, merge down, delete, and toggle layer visibility.
+- **Complete History (Undo / Redo)**: Undo (`Ctrl+Z`) and Redo (`Ctrl+Y`) with live snapshot previews.
+- **Native `.pnn` Project Format**: Save projects preserving layers, transparency, and structure. Automatic MIME file association for double-clicking `.pnn` files.
+
+#### ⌨️ Customizable Keyboard Shortcuts
+- **Shortcut Configuration**: Customize keyboard shortcut keys for all 18 tools from *Options -> Keyboard Shortcuts...* with real-time badge updates.
+
+---
+
+## 🚀 Instalación y Uso / Installation & Usage
+
+### 🐧 Linux (Recomendado / Recommended)
+
+#### Opción A: Instalador Automático / Automatic Installer
 ```bash
 git clone https://github.com/adrianandin0/PaintNotNet.git
 cd PaintNotNet
 sudo ./install.sh
 ```
-
-Una vez instalado, puedes iniciar PaintNotNet desde el menú de aplicaciones de tu sistema (categoría **Gráficos**) o escribiendo en la terminal:
+Una vez instalado, inicia PaintNotNet desde el menú de aplicaciones (**Gráficos -> PaintNotNet**) o desde la terminal:
 ```bash
 paintnotnet
 ```
 
-### Option B: Ejecución desde Código Fuente / Entorno Virtual
-
-1. **Clonar e instalar dependencias:**
-   ```bash
-   git clone https://github.com/adrianandin0/PaintNotNet.git
-   cd PaintNotNet
-   python3 -m venv venv
-   source venv/bin/activate
-   pip install -r requirements.txt
-   ```
-
-2. **Ejecutar:**
-   ```bash
-   python main.py
-   ```
+#### Opción B: Código Fuente en Linux / Source Code on Linux
+```bash
+git clone https://github.com/adrianandin0/PaintNotNet.git
+cd PaintNotNet
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements_linux.txt
+python main.py
+```
 
 ---
 
-## 🤝 Colaboración y Sugerencias
+### 🪟 Windows
 
-¡Todas las contribuciones, sugerencias de características y reportes de errores son más que bienvenidos!
-
-- **Reportar un error o sugerir una mejora**: Abre un [Issue en GitHub](https://github.com/adrianandin0/PaintNotNet/issues).
-- **Enviar código**: Haz un fork del repositorio, crea una rama con tus cambios y envía un Pull Request.
+```cmd
+git clone https://github.com/adrianandin0/PaintNotNet.git
+cd PaintNotNet
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements_windows.txt
+python main.py
+```
 
 ---
 
-## 👤 Autor y Contacto
+## 🤝 Colaboración / Contributing
 
-- **Desarrollador**: Adrian
+¡Todas las contribuciones, traducciones y reportes de errores son bienvenidos!
+Contributions, translations, and bug reports are welcome!
+
+- **Reportar un error / Bug Report**: Abre un [Issue en GitHub](https://github.com/adrianandin0/PaintNotNet/issues).
+- **Enviar código / Pull Request**: Haz un fork del repositorio, crea una rama con tus cambios y envía un Pull Request.
+
+---
+
+## 👤 Autor y Contacto / Author & Contact
+
+- **Desarrollador / Developer**: Adrian
 - **X (Twitter)**: [@adrian_and_ino](https://x.com/adrian_and_ino)
 - **GitHub**: [adrianandin0/PaintNotNet](https://github.com/adrianandin0/PaintNotNet)
 
@@ -105,16 +142,16 @@ Desarrollado en Python con la asistencia de **Google Gemini** y **Google Antigra
 
 ---
 
-## 📜 Créditos de Recursos Gráficos
+## 📜 Créditos / Credits
 
-Agradecimientos a los creadores e ilustradores del material gráfico e íconos utilizados en la aplicación:
+Agradecimientos a los ilustradores y diseñadores de íconos / Special thanks to Flaticon icon creators:
 
 - [Flaticon](https://www.flaticon.com/)
-- Autor [Magnific](https://www.flaticon.com/authors/magnific)
-- Autor [Uniconlabs](https://www.flaticon.com/authors/uniconlabs)
-- Autor [Balraj Chana](https://www.flaticon.com/authors/balraj-chana)
-- Autor [Gajah Mada](https://www.flaticon.com/authors/gajah-mada)
+- [Magnific](https://www.flaticon.com/authors/magnific)
+- [Uniconlabs](https://www.flaticon.com/authors/uniconlabs)
+- [Balraj Chana](https://www.flaticon.com/authors/balraj-chana)
+- [Gajah Mada](https://www.flaticon.com/authors/gajah-mada)
 
 ---
 
-<p align="center">⭐ Si te gusta el proyecto, ¡no olvides darle una estrella en GitHub! ⭐</p>
+<p align="center">⭐ Si te gusta el proyecto, ¡no olvides darle una estrella en GitHub! / If you like the project, give it a star on GitHub! ⭐</p>

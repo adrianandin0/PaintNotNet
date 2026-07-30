@@ -1,0 +1,18 @@
+# ==============================================================================
+# PaintNotNet - Dependencias para Windows / Dependencies for Windows
+# ==============================================================================
+# Instalar en un entorno virtual con / Install in a virtual environment with:
+#   pip install -r requirements_windows.txt
+# ==============================================================================
+
+# Framework de Interfaz Gráfica / GUI Framework (Qt6)
+PyQt6>=6.5.0
+
+# Procesamiento de Arreglos Numéricos e Imágenes / Array & Image Processing
+numpy>=1.24.0
+
+# Algoritmos de Visión por Computadora y Pixeles / Computer Vision & Pixel Operations
+opencv-python>=4.8.0
+
+# Empaquetado de Ejecutables Windows (.exe) / Tool for Packaging Windows Executables (.exe)
+pyinstaller>=6.0.0
