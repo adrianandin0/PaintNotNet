@@ -1,6 +1,6 @@
-from PyQt6.QtWidgets import QToolBar, QWidget, QHBoxLayout, QLabel, QSpinBox, QSlider, QComboBox, QStyle
+from PyQt6.QtWidgets import QToolBar, QWidget, QHBoxLayout, QLabel, QSpinBox, QSlider, QComboBox, QCheckBox, QStyle
 from PyQt6.QtGui import QIcon, QAction
-from PyQt6.QtCore import Qt, QSize, pyqtSignal
+from PyQt6.QtCore import Qt, QSize, pyqtSignal, QSettings
 
 
 class TopToolBarWidget(QToolBar):
@@ -13,7 +13,7 @@ class TopToolBarWidget(QToolBar):
         self.setMovable(False)
         self.setFloatable(False)
         self.setIconSize(QSize(18, 18))
-        self.setStyleSheet("QToolBar { spacing: 6px; padding: 2px; }")
+        self.setStyleSheet("QToolBar { spacing: 4px; padding: 2px; }")
 
         # 0. Nueva Pestaña (+)
         self.action_nueva_pestana = QAction(QIcon("gui/iconos/add.png"), "Nueva Pestaña", self)
@@ -64,7 +64,7 @@ class TopToolBarWidget(QToolBar):
 
         self.addSeparator()
 
-        # 7. Selector de Tolerancia Global (Acortado)
+        # 7. Selector de Tolerancia Global
         self.lbl_tol = QLabel(" Tolerancia: ")
         self.lbl_tol.setStyleSheet("font-size: 11px; font-weight: bold;")
         self.addWidget(self.lbl_tol)
@@ -72,7 +72,7 @@ class TopToolBarWidget(QToolBar):
         self.slider_tol = QSlider(Qt.Orientation.Horizontal)
         self.slider_tol.setRange(0, 100)
         self.slider_tol.setValue(32)
-        self.slider_tol.setFixedWidth(75)
+        self.slider_tol.setFixedWidth(65)
         self.slider_tol.valueChanged.connect(self._on_tolerancia_changed)
         self.addWidget(self.slider_tol)
 
@@ -82,7 +82,7 @@ class TopToolBarWidget(QToolBar):
 
         self.addSeparator()
 
-        # 8. Selector de Suavizado Global (Acortado)
+        # 8. Selector de Suavizado Global
         self.lbl_suav = QLabel(" Suavizado: ")
         self.lbl_suav.setStyleSheet("font-size: 11px; font-weight: bold;")
         self.addWidget(self.lbl_suav)
@@ -90,7 +90,7 @@ class TopToolBarWidget(QToolBar):
         self.slider_suav = QSlider(Qt.Orientation.Horizontal)
         self.slider_suav.setRange(0, 100)
         self.slider_suav.setValue(100)
-        self.slider_suav.setFixedWidth(75)
+        self.slider_suav.setFixedWidth(65)
         self.slider_suav.valueChanged.connect(self._on_suavizado_changed)
         self.addWidget(self.slider_suav)
 
@@ -100,14 +100,14 @@ class TopToolBarWidget(QToolBar):
 
         self.addSeparator()
 
-        # 9. Selector de Zoom (Desplegable y editable 1% a 300%)
+        # 9. Selector de Zoom
         self.lbl_zoom = QLabel(" Zoom: ")
         self.lbl_zoom.setStyleSheet("font-size: 11px; font-weight: bold;")
         self.addWidget(self.lbl_zoom)
 
         self.combo_zoom = QComboBox()
         self.combo_zoom.setEditable(True)
-        self.combo_zoom.setFixedWidth(75)
+        self.combo_zoom.setFixedWidth(65)
         self.combo_zoom.addItems(["10%", "25%", "50%", "75%", "100%", "125%", "150%", "200%", "300%"])
         self.combo_zoom.setCurrentText("100%")
         self.combo_zoom.setStyleSheet("font-size: 11px; padding: 1px;")
@@ -118,7 +118,7 @@ class TopToolBarWidget(QToolBar):
 
         self.addSeparator()
 
-        # 10. Opciones de Línea (Inicio, Estilo, Fin - Compactos con Solo Ícono)
+        # 10. Opciones de Línea
         self.lbl_linea = QLabel(" Línea: ")
         self.lbl_linea.setStyleSheet("font-size: 11px; font-weight: bold; color: #888888;")
         self.addWidget(self.lbl_linea)
@@ -136,51 +136,119 @@ class TopToolBarWidget(QToolBar):
             }
         """
 
-        # Combo Inicio (Solo Icono)
         self.combo_linea_inicio = QComboBox()
         self.combo_linea_inicio.setStyleSheet(combo_style)
         self.combo_linea_inicio.setIconSize(QSize(18, 18))
-        self.combo_linea_inicio.setFixedWidth(38)
+        self.combo_linea_inicio.setFixedWidth(36)
         self.combo_linea_inicio.addItem(QIcon("gui/iconos/rectangle.png"), "", "Plana")
         self.combo_linea_inicio.addItem(QIcon("gui/iconos/line_circle_left.png"), "", "Redonda")
         self.combo_linea_inicio.addItem(QIcon("gui/iconos/arrow_left.png"), "", "Flecha")
         self.combo_linea_inicio.addItem(QIcon("gui/iconos/circle.png"), "", "Circulo")
         self.combo_linea_inicio.setToolTip("Punta Inicial: Plana")
-        if self.combo_linea_inicio.view():
-            self.combo_linea_inicio.view().setFixedWidth(34)
         self.combo_linea_inicio.currentIndexChanged.connect(self._on_linea_inicio_changed)
         self.addWidget(self.combo_linea_inicio)
 
-        # Combo Estilo (Solo Icono)
         self.combo_linea_estilo = QComboBox()
         self.combo_linea_estilo.setStyleSheet(combo_style)
         self.combo_linea_estilo.setIconSize(QSize(18, 18))
-        self.combo_linea_estilo.setFixedWidth(38)
+        self.combo_linea_estilo.setFixedWidth(36)
         self.combo_linea_estilo.addItem(QIcon("gui/iconos/flat.png"), "", "Recta")
         self.combo_linea_estilo.addItem(QIcon("gui/iconos/pointed.png"), "", "Punteada")
         self.combo_linea_estilo.setToolTip("Estilo de Trazo: Recta")
-        if self.combo_linea_estilo.view():
-            self.combo_linea_estilo.view().setFixedWidth(34)
         self.combo_linea_estilo.currentIndexChanged.connect(self._on_linea_estilo_changed)
         self.addWidget(self.combo_linea_estilo)
 
-        # Combo Fin (Solo Icono)
         self.combo_linea_fin = QComboBox()
         self.combo_linea_fin.setStyleSheet(combo_style)
         self.combo_linea_fin.setIconSize(QSize(18, 18))
-        self.combo_linea_fin.setFixedWidth(38)
+        self.combo_linea_fin.setFixedWidth(36)
         self.combo_linea_fin.addItem(QIcon("gui/iconos/rectangle.png"), "", "Plana")
         self.combo_linea_fin.addItem(QIcon("gui/iconos/line_circle_right.png"), "", "Redonda")
         self.combo_linea_fin.addItem(QIcon("gui/iconos/arrow_right.png"), "", "Flecha")
         self.combo_linea_fin.addItem(QIcon("gui/iconos/circle.png"), "", "Circulo")
         self.combo_linea_fin.setToolTip("Punta Final: Plana")
-        if self.combo_linea_fin.view():
-            self.combo_linea_fin.view().setFixedWidth(34)
         self.combo_linea_fin.currentIndexChanged.connect(self._on_linea_fin_changed)
         self.addWidget(self.combo_linea_fin)
 
+        self.addSeparator()
+
+        # 11. Opciones de Formas Geométrica
+        self.lbl_formas = QLabel(" Formas: ")
+        self.lbl_formas.setStyleSheet("font-size: 11px; font-weight: bold; color: #888888;")
+        self.addWidget(self.lbl_formas)
+
+        self.chk_formas_redondeado = QCheckBox("Redondeado")
+        self.chk_formas_redondeado.setStyleSheet("font-size: 11px;")
+        self.chk_formas_redondeado.setToolTip("Esquinas redondeadas para Rectángulos y Triángulos")
+        self.addWidget(self.chk_formas_redondeado)
+
+        self.combo_forma_estilo = QComboBox()
+        self.combo_forma_estilo.setStyleSheet(combo_style)
+        self.combo_forma_estilo.setIconSize(QSize(18, 18))
+        self.combo_forma_estilo.setFixedWidth(36)
+        self.combo_forma_estilo.addItem(QIcon("gui/iconos/shape.png"), "", "Solo Borde")
+        self.combo_forma_estilo.addItem(QIcon("gui/iconos/shapes_solid.png"), "", "Forma Sólida")
+        self.combo_forma_estilo.addItem(QIcon("gui/iconos/shapes_colored.png"), "", "Borde y Relleno")
+        self.combo_forma_estilo.setToolTip("Estilo de Forma: Solo Borde")
+        self.addWidget(self.combo_forma_estilo)
+
+        self.combo_forma_tipo = QComboBox()
+        self.combo_forma_tipo.setStyleSheet(combo_style)
+        self.combo_forma_tipo.setIconSize(QSize(18, 18))
+        self.combo_forma_tipo.setFixedWidth(36)
+        self.combo_forma_tipo.addItem(QIcon("gui/iconos/shape_rectangle.png"), "", "Rectángulo")
+        self.combo_forma_tipo.addItem(QIcon("gui/iconos/shape_triangle.png"), "", "Triángulo")
+        self.combo_forma_tipo.addItem(QIcon("gui/iconos/shape_circle.png"), "", "Elipse")
+        self.combo_forma_tipo.setToolTip("Tipo de Forma: Rectángulo")
+        self.addWidget(self.combo_forma_tipo)
+
+        self.addSeparator()
+
+        # 12. Opciones de Difuminar / Blur
+        self.lbl_blur = QLabel(" Difuminar: ")
+        self.lbl_blur.setStyleSheet("font-size: 11px; font-weight: bold; color: #888888;")
+        self.addWidget(self.lbl_blur)
+
+        settings = QSettings("PaintNotNet", "PaintNotNet")
+        saved_mode = settings.value("blur_modo", "Pixelado")
+        saved_val = int(settings.value("blur_val", 0))
+
+        self.combo_blur_modo = QComboBox()
+        self.combo_blur_modo.setStyleSheet("font-size: 11px; padding: 1px;")
+        self.combo_blur_modo.setFixedWidth(95)
+        self.combo_blur_modo.addItem("Pixelado", "Pixelado")
+        self.combo_blur_modo.addItem("Gausiano", "Gausiano")
+        idx_mode = self.combo_blur_modo.findData(saved_mode)
+        if idx_mode >= 0:
+            self.combo_blur_modo.setCurrentIndex(idx_mode)
+        self.combo_blur_modo.currentIndexChanged.connect(self._on_blur_changed)
+        self.addWidget(self.combo_blur_modo)
+
+        self.slider_blur = QSlider(Qt.Orientation.Horizontal)
+        self.slider_blur.setRange(0, 100)
+        self.slider_blur.setValue(saved_val)
+        self.slider_blur.setFixedWidth(65)
+        self.slider_blur.valueChanged.connect(self._on_blur_changed)
+        self.addWidget(self.slider_blur)
+
+        self.lbl_blur_val = QLabel(f"{saved_val}%")
+        self.lbl_blur_val.setStyleSheet("font-size: 11px; font-weight: bold; color: #888888;")
+        self.addWidget(self.lbl_blur_val)
+
         if main_window:
             self.conectar_acciones()
+
+    def _on_blur_changed(self, *args):
+        val = self.slider_blur.value()
+        modo = self.combo_blur_modo.currentData() or "Pixelado"
+        self.lbl_blur_val.setText(f"{val}%")
+
+        settings = QSettings("PaintNotNet", "PaintNotNet")
+        settings.setValue("blur_modo", modo)
+        settings.setValue("blur_val", val)
+
+        if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
+            self.main_window.lienzo.aplicar_difuminado(modo, val)
 
     def update_tool_states(self, tool_obj):
         if not tool_obj:
@@ -191,37 +259,41 @@ class TopToolBarWidget(QToolBar):
         from tools.brush import BrushTool
         from tools.zoom import ZoomTool
         from tools.line import LineTool
+        from tools.shapes import ShapesTool
+        from tools.blur import BlurTool
 
         uses_tolerance = isinstance(tool_obj, (BucketTool, MagicWandTool))
         uses_smoothness = isinstance(tool_obj, (BrushTool, LineTool))
         uses_zoom = isinstance(tool_obj, ZoomTool)
         uses_line = isinstance(tool_obj, LineTool)
+        uses_shapes = isinstance(tool_obj, ShapesTool)
+        uses_blur = isinstance(tool_obj, BlurTool)
 
-        # Tolerancia
         self.lbl_tol.setEnabled(uses_tolerance)
         self.slider_tol.setEnabled(uses_tolerance)
         self.lbl_tol_val.setEnabled(uses_tolerance)
-        col_tol = "#64B4FF" if uses_tolerance else "#888888"
-        self.lbl_tol_val.setStyleSheet(f"font-size: 11px; font-weight: bold; color: {col_tol};")
 
-        # Suavizado
         self.lbl_suav.setEnabled(uses_smoothness)
         self.slider_suav.setEnabled(uses_smoothness)
         self.lbl_suav_val.setEnabled(uses_smoothness)
-        col_suav = "#64B4FF" if uses_smoothness else "#888888"
-        self.lbl_suav_val.setStyleSheet(f"font-size: 11px; font-weight: bold; color: {col_suav};")
 
-        # Zoom
         self.lbl_zoom.setEnabled(uses_zoom)
         self.combo_zoom.setEnabled(uses_zoom)
 
-        # Línea (Deshabilitadas cuando no es LineTool)
         self.lbl_linea.setEnabled(uses_line)
         self.combo_linea_inicio.setEnabled(uses_line)
         self.combo_linea_estilo.setEnabled(uses_line)
         self.combo_linea_fin.setEnabled(uses_line)
-        col_linea = "#FFFFFF" if uses_line else "#888888"
-        self.lbl_linea.setStyleSheet(f"font-size: 11px; font-weight: bold; color: {col_linea};")
+
+        self.lbl_formas.setEnabled(uses_shapes)
+        self.chk_formas_redondeado.setEnabled(uses_shapes)
+        self.combo_forma_estilo.setEnabled(uses_shapes)
+        self.combo_forma_tipo.setEnabled(uses_shapes)
+
+        self.lbl_blur.setEnabled(uses_blur)
+        self.combo_blur_modo.setEnabled(uses_blur)
+        self.slider_blur.setEnabled(uses_blur)
+        self.lbl_blur_val.setEnabled(uses_blur)
 
     def conectar_acciones(self):
         if self.main_window:
@@ -246,62 +318,28 @@ class TopToolBarWidget(QToolBar):
         self.lbl_tol_val.setText(f"{val}%")
         if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
             self.main_window.lienzo.tolerancia = val
-            if hasattr(self.main_window.lienzo.active_tool_obj, 'update_tolerance'):
-                self.main_window.lienzo.active_tool_obj.update_tolerance(self.main_window.lienzo, val)
-            self.main_window.lienzo.update()
-        self.tolerancia_changed.emit(val)
 
     def _on_suavizado_changed(self, val):
         self.lbl_suav_val.setText(f"{val}%")
         if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
-            canvas = self.main_window.lienzo
-            if val == 0:
-                canvas.suavizado_pincel = False
-                canvas.opacidad_pincel = 255
-            else:
-                canvas.suavizado_pincel = True
-                canvas.opacidad_pincel = int(255 * (val / 100.0))
-            canvas.update()
+            self.main_window.lienzo.suavizado = val
 
     def _on_zoom_changed(self):
-        texto = self.combo_zoom.currentText().replace("%", "").strip()
+        txt = self.combo_zoom.currentText().replace("%", "").strip()
         try:
-            val = int(texto)
-            val = max(1, min(300, val))
+            val = int(txt)
+            val = max(10, min(500, val))
+            if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
+                self.main_window.lienzo.zoom_factor = val / 100.0
+                self.main_window.lienzo.update()
         except ValueError:
-            val = 100
-
-        scale = val / 100.0
-        if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
-            self.main_window.lienzo.set_zoom(scale)
-
-        self.combo_zoom.blockSignals(True)
-        self.combo_zoom.setEditText(f"{val}%")
-        self.combo_zoom.blockSignals(False)
-
-    def sync_zoom_from_canvas(self, scale_factor):
-        val = int(round(scale_factor * 100.0))
-        self.combo_zoom.blockSignals(True)
-        self.combo_zoom.setEditText(f"{val}%")
-        self.combo_zoom.blockSignals(False)
+            pass
 
     def _on_linea_inicio_changed(self, idx):
-        val = self.combo_linea_inicio.currentData() or "Plana"
-        self.combo_linea_inicio.setToolTip(f"Punta Inicial: {val}")
-        if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
-            self.main_window.lienzo.linea_cap_inicio = val
-            self.main_window.lienzo.update()
+        pass
 
     def _on_linea_estilo_changed(self, idx):
-        val = self.combo_linea_estilo.currentData() or "Recta"
-        self.combo_linea_estilo.setToolTip(f"Estilo de Trazo: {val}")
-        if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
-            self.main_window.lienzo.linea_estilo = val
-            self.main_window.lienzo.update()
+        pass
 
     def _on_linea_fin_changed(self, idx):
-        val = self.combo_linea_fin.currentData() or "Plana"
-        self.combo_linea_fin.setToolTip(f"Punta Final: {val}")
-        if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
-            self.main_window.lienzo.linea_cap_fin = val
-            self.main_window.lienzo.update()
+        pass

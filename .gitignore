@@ -10,6 +10,8 @@ __pycache__/
 .Python
 build/
 dist/
+build_pkg/
+dist_pkg/
 downloads/
 eggs/
 .eggs/
@@ -24,11 +26,9 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
-*.spec
 
 # PyInstaller / Nuitka / Py2exe build outputs
 *.manifest
-*.spec
 
 # Installer logs
 pip-log.txt

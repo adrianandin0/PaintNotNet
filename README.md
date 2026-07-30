@@ -53,24 +53,33 @@
 
 ### Ejecutar desde el Código Fuente
 
-1. **Clonar el repositorio:**
+### Option A: Instalador Automático Universal para Linux (Recomendado)
+
+Ejecuta el script instalador universal que detecta tu distribución, instala las dependencias de sistema necesarias (XCB, OpenGL, EGL, DBus) e integra la aplicación en tu menú de sistema:
+
+```bash
+git clone https://github.com/adrianandin0/PaintNotNet.git
+cd PaintNotNet
+sudo ./install.sh
+```
+
+Una vez instalado, puedes iniciar PaintNotNet desde el menú de aplicaciones de tu sistema (categoría **Gráficos**) o escribiendo en la terminal:
+```bash
+paintnotnet
+```
+
+### Option B: Ejecución desde Código Fuente / Entorno Virtual
+
+1. **Clonar e instalar dependencias:**
    ```bash
    git clone https://github.com/adrianandin0/PaintNotNet.git
    cd PaintNotNet
-   ```
-
-2. **Crear y activar un entorno virtual:**
-   ```bash
    python3 -m venv venv
    source venv/bin/activate
-   ```
-
-3. **Instalar dependencias:**
-   ```bash
    pip install -r requirements.txt
    ```
 
-4. **Ejecutar la aplicación:**
+2. **Ejecutar:**
    ```bash
    python main.py
    ```

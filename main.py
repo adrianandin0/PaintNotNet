@@ -4,6 +4,10 @@ from PyQt6.QtWidgets import QApplication, QMainWindow, QScrollArea, QDockWidget,
 from PyQt6.QtGui import QColor, QCloseEvent, QShortcut, QKeySequence, QIcon
 from PyQt6.QtCore import Qt, QSettings, QTimer
 
+if getattr(sys, 'frozen', False):
+    base_dir = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
+    os.chdir(base_dir)
+
 from core.canvas import CanvasWidget
 from gui.tool_panel import ToolPanelWidget
 from gui.color_panel import ColorPanelWidget
@@ -561,5 +565,9 @@ if __name__ == '__main__':
 
     app.setWindowIcon(QIcon("gui/iconos/paintdotnet.ico"))
     ventana = PaintNotNet()
+    if len(sys.argv) > 1:
+        ruta_arg = sys.argv[1]
+        if os.path.exists(ruta_arg) and not ruta_arg.startswith("-"):
+            ventana.menu_archivo.abrir_ruta_especifica(os.path.abspath(ruta_arg))
     ventana.show()
     sys.exit(app.exec())
