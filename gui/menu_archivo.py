@@ -84,6 +84,11 @@ class MenuArchivo:
         self.ventana = ventana_principal
 
     def obtener_home_real(self):
+        settings = QSettings("PaintNotNet", "PaintNotNet")
+        dir_guardado = settings.value("default_dir", None)
+        if dir_guardado and os.path.isdir(str(dir_guardado)):
+            return str(dir_guardado)
+
         usuario_real = os.environ.get('SUDO_USER') or os.environ.get('LOGNAME') or os.environ.get('USER')
         if usuario_real and usuario_real != 'root':
             ruta_home = os.path.join('/home', usuario_real)
@@ -212,6 +217,9 @@ class MenuArchivo:
             if era_inicial_limpia and tab_widget.count() > 1:
                 tab_widget.removeTab(0)
 
+    def abrir_ruta_especifica(self, ruta):
+        self.abrir_archivo_reciente(ruta)
+
     def nuevo_archivo(self):
         dialogo = DialogoNuevoArchivo(self.ventana)
         if dialogo.exec() == QDialog.DialogCode.Accepted:
@@ -319,14 +327,30 @@ class MenuArchivo:
         else:
             base_nombre = "sin_titulo"
 
+        settings = QSettings("PaintNotNet", "PaintNotNet")
+        fmt_config = settings.value("default_format", None)
+
         if num_capas > 1:
             ext_defecto = ".pnn"
             filtro_defecto = filtro_pnn
             filtros = f"{filtro_pnn};;{filtro_png};;{filtro_jpg};;{filtro_bmp}"
         else:
-            ext_defecto = ".png"
-            filtro_defecto = filtro_png
-            filtros = f"{filtro_png};;{filtro_pnn};;{filtro_jpg};;{filtro_bmp}"
+            if fmt_config and "pnn" in str(fmt_config).lower():
+                ext_defecto = ".pnn"
+                filtro_defecto = filtro_pnn
+                filtros = f"{filtro_pnn};;{filtro_png};;{filtro_jpg};;{filtro_bmp}"
+            elif fmt_config and "jpg" in str(fmt_config).lower():
+                ext_defecto = ".jpg"
+                filtro_defecto = filtro_jpg
+                filtros = f"{filtro_jpg};;{filtro_png};;{filtro_pnn};;{filtro_bmp}"
+            elif fmt_config and "bmp" in str(fmt_config).lower():
+                ext_defecto = ".bmp"
+                filtro_defecto = filtro_bmp
+                filtros = f"{filtro_bmp};;{filtro_png};;{filtro_pnn};;{filtro_jpg}"
+            else:
+                ext_defecto = ".png"
+                filtro_defecto = filtro_png
+                filtros = f"{filtro_png};;{filtro_pnn};;{filtro_jpg};;{filtro_bmp}"
 
         sug_nombre = base_nombre if base_nombre.lower().endswith(ext_defecto) else f"{base_nombre}{ext_defecto}"
         sug_path = os.path.join(dir_home, sug_nombre)
