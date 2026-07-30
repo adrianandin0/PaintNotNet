@@ -24,7 +24,7 @@ echo.
 echo [i] Idioma seleccionado: %SELECTED_LANG%
 echo.
 
-:: 2. Compilar ejecutable ejecutable (.exe) usando PaintNotNet.spec
+:: 2. Compilar ejecutable (.exe) usando PaintNotNet.spec
 echo [i] Compilando PaintNotNet con PyInstaller...
 if exist "venv\Scripts\pyinstaller.exe" (
     venv\Scripts\pyinstaller.exe --noconfirm --workpath build_pkg --distpath dist_pkg PaintNotNet.spec
@@ -38,16 +38,23 @@ echo.
 echo [i] Instalando archivos en: %INSTALL_DIR%...
 
 mkdir "%INSTALL_DIR%" 2>nul
-xcopy /E /Y /I "dist_pkg\PaintNotNet\*" "%INSTALL_DIR%\" >nul
+xcopy /E /Y /I "dist_pkg\PaintNotNet\*" "%INSTALL_DIR%\"
 
-:: Copiar expresamente el archivo de icono .ico a la raíz de instalación
-copy /Y "%~dp0gui\paintdotnet.ico" "%INSTALL_DIR%\paintdotnet.ico" >nul
+:: Copiar expresamente el archivo de icono .ico a la raíz y a gui/
+mkdir "%INSTALL_DIR%\gui" 2>nul
+if exist "gui\paintdotnet.ico" (
+    copy /Y "gui\paintdotnet.ico" "%INSTALL_DIR%\paintdotnet.ico"
+    copy /Y "gui\paintdotnet.ico" "%INSTALL_DIR%\gui\paintdotnet.ico"
+) else if exist "%~dp0gui\paintdotnet.ico" (
+    copy /Y "%~dp0gui\paintdotnet.ico" "%INSTALL_DIR%\paintdotnet.ico"
+    copy /Y "%~dp0gui\paintdotnet.ico" "%INSTALL_DIR%\gui\paintdotnet.ico"
+)
 
 :: 4. Eliminar accesos directos viejos para forzar a Windows Explorer a refrescar la caché
 del /F /Q "%USERPROFILE%\Desktop\PaintNotNet.lnk" 2>nul
 del /F /Q "%APPDATA%\Microsoft\Windows\Start Menu\Programs\PaintNotNet.lnk" 2>nul
 
-:: 5. Crear accesos directos con asignación limpia de IconLocation
+:: 5. Crear accesos directos asignando el icono .ico
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$s=(New-Object -COM WScript.Shell).CreateShortcut([System.Environment]::GetFolderPath('Desktop') + '\PaintNotNet.lnk'); $s.TargetPath='%INSTALL_DIR%\PaintNotNet.exe'; $s.IconLocation='%INSTALL_DIR%\paintdotnet.ico'; $s.WorkingDirectory='%INSTALL_DIR%'; $s.Save()"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$s=(New-Object -COM WScript.Shell).CreateShortcut([System.Environment]::GetFolderPath('StartMenu') + '\Programs\PaintNotNet.lnk'); $s.TargetPath='%INSTALL_DIR%\PaintNotNet.exe'; $s.IconLocation='%INSTALL_DIR%\paintdotnet.ico'; $s.WorkingDirectory='%INSTALL_DIR%'; $s.Save()"
 
