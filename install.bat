@@ -38,18 +38,20 @@ echo.
 echo [i] Instalando archivos en: %INSTALL_DIR%...
 
 mkdir "%INSTALL_DIR%" 2>nul
-xcopy /E /Y /I "dist_pkg\PaintNotNet\*" "%INSTALL_DIR%\"
+xcopy /E /Y /I "dist_pkg\PaintNotNet\*" "%INSTALL_DIR%\" >nul
 
-:: Copiar expresamente el archivo de icono a la raíz de la instalación y a gui/
-mkdir "%INSTALL_DIR%\gui" 2>nul
-copy /Y "%~dp0gui\paintdotnet.ico" "%INSTALL_DIR%\gui\paintdotnet.ico" >nul 2>&1
-copy /Y "%~dp0gui\paintdotnet.ico" "%INSTALL_DIR%\paintdotnet.ico" >nul 2>&1
+:: Copiar expresamente el archivo de icono .ico a la raíz de instalación
+copy /Y "%~dp0gui\paintdotnet.ico" "%INSTALL_DIR%\paintdotnet.ico" >nul
 
-:: 4. Crear Accesos Directos apuntando al archivo de icono .ico (Escritorio y Menú Inicio)
-powershell -Command "$s=(New-Object -COM WScript.Shell).CreateShortcut('%USERPROFILE%\Desktop\PaintNotNet.lnk'); $s.TargetPath='%INSTALL_DIR%\PaintNotNet.exe'; $s.IconLocation='%INSTALL_DIR%\paintdotnet.ico,0'; $s.Save()"
-powershell -Command "$s=(New-Object -COM WScript.Shell).CreateShortcut('%APPDATA%\Microsoft\Windows\Start Menu\Programs\PaintNotNet.lnk'); $s.TargetPath='%INSTALL_DIR%\PaintNotNet.exe'; $s.IconLocation='%INSTALL_DIR%\paintdotnet.ico,0'; $s.Save()"
+:: 4. Eliminar accesos directos viejos para forzar a Windows Explorer a refrescar la caché
+del /F /Q "%USERPROFILE%\Desktop\PaintNotNet.lnk" 2>nul
+del /F /Q "%APPDATA%\Microsoft\Windows\Start Menu\Programs\PaintNotNet.lnk" 2>nul
 
-:: 5. Pre-configurar el idioma en el archivo de preferencias de usuario
+:: 5. Crear accesos directos con asignación limpia de IconLocation
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$s=(New-Object -COM WScript.Shell).CreateShortcut([System.Environment]::GetFolderPath('Desktop') + '\PaintNotNet.lnk'); $s.TargetPath='%INSTALL_DIR%\PaintNotNet.exe'; $s.IconLocation='%INSTALL_DIR%\paintdotnet.ico'; $s.WorkingDirectory='%INSTALL_DIR%'; $s.Save()"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$s=(New-Object -COM WScript.Shell).CreateShortcut([System.Environment]::GetFolderPath('StartMenu') + '\Programs\PaintNotNet.lnk'); $s.TargetPath='%INSTALL_DIR%\PaintNotNet.exe'; $s.IconLocation='%INSTALL_DIR%\paintdotnet.ico'; $s.WorkingDirectory='%INSTALL_DIR%'; $s.Save()"
+
+:: 6. Pre-configurar el idioma en el archivo de preferencias de usuario
 set "CONFIG_FILE=%INSTALL_DIR%\PaintNotNet.conf"
 if not exist "%CONFIG_FILE%" (
     (
@@ -58,8 +60,8 @@ if not exist "%CONFIG_FILE%" (
     ) > "%CONFIG_FILE%"
 )
 
-:: 6. Refrescar la caché de íconos de Windows Explorer
-ie4uinit.exe -ClearIconCache >nul 2>&1
+:: 7. Forzar actualización de la caché de íconos del sistema
+ie4uinit.exe -show >nul 2>&1
 
 echo.
 echo ==============================================================
