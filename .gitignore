@@ -12,6 +12,7 @@ build/
 dist/
 build_pkg/
 dist_pkg/
+dist_setup/
 downloads/
 eggs/
 .eggs/
@@ -73,3 +74,14 @@ Thumbs.db
 
 # User preferences & runtime settings
 .PaintNotNet.ini
+
+# Windows compilation exclusive files (Local VM build only)
+setup.iss
+GUIA_WINDOWS_SETUP.md
+gui/banner_setup.png
+LICENCIA.txt
+LICENSE.txt
+AGRADECIMIENTOS.txt
+ACKNOWLEDGMENTS.txt
+install.bat
+requirements_windows.txt
