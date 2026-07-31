@@ -322,9 +322,9 @@ class ColorPanelWidget(QWidget):
         layout.addLayout(grid_paleta)
 
         # 4. Slots de Usuario (Guardados - 1px de separación exacta)
-        lbl_custom = QLabel("Guardados:")
-        lbl_custom.setStyleSheet("font-size: 9px; font-weight: bold; margin-top: 2px;")
-        layout.addWidget(lbl_custom, alignment=Qt.AlignmentFlag.AlignCenter)
+        self.lbl_custom = QLabel("Guardadas:")
+        self.lbl_custom.setStyleSheet("font-size: 9px; font-weight: bold; margin-top: 2px;")
+        layout.addWidget(self.lbl_custom, alignment=Qt.AlignmentFlag.AlignCenter)
 
         grid_custom = QGridLayout()
         grid_custom.setSpacing(1)
@@ -410,3 +410,8 @@ class ColorPanelWidget(QWidget):
         self.slider_alpha.blockSignals(True)
         self.slider_alpha.setValue(c.alpha())
         self.slider_alpha.blockSignals(False)
+
+    def retraducir_panel(self):
+        from core.i18n import t
+        if hasattr(self, 'lbl_custom'):
+            self.lbl_custom.setText(t("Guardadas:"))

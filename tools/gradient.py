@@ -39,7 +39,7 @@ class GradientTool(BaseTool):
 
         painter = QPainter(canvas.layer_mgr.buffer)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
 
         if canvas.selection_engine.has_selection():
             painter.setClipPath(canvas.selection_engine.active_path)
@@ -62,7 +62,7 @@ class GradientTool(BaseTool):
         if self.is_dragging and self.p_start and self.p_end:
             painter.save()
             painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
 
             if canvas.selection_engine.has_selection():
                 painter.setClipPath(canvas.selection_engine.active_path)

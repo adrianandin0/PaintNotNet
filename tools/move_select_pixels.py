@@ -65,8 +65,14 @@ class MoveSelectPixelsTool(BaseTool):
         if engine.floating_image and not engine.floating_image.isNull():
             buffer = canvas.layer_mgr.buffer
             painter = QPainter(buffer)
+            if not engine.active_path.isEmpty():
+                painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
+                painter.fillPath(engine.active_path, Qt.GlobalColor.transparent)
+                painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
             painter.drawImage(engine.original_image_pos, engine.floating_image)
             painter.end()
             engine.floating_image = None
             engine.unscaled_floating_image = None
+            if hasattr(engine, 'original_selection_region'):
+                engine.original_selection_region = None
             canvas.update()

@@ -1,3 +1,6 @@
+from PyQt6.QtGui import QKeySequence
+
+
 class MenuEditar:
     def __init__(self, ventana_principal):
         self.ventana = ventana_principal
@@ -102,6 +105,12 @@ class MenuEditar:
         accion_invert = self.menu_editar.addAction(t("Invertir Selección"))
         accion_invert.setShortcut("Ctrl+I")
         accion_invert.triggered.connect(self.invertir_seleccion)
+
+        self.menu_editar.addSeparator()
+
+        accion_borrar_sel = self.menu_editar.addAction(t("Eliminar Selección"))
+        accion_borrar_sel.setShortcut(QKeySequence.StandardKey.Delete)
+        accion_borrar_sel.triggered.connect(self.borrar_seleccion)
 
     def desechar_seleccion(self):
         c = self._get_canvas()

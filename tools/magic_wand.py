@@ -39,7 +39,7 @@ class MagicWandTool(BaseTool):
             self.ejecutar_seleccion_varita(canvas, pos, tol)
 
     def update_tolerance(self, canvas, tol):
-        if self.last_seed:
+        if self.last_seed and canvas.selection_engine.has_selection():
             self.ejecutar_seleccion_varita(canvas, self.last_seed, tol)
 
     def ejecutar_seleccion_varita(self, canvas, seed_point, tolerance):

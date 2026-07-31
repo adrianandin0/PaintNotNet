@@ -93,9 +93,9 @@ class TextPanelWidget(QWidget):
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         # --- 1. Fuente y Tamaño ---
-        lbl_fuente = QLabel("Fuente:")
-        lbl_fuente.setStyleSheet(lbl_style)
-        layout.addWidget(lbl_fuente)
+        self.lbl_fuente = QLabel("Fuente:")
+        self.lbl_fuente.setStyleSheet(lbl_style)
+        layout.addWidget(self.lbl_fuente)
 
         self.font_combo = QFontComboBox()
         self.font_combo.setFixedHeight(20)
@@ -105,8 +105,8 @@ class TextPanelWidget(QWidget):
 
         tam_layout = QHBoxLayout()
         tam_layout.setSpacing(2)
-        lbl_tam = QLabel("Tamaño:")
-        lbl_tam.setStyleSheet(lbl_style)
+        self.lbl_tam = QLabel("Tamaño:")
+        self.lbl_tam.setStyleSheet(lbl_style)
 
         self.spin_size = QSpinBox()
         self.spin_size.setRange(1, 9999)
@@ -115,7 +115,7 @@ class TextPanelWidget(QWidget):
         self.spin_size.setStyleSheet("font-size: 9px; color: #FFFFFF;")
         self.spin_size.valueChanged.connect(self.emitir_configuracion)
 
-        tam_layout.addWidget(lbl_tam)
+        tam_layout.addWidget(self.lbl_tam)
         tam_layout.addWidget(self.spin_size)
         layout.addLayout(tam_layout)
 
@@ -160,8 +160,8 @@ class TextPanelWidget(QWidget):
         )
 
         # --- 3. Borde ---
-        group_borde = QGroupBox("Borde")
-        group_borde.setStyleSheet(group_style)
+        self.group_borde = QGroupBox("Borde")
+        self.group_borde.setStyleSheet(group_style)
         borde_layout = QVBoxLayout()
         borde_layout.setContentsMargins(2, 2, 2, 2)
         borde_layout.setSpacing(2)
@@ -173,24 +173,24 @@ class TextPanelWidget(QWidget):
 
         b_size_layout = QHBoxLayout()
         b_size_layout.setSpacing(2)
-        lbl_b_size = QLabel("Grosor:")
-        lbl_b_size.setStyleSheet(lbl_style)
+        self.lbl_b_size = QLabel("Grosor:")
+        self.lbl_b_size.setStyleSheet(lbl_style)
         self.spin_borde_size = QSpinBox()
         self.spin_borde_size.setRange(1, 100)
         self.spin_borde_size.setValue(3)
         self.spin_borde_size.setFixedHeight(20)
         self.spin_borde_size.setStyleSheet("font-size: 9px; color: #FFFFFF;")
         self.spin_borde_size.valueChanged.connect(self.emitir_configuracion)
-        b_size_layout.addWidget(lbl_b_size)
+        b_size_layout.addWidget(self.lbl_b_size)
         b_size_layout.addWidget(self.spin_borde_size)
         borde_layout.addLayout(b_size_layout)
 
-        group_borde.setLayout(borde_layout)
-        layout.addWidget(group_borde)
+        self.group_borde.setLayout(borde_layout)
+        layout.addWidget(self.group_borde)
 
         # --- 4. Sombra ---
-        group_sombra = QGroupBox("Sombra")
-        group_sombra.setStyleSheet(group_style)
+        self.group_sombra = QGroupBox("Sombra")
+        self.group_sombra.setStyleSheet(group_style)
         sombra_layout = QVBoxLayout()
         sombra_layout.setContentsMargins(2, 2, 2, 4)
         sombra_layout.setSpacing(3)
@@ -217,15 +217,15 @@ class TextPanelWidget(QWidget):
         s_dist_layout = QHBoxLayout()
         s_dist_layout.setContentsMargins(0, 2, 0, 0)
         s_dist_layout.setSpacing(2)
-        lbl_dist = QLabel("Tamaño:")
-        lbl_dist.setStyleSheet(lbl_style)
+        self.lbl_dist = QLabel("Tamaño:")
+        self.lbl_dist.setStyleSheet(lbl_style)
         self.spin_sombra_dist = QSpinBox()
         self.spin_sombra_dist.setRange(1, 9999)
         self.spin_sombra_dist.setValue(5)
         self.spin_sombra_dist.setFixedHeight(20)
         self.spin_sombra_dist.setStyleSheet("font-size: 9px; color: #FFFFFF;")
         self.spin_sombra_dist.valueChanged.connect(self.emitir_configuracion)
-        s_dist_layout.addWidget(lbl_dist)
+        s_dist_layout.addWidget(self.lbl_dist)
         s_dist_layout.addWidget(self.spin_sombra_dist)
         sombra_layout.addLayout(s_dist_layout)
 
@@ -234,9 +234,9 @@ class TextPanelWidget(QWidget):
         s_color_layout.setContentsMargins(0, 4, 0, 0)
         s_color_layout.setSpacing(2)
 
-        lbl_s_col = QLabel("Color:")
-        lbl_s_col.setStyleSheet(lbl_style)
-        s_color_layout.addWidget(lbl_s_col)
+        self.lbl_s_col = QLabel("Color:")
+        self.lbl_s_col.setStyleSheet(lbl_style)
+        s_color_layout.addWidget(self.lbl_s_col)
 
         self.sombra_custom_color = self.cargar_sombra_custom_settings()
         self.sombra_color = QColor("#FFFFFF")
@@ -265,8 +265,8 @@ class TextPanelWidget(QWidget):
 
         sombra_layout.addLayout(s_color_layout)
 
-        group_sombra.setLayout(sombra_layout)
-        layout.addWidget(group_sombra)
+        self.group_sombra.setLayout(sombra_layout)
+        layout.addWidget(self.group_sombra)
 
         self.setLayout(layout)
         self.setFixedWidth(140)
@@ -369,3 +369,24 @@ class TextPanelWidget(QWidget):
 
     def emitir_configuracion(self):
         self.text_config_changed.emit(self.obtener_configuracion())
+
+    def retraducir_panel(self):
+        from core.i18n import t
+        if hasattr(self, 'lbl_fuente'):
+            self.lbl_fuente.setText(t("Fuente:"))
+        if hasattr(self, 'lbl_tam'):
+            self.lbl_tam.setText(t("Tamaño:"))
+        if hasattr(self, 'group_borde'):
+            self.group_borde.setTitle(t("Borde"))
+        if hasattr(self, 'chk_borde'):
+            self.chk_borde.setText(t("Mostrar"))
+        if hasattr(self, 'lbl_b_size'):
+            self.lbl_b_size.setText(t("Grosor:"))
+        if hasattr(self, 'group_sombra'):
+            self.group_sombra.setTitle(t("Sombra"))
+        if hasattr(self, 'chk_sombra'):
+            self.chk_sombra.setText(t("Mostrar"))
+        if hasattr(self, 'lbl_dist'):
+            self.lbl_dist.setText(t("Tamaño:"))
+        if hasattr(self, 'lbl_s_col'):
+            self.lbl_s_col.setText(t("Color:"))

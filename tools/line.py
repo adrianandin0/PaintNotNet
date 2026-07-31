@@ -250,6 +250,7 @@ class LineTool(BaseTool):
     def commit_line(self, canvas):
         if self.state in (1, 2) and self.p0 and self.p3:
             painter = QPainter(canvas.layer_mgr.buffer)
+            canvas.aplicar_clip_seleccion(painter)
             painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
             self._draw_line_stroke(painter, canvas)
             painter.end()
@@ -265,14 +266,15 @@ class LineTool(BaseTool):
         if self.state in (1, 2) and self.p0 and self.p3:
             self._draw_line_stroke(painter, canvas)
 
-            if self.state == 2:
-                s = self.HANDLE_SIZE
-                s2 = s / 2.0
-                pts = [self.p0, self.p1, self.p2, self.p3]
+    def draw_handles(self, painter, canvas):
+        if self.state == 2 and self.p0 and self.p3:
+            s = self.HANDLE_SIZE
+            s2 = s / 2.0
+            pts = [self.p0, self.p1, self.p2, self.p3]
 
-                painter.setPen(QPen(QColor(0, 0, 0), 1))
-                painter.setBrush(QBrush(QColor(255, 255, 255)))
+            painter.setPen(QPen(QColor(0, 0, 0), 1))
+            painter.setBrush(QBrush(QColor(255, 255, 255)))
 
-                for pt in pts:
-                    if pt:
-                        painter.drawRect(QRectF(pt.x() - s2, pt.y() - s2, s, s))
+            for pt in pts:
+                if pt:
+                    painter.drawRect(QRectF(pt.x() - s2, pt.y() - s2, s, s))

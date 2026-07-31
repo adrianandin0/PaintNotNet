@@ -136,6 +136,10 @@ class CanvasWidget(QWidget):
         self.active_tool_obj = tool_object
         self.herramienta_actual = getattr(tool_object, 'name', 'Herramienta')
 
+        from tools.blur import BlurTool
+        if isinstance(tool_object, BlurTool) and hasattr(self, 'selection_engine') and self.selection_engine.has_selection():
+            self.actualizar_preview_difuminado_seleccion()
+
         if hasattr(self, 'main_window') and self.main_window and hasattr(self.main_window, 'top_toolbar'):
             self.main_window.top_toolbar.update_tool_states(tool_object)
 
@@ -196,20 +200,30 @@ class CanvasWidget(QWidget):
                 h = min(tamano_cuadro, l_height - y)
                 painter.fillRect(x, y, w, h, color)
 
-        # 1. Dibujar lienzo real (componiendo el trazo temporal en el orden Z de la capa activa)
-        pixmap = self.layer_mgr.get_qpixmap(capa_trazo_temp=self.capa_trazo_temp)
+        # Callback para dibujar la previsualización del contenido en el orden Z de la capa activa
+        def _dibujar_preview_capa_activa(p_capa):
+            if hasattr(self.active_tool_obj, 'draw_preview'):
+                self.active_tool_obj.draw_preview(p_capa, self)
+
+        # 1. Dibujar lienzo real (componiendo las capas de abajo hacia arriba e insertando el trazo/previsualización en la capa activa)
+        sel_path = self.selection_engine.active_path if (self.selection_engine.has_selection() and not self.selection_engine.active_path.isEmpty()) else None
+        pixmap = self.layer_mgr.get_qpixmap(
+            capa_trazo_temp=self.capa_trazo_temp,
+            draw_layer_preview_callback=_dibujar_preview_capa_activa,
+            selection_path=sel_path
+        )
         painter.drawPixmap(0, 0, pixmap)
 
-        # 1b. Dibujar capa flotante si se está moviendo contenido (pixeles recortados al lienzo)
+        # 1b. Dibujar capa flotante si se está moviendo contenido o mostrando preview de difuminado
         if self.selection_engine.floating_image and not self.selection_engine.floating_image.isNull():
             painter.save()
             painter.setClipRect(0, 0, l_width, l_height)
             painter.drawImage(self.selection_engine.original_image_pos, self.selection_engine.floating_image)
             painter.restore()
 
-        # 3. Previsualización de herramienta activa (ej. Texto, Selección)
-        if hasattr(self.active_tool_obj, 'draw_preview'):
-            self.active_tool_obj.draw_preview(painter, self)
+        # 3. Tiradores y controles interactivos de herramientas (visibles en primer plano)
+        if hasattr(self.active_tool_obj, 'draw_handles'):
+            self.active_tool_obj.draw_handles(painter, self)
 
         # 4. Marco de selección activo y tiradores (VISIBLES INCLUSO FUERA DEL LIENZO)
         if self.selection_engine.has_selection():
@@ -330,6 +344,9 @@ class CanvasWidget(QWidget):
         from tools.placeholder import PlaceholderTool
         if isinstance(self.active_tool_obj, PlaceholderTool):
             return
+
+        if hasattr(self.selection_engine, 'original_selection_region'):
+            self.selection_engine.original_selection_region = None
 
         if ev.button() in (Qt.MouseButton.LeftButton, Qt.MouseButton.RightButton):
             self.drawing = True
@@ -934,33 +951,179 @@ class CanvasWidget(QWidget):
             self.push_document_state("Cortar")
             self.copiar_seleccion()
             if self.selection_engine.floating_image:
-                self.selection_engine.clear_selection()
+                self.selection_engine.floating_image = None
+                self.selection_engine.unscaled_floating_image = None
             else:
                 rect = self.selection_engine.active_rect.toRect()
-                painter = QPainter(self.layer_mgr.buffer)
+                capa_activa = self.layer_mgr.capas[self.layer_mgr.indice_activo]
+                painter = QPainter(capa_activa.image)
                 if not self.selection_engine.active_path.isEmpty():
                     painter.setClipPath(self.selection_engine.active_path)
                 painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
                 painter.fillRect(rect, Qt.GlobalColor.transparent)
                 painter.end()
-                self.selection_engine.clear_selection()
             self.update()
 
     def borrar_seleccion(self):
         if self.selection_engine.has_selection():
             self.push_document_state("Borrar Selección")
             if self.selection_engine.floating_image:
-                self.selection_engine.clear_selection()
+                self.selection_engine.floating_image = None
+                self.selection_engine.unscaled_floating_image = None
             else:
                 rect = self.selection_engine.active_rect.toRect()
-                painter = QPainter(self.layer_mgr.buffer)
+                capa_activa = self.layer_mgr.capas[self.layer_mgr.indice_activo]
+                painter = QPainter(capa_activa.image)
                 if not self.selection_engine.active_path.isEmpty():
                     painter.setClipPath(self.selection_engine.active_path)
                 painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
                 painter.fillRect(rect, Qt.GlobalColor.transparent)
                 painter.end()
-                self.selection_engine.clear_selection()
             self.update()
+
+    def aplicar_clip_seleccion(self, painter):
+        if hasattr(self, 'selection_engine') and self.selection_engine.has_selection() and not self.selection_engine.active_path.isEmpty():
+            painter.setClipPath(self.selection_engine.active_path)
+
+    def actualizar_preview_difuminado_seleccion(self, modo=None, val=None):
+        if not hasattr(self, 'selection_engine') or not self.selection_engine.has_selection() or self.selection_engine.active_path.isEmpty():
+            return
+
+        if modo is None or val is None:
+            if hasattr(self, 'main_window') and self.main_window and hasattr(self.main_window, 'top_toolbar'):
+                tb = self.main_window.top_toolbar
+                modo = tb.combo_blur_modo.currentData() or "Pixelado"
+                val = tb.slider_blur.value()
+            else:
+                modo = "Pixelado"
+                val = 10
+
+        if val is None or val <= 0:
+            self.selection_engine.floating_image = None
+            self.update()
+            return
+
+        import math
+        import cv2
+        import numpy as np
+
+        rect = self.selection_engine.active_path.boundingRect()
+        rx = max(0, int(math.floor(rect.x())))
+        ry = max(0, int(math.floor(rect.y())))
+        rw = max(1, int(math.ceil(rect.right())) - rx)
+        rh = max(1, int(math.ceil(rect.bottom())) - ry)
+
+        w, h = self.layer_mgr.width, self.layer_mgr.height
+        rw = min(w - rx, rw)
+        rh = min(h - ry, rh)
+
+        if rw <= 0 or rh <= 0:
+            return
+
+        # Para capturar los píxeles limpios originales del lienzo sin el preview difuminado actual
+        temp_float = self.selection_engine.floating_image
+        self.selection_engine.floating_image = None
+        comp_image = self.layer_mgr.get_qimage()
+        self.selection_engine.floating_image = temp_float
+
+        base_region = comp_image.copy(rx, ry, rw, rh)
+        if base_region.isNull():
+            self.selection_engine.floating_image = None
+            self.update()
+            return
+
+        sub_img = base_region.convertToFormat(QImage.Format.Format_ARGB32)
+        ptr = sub_img.bits()
+        ptr.setsize(rh * sub_img.bytesPerLine())
+        arr = np.frombuffer(ptr, dtype=np.uint8).reshape((rh, sub_img.bytesPerLine() // 4, 4))[:, :rw, :].copy()
+
+        rgb = arr[:, :, :3]
+        alpha = arr[:, :, 3]
+
+        mask_transparent = (alpha == 0).astype(np.uint8) * 255
+        if np.any(mask_transparent) and np.any(alpha > 0):
+            rgb_filled = cv2.inpaint(rgb, mask_transparent, 3, cv2.INPAINT_TELEA)
+        else:
+            rgb_filled = rgb
+
+        if modo == "Pixelado":
+            factor = max(2, int((val / 100.0) * 35))
+            sw = max(1, rw // factor)
+            sh = max(1, rh // factor)
+
+            small_rgb = cv2.resize(rgb_filled, (sw, sh), interpolation=cv2.INTER_NEAREST)
+            small_alpha = cv2.resize((alpha > 0).astype(np.uint8) * 255, (sw, sh), interpolation=cv2.INTER_AREA)
+            small_alpha = np.where(small_alpha > 0, 255, 0).astype(np.uint8)
+
+            blurred_rgb = cv2.resize(small_rgb, (rw, rh), interpolation=cv2.INTER_NEAREST)
+            blurred_alpha = cv2.resize(small_alpha, (rw, rh), interpolation=cv2.INTER_NEAREST)
+
+            blurred_arr = np.dstack((blurred_rgb, blurred_alpha))
+        else:
+            ksize = max(3, (int((val / 100.0) * 45) // 2) * 2 + 1)
+
+            blurred_rgb = cv2.GaussianBlur(rgb_filled, (ksize, ksize), 0, borderType=cv2.BORDER_REPLICATE)
+            blurred_alpha = cv2.GaussianBlur(alpha, (ksize, ksize), 0, borderType=cv2.BORDER_REPLICATE)
+
+            blurred_alpha = np.where(blurred_alpha > 0, 255, 0).astype(np.uint8)
+            blurred_arr = np.dstack((blurred_rgb, blurred_alpha))
+
+        blurred_img = QImage(blurred_arr.data, rw, rh, rw * 4, QImage.Format.Format_ARGB32).copy()
+
+        masked_img = QImage(rw, rh, QImage.Format.Format_ARGB32_Premultiplied)
+        masked_img.fill(Qt.GlobalColor.transparent)
+
+        painter = QPainter(masked_img)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
+
+        path_local = QPainterPath(self.selection_engine.active_path)
+        path_local.translate(-rx, -ry)
+        painter.setClipPath(path_local)
+        painter.drawImage(0, 0, blurred_img)
+        painter.end()
+
+        self.selection_engine.floating_image = masked_img
+        self.selection_engine.original_image_pos = QPointF(rx, ry)
+        self.update()
+
+    def aplicar_difuminado(self, modo="Pixelado", val=10):
+        if val <= 0 or not hasattr(self, 'layer_mgr') or not self.layer_mgr.capas:
+            return
+        import cv2
+        import numpy as np
+
+        capa = self.layer_mgr.capas[self.layer_mgr.indice_activo]
+        img = capa.image
+        w, h = img.width(), img.height()
+        if w <= 0 or h <= 0:
+            return
+
+        self.push_document_state("Difuminar")
+
+        img_argb = img.convertToFormat(QImage.Format.Format_ARGB32)
+        ptr = img_argb.bits()
+        ptr.setsize(h * img_argb.bytesPerLine())
+        arr = np.frombuffer(ptr, dtype=np.uint8).reshape((h, img_argb.bytesPerLine() // 4, 4))[:, :w, :].copy()
+
+        if modo == "Pixelado":
+            factor = max(2, int((val / 100.0) * 35))
+            small_w = max(1, w // factor)
+            small_h = max(1, h // factor)
+            small = cv2.resize(arr, (small_w, small_h), interpolation=cv2.INTER_NEAREST)
+            blurred_arr = cv2.resize(small, (w, h), interpolation=cv2.INTER_NEAREST)
+        else:
+            ksize = max(3, (int((val / 100.0) * 45) // 2) * 2 + 1)
+            blurred_arr = cv2.GaussianBlur(arr, (ksize, ksize), 0)
+
+        result_img = QImage(blurred_arr.data, w, h, w * 4, QImage.Format.Format_ARGB32).copy()
+
+        painter = QPainter(capa.image)
+        if self.selection_engine.has_selection() and not self.selection_engine.active_path.isEmpty():
+            painter.setClipPath(self.selection_engine.active_path)
+        painter.drawImage(0, 0, result_img)
+        painter.end()
+
+        self.update()
 
     def borrar_todo(self):
         self.push_document_state("Borrar Todo")

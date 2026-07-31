@@ -248,7 +248,11 @@ class TopToolBarWidget(QToolBar):
         settings.setValue("blur_val", val)
 
         if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
-            self.main_window.lienzo.aplicar_difuminado(modo, val)
+            canvas = self.main_window.lienzo
+            if hasattr(canvas, 'selection_engine') and canvas.selection_engine.has_selection():
+                canvas.actualizar_preview_difuminado_seleccion(modo, val)
+            else:
+                canvas.update()
 
     def update_tool_states(self, tool_obj):
         if not tool_obj:
@@ -284,6 +288,10 @@ class TopToolBarWidget(QToolBar):
         self.combo_linea_inicio.setEnabled(uses_line)
         self.combo_linea_estilo.setEnabled(uses_line)
         self.combo_linea_fin.setEnabled(uses_line)
+        if uses_line and self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
+            self.main_window.lienzo.linea_cap_inicio = self.combo_linea_inicio.currentData() or "Plana"
+            self.main_window.lienzo.linea_estilo = self.combo_linea_estilo.currentData() or "Recta"
+            self.main_window.lienzo.linea_cap_fin = self.combo_linea_fin.currentData() or "Plana"
 
         self.lbl_formas.setEnabled(uses_shapes)
         self.chk_formas_redondeado.setEnabled(uses_shapes)
@@ -316,8 +324,13 @@ class TopToolBarWidget(QToolBar):
 
     def _on_tolerancia_changed(self, val):
         self.lbl_tol_val.setText(f"{val}%")
-        if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
-            self.main_window.lienzo.tolerancia = val
+        canvas = None
+        if self.main_window:
+            canvas = getattr(self.main_window, 'lienzo', getattr(self.main_window, 'canvas', None))
+        if canvas:
+            canvas.tolerancia = val
+            if hasattr(canvas, 'active_tool_obj') and hasattr(canvas.active_tool_obj, 'update_tolerance'):
+                canvas.active_tool_obj.update_tolerance(canvas, val)
 
     def _on_suavizado_changed(self, val):
         self.lbl_suav_val.setText(f"{val}%")
@@ -336,13 +349,28 @@ class TopToolBarWidget(QToolBar):
             pass
 
     def _on_linea_inicio_changed(self, idx):
-        pass
+        from core.i18n import t
+        val = self.combo_linea_inicio.itemData(idx) or "Plana"
+        self.combo_linea_inicio.setToolTip(f"{t('Punta Inicial:')} {t(val)}")
+        if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
+            self.main_window.lienzo.linea_cap_inicio = val
+            self.main_window.lienzo.update()
 
     def _on_linea_estilo_changed(self, idx):
-        pass
+        from core.i18n import t
+        val = self.combo_linea_estilo.itemData(idx) or "Recta"
+        self.combo_linea_estilo.setToolTip(f"{t('Estilo de Trazo:')} {t(val)}")
+        if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
+            self.main_window.lienzo.linea_estilo = val
+            self.main_window.lienzo.update()
 
     def _on_linea_fin_changed(self, idx):
-        pass
+        from core.i18n import t
+        val = self.combo_linea_fin.itemData(idx) or "Plana"
+        self.combo_linea_fin.setToolTip(f"{t('Punta Final:')} {t(val)}")
+        if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
+            self.main_window.lienzo.linea_cap_fin = val
+            self.main_window.lienzo.update()
 
     def retraducir_toolbar(self):
         from core.i18n import t
@@ -356,9 +384,35 @@ class TopToolBarWidget(QToolBar):
             self.lbl_grosor.setText(f" {t('Grosor:')} ")
         if hasattr(self, 'lbl_tol'):
             self.lbl_tol.setText(f" {t('Tolerancia:')} ")
-        if hasattr(self, 'lbl_formas_tipo'):
-            self.lbl_formas_tipo.setText(f" {t('Forma:')} ")
-        if hasattr(self, 'lbl_formas_estilo'):
-            self.lbl_formas_estilo.setText(f" {t('Estilo:')} ")
+        if hasattr(self, 'lbl_suav'):
+            self.lbl_suav.setText(f" {t('Suavizado:')} ")
+        if hasattr(self, 'lbl_zoom'):
+            self.lbl_zoom.setText(f" {t('Zoom:')} ")
+        if hasattr(self, 'lbl_linea'):
+            self.lbl_linea.setText(f" {t('Línea:')} ")
+        if hasattr(self, 'lbl_formas'):
+            self.lbl_formas.setText(f" {t('Formas:')} ")
+        if hasattr(self, 'lbl_blur'):
+            self.lbl_blur.setText(f" {t('Difuminar:')} ")
         if hasattr(self, 'chk_formas_redondeado'):
             self.chk_formas_redondeado.setText(t("Redondeado"))
+
+        # Actualizar tooltips traducidos de los combos
+        val_ini = self.combo_linea_inicio.currentData() or "Plana"
+        self.combo_linea_inicio.setToolTip(f"{t('Punta Inicial:')} {t(val_ini)}")
+        val_est = self.combo_linea_estilo.currentData() or "Recta"
+        self.combo_linea_estilo.setToolTip(f"{t('Estilo de Trazo:')} {t(val_est)}")
+        val_fin = self.combo_linea_fin.currentData() or "Plana"
+        self.combo_linea_fin.setToolTip(f"{t('Punta Final:')} {t(val_fin)}")
+
+        val_f_est = self.combo_forma_estilo.currentData() or "Solo Borde"
+        self.combo_forma_estilo.setToolTip(f"{t('Estilo de Forma:')} {t(val_f_est)}")
+        val_f_tipo = self.combo_forma_tipo.currentData() or "Rectángulo"
+        self.combo_forma_tipo.setToolTip(f"{t('Tipo de Forma:')} {t(val_f_tipo)}")
+
+        if hasattr(self, 'combo_blur_modo'):
+            self.combo_blur_modo.blockSignals(True)
+            self.combo_blur_modo.setItemText(0, t("Pixelado"))
+            self.combo_blur_modo.setItemText(1, t("Gausiano"))
+            self.combo_blur_modo.blockSignals(False)
+

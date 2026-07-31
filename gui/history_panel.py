@@ -65,8 +65,9 @@ class HistoryPanelWidget(QWidget):
 
         history_mgr = canvas.history_mgr
 
+        from core.i18n import t
         for idx, (st, action_name) in enumerate(history_mgr.history_stack):
-            item = QListWidgetItem(f"{idx}. {action_name}")
+            item = QListWidgetItem(f"{idx}. {t(action_name)}")
             item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
 
             if idx > history_mgr.current_index:
@@ -90,7 +91,7 @@ class HistoryPanelWidget(QWidget):
                 if sub_i == 0:
                     continue
                 display_idx = base_count + sub_i - 1
-                action_label = snapshot.get('label', 'Transformar')
+                action_label = t(snapshot.get('label', 'Transformar'))
                 item = QListWidgetItem(f"{display_idx}. {action_label}")
                 font = item.font()
                 font.setItalic(True)
@@ -134,3 +135,11 @@ class HistoryPanelWidget(QWidget):
         canvas = self._obtener_canvas()
         if canvas:
             canvas.redo()
+
+    def retraducir_panel(self):
+        from core.i18n import t
+        if hasattr(self, 'btn_undo'):
+            self.btn_undo.setToolTip(f"{t('Deshacer')} (Ctrl+Z)")
+        if hasattr(self, 'btn_redo'):
+            self.btn_redo.setToolTip(f"{t('Rehacer')} (Ctrl+Y)")
+        self.actualizar_historial()

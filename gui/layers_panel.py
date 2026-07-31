@@ -90,6 +90,16 @@ class LayersPanelWidget(QWidget):
         self.btn_add = QPushButton("+")
         self.btn_add.setToolTip("Nueva Capa")
 
+        self.btn_up = QPushButton()
+        self.btn_up.setIcon(QIcon("gui/iconos/arrow_up.png"))
+        self.btn_up.setIconSize(QSize(16, 16))
+        self.btn_up.setToolTip("Mover Capa Arriba")
+
+        self.btn_down = QPushButton()
+        self.btn_down.setIcon(QIcon("gui/iconos/arrow_down.png"))
+        self.btn_down.setIconSize(QSize(16, 16))
+        self.btn_down.setToolTip("Mover Capa Abajo")
+
         self.btn_combine = QPushButton()
         self.btn_combine.setIcon(QIcon("gui/iconos/combine.png"))
         self.btn_combine.setIconSize(QSize(16, 16))
@@ -101,12 +111,16 @@ class LayersPanelWidget(QWidget):
         self.btn_del.setToolTip("Eliminar")
 
         btn_layout.addWidget(self.btn_add)
+        btn_layout.addWidget(self.btn_up)
+        btn_layout.addWidget(self.btn_down)
         btn_layout.addWidget(self.btn_combine)
         btn_layout.addWidget(self.btn_del)
 
         layout.addLayout(btn_layout)
 
         self.btn_add.clicked.connect(self.agregar_capa)
+        self.btn_up.clicked.connect(self.mover_capa_arriba)
+        self.btn_down.clicked.connect(self.mover_capa_abajo)
         self.btn_combine.clicked.connect(self.combinar_capas)
         self.btn_del.clicked.connect(self.borrar_capa)
         self.lista_capas.currentRowChanged.connect(self.cambiar_capa_activa)
@@ -179,6 +193,59 @@ class LayersPanelWidget(QWidget):
 
         self.reconstruir_lista_capas()
         canvas.push_document_state("Nueva Capa")
+        canvas.update()
+
+    def mover_capa_arriba(self):
+        curr_row = self.lista_capas.currentRow()
+        if curr_row <= 0:
+            return
+        canvas = self.obtener_canvas()
+        if not canvas or not hasattr(canvas, 'layer_mgr'):
+            return
+        mgr = canvas.layer_mgr
+        target_row = curr_row - 1
+        mgr.capas[curr_row], mgr.capas[target_row] = mgr.capas[target_row], mgr.capas[curr_row]
+        mgr.indice_activo = target_row
+        self.reconstruir_lista_capas()
+        canvas.push_document_state("Reordenar Capas")
+        canvas.update()
+
+    def mover_capa_abajo(self):
+        curr_row = self.lista_capas.currentRow()
+        if curr_row < 0 or curr_row >= self.lista_capas.count() - 1:
+            return
+        canvas = self.obtener_canvas()
+        if not canvas or not hasattr(canvas, 'layer_mgr'):
+            return
+        mgr = canvas.layer_mgr
+        target_row = curr_row + 1
+        mgr.capas[curr_row], mgr.capas[target_row] = mgr.capas[target_row], mgr.capas[curr_row]
+        mgr.indice_activo = target_row
+        self.reconstruir_lista_capas()
+        canvas.push_document_state("Reordenar Capas")
+        canvas.update()
+
+    def duplicar_capa(self):
+        selected_items = self.lista_capas.selectedItems()
+        if len(selected_items) != 1:
+            return
+        row = self.lista_capas.row(selected_items[0])
+        canvas = self.obtener_canvas()
+        if not canvas or not hasattr(canvas, 'layer_mgr') or row < 0 or row >= len(canvas.layer_mgr.capas):
+            return
+
+        from core.layers import Layer
+        orig_capa = canvas.layer_mgr.capas[row]
+        nuevo_nombre = f"{orig_capa.name} Copia"
+        dup_capa = Layer(nuevo_nombre, canvas.layer_mgr.width, canvas.layer_mgr.height, transparent=True)
+        dup_capa.visible = orig_capa.visible
+        dup_capa.image = orig_capa.image.copy()
+
+        canvas.layer_mgr.capas.insert(row, dup_capa)
+        canvas.layer_mgr.indice_activo = row
+
+        self.reconstruir_lista_capas()
+        canvas.push_document_state("Duplicar Capa")
         canvas.update()
 
     def combinar_capas(self):
@@ -260,9 +327,28 @@ class LayersPanelWidget(QWidget):
         if not item:
             return
 
+        selected_items = self.lista_capas.selectedItems()
+        if not selected_items:
+            return
+
+        from core.i18n import t
         menu = QMenu(self)
-        accion_renombrar = menu.addAction("Renombrar capa...")
-        accion_renombrar.triggered.connect(lambda: self._renombrar_capa_dialogo(item))
+
+        if len(selected_items) == 1:
+            accion_renombrar = menu.addAction(t("Renombrar capa..."))
+            accion_renombrar.triggered.connect(lambda: self._renombrar_capa_dialogo(item))
+
+            accion_duplicar = menu.addAction(t("Duplicar capa"))
+            accion_duplicar.triggered.connect(self.duplicar_capa)
+
+        if len(selected_items) >= 2:
+            accion_combinar = menu.addAction(t("Combinar capas"))
+            accion_combinar.triggered.connect(self.combinar_capas)
+
+        menu.addSeparator()
+        accion_eliminar = menu.addAction(t("Eliminar capa"))
+        accion_eliminar.triggered.connect(self.borrar_capa)
+
         menu.exec(self.lista_capas.mapToGlobal(pos))
 
     def _renombrar_capa_dialogo(self, item):
@@ -286,3 +372,16 @@ class LayersPanelWidget(QWidget):
             nombre_final = nuevo_nombre.strip()
             capa.name = nombre_final
             self.reconstruir_lista_capas()
+
+    def retraducir_panel(self):
+        from core.i18n import t
+        if hasattr(self, 'btn_add'):
+            self.btn_add.setToolTip(t("Nueva Capa"))
+        if hasattr(self, 'btn_up'):
+            self.btn_up.setToolTip(t("Mover Capa Arriba"))
+        if hasattr(self, 'btn_down'):
+            self.btn_down.setToolTip(t("Mover Capa Abajo"))
+        if hasattr(self, 'btn_combine'):
+            self.btn_combine.setToolTip(t("Combinar"))
+        if hasattr(self, 'btn_del'):
+            self.btn_del.setToolTip(t("Eliminar"))

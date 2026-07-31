@@ -199,8 +199,8 @@ class AdvancedColorPanelWidget(QWidget):
         grid_rgb.addWidget(self.slider_r, 0, 1)
         grid_rgb.addWidget(self.spin_r, 0, 2)
 
-        # V (Verde)
-        lbl_g = QLabel("V:")
+        # G (Green)
+        lbl_g = QLabel("G:")
         lbl_g.setStyleSheet(lbl_style)
         grid_rgb.addWidget(lbl_g, 1, 0)
         self.slider_g = GradientSliderWidget(0, 255, "green")
@@ -212,8 +212,8 @@ class AdvancedColorPanelWidget(QWidget):
         grid_rgb.addWidget(self.slider_g, 1, 1)
         grid_rgb.addWidget(self.spin_g, 1, 2)
 
-        # A (Azul)
-        lbl_b = QLabel("A:")
+        # B (Blue)
+        lbl_b = QLabel("B:")
         lbl_b.setStyleSheet(lbl_style)
         grid_rgb.addWidget(lbl_b, 2, 0)
         self.slider_b = GradientSliderWidget(0, 255, "blue")

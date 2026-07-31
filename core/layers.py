@@ -65,7 +65,7 @@ class LayerManager:
 
         self.indice_activo = min_idx
 
-    def get_qimage(self, capa_trazo_temp=None):
+    def get_qimage(self, capa_trazo_temp=None, draw_layer_preview_callback=None, selection_path=None):
         imagen_final = QImage(self.width, self.height, QImage.Format.Format_ARGB32_Premultiplied)
         imagen_final.fill(Qt.GlobalColor.transparent)
 
@@ -74,14 +74,25 @@ class LayerManager:
             if capa.visible:
                 painter.drawImage(0, 0, capa.image)
                 idx_real = len(self.capas) - 1 - i
-                if idx_real == self.indice_activo and capa_trazo_temp and not capa_trazo_temp.isNull():
-                    painter.drawImage(0, 0, capa_trazo_temp)
+                if idx_real == self.indice_activo:
+                    if capa_trazo_temp and not capa_trazo_temp.isNull():
+                        painter.save()
+                        if selection_path and not selection_path.isEmpty():
+                            painter.setClipPath(selection_path)
+                        painter.drawImage(0, 0, capa_trazo_temp)
+                        painter.restore()
+                    if draw_layer_preview_callback:
+                        painter.save()
+                        if selection_path and not selection_path.isEmpty():
+                            painter.setClipPath(selection_path)
+                        draw_layer_preview_callback(painter)
+                        painter.restore()
         painter.end()
 
         return imagen_final
 
-    def get_qpixmap(self, capa_trazo_temp=None):
-        return QPixmap.fromImage(self.get_qimage(capa_trazo_temp=capa_trazo_temp))
+    def get_qpixmap(self, capa_trazo_temp=None, draw_layer_preview_callback=None, selection_path=None):
+        return QPixmap.fromImage(self.get_qimage(capa_trazo_temp=capa_trazo_temp, draw_layer_preview_callback=draw_layer_preview_callback, selection_path=selection_path))
 
     def resize_canvas(self, new_width, new_height):
         for capa in self.capas:

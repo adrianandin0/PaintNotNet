@@ -39,6 +39,9 @@ class SelectionEngine:
     def has_selection(self):
         return not self.active_path.isEmpty() or (self.active_rect.isValid() and not self.active_rect.isEmpty())
 
+    def is_empty(self):
+        return not self.has_selection()
+
     def set_rectangle(self, rect):
         rect_f = QRectF(rect.normalized())
         self.active_rect = rect_f

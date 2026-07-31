@@ -150,8 +150,9 @@ class PaintNotNet(QMainWindow):
         self.advanced_color_panel.color_secundario_cambiado.connect(self._on_color_secundario_changed)
         self.text_panel.text_config_changed.connect(lambda cfg: self.canvas.actualizar_config_texto(cfg) if hasattr(self, 'canvas') and self.canvas else None)
 
+        from core.i18n import t
         # Crear primera pestaña por defecto
-        self.crear_nueva_pestana(800, 600, transparent=False, titulo="Sin Título")
+        self.crear_nueva_pestana(800, 600, transparent=False, titulo=t("Sin Título"))
 
         # ==========================================
         # RESTAURAR PERFIL DE USUARIO SI EXISTE
@@ -236,58 +237,14 @@ class PaintNotNet(QMainWindow):
             if ruta:
                 titulo = os.path.basename(ruta)
             else:
+                from core.i18n import t
                 num = self.tab_widget.count() + 1
-                titulo = f"Sin Título {num}" if self.tab_widget.count() > 0 else "Sin Título"
+                base_st = t("Sin Título")
+                titulo = f"{base_st} {num}" if self.tab_widget.count() > 0 else base_st
 
         idx = self.tab_widget.addTab(area_scroll, titulo)
-        self.aplicar_boton_cerrar_estetico(idx)
         self.tab_widget.setCurrentIndex(idx)
         return canvas
-
-    def aplicar_boton_cerrar_estetico(self, index):
-        from PyQt6.QtWidgets import QWidget, QHBoxLayout, QToolButton
-        tb = self.tab_widget.tabBar()
-
-        container = QWidget()
-        container.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        layout = QHBoxLayout(container)
-        layout.setContentsMargins(6, 0, 12, 0)
-        layout.setSpacing(0)
-
-        btn = QToolButton()
-        btn.setFixedSize(16, 16)
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.setText("×")
-        btn.setToolTip("Cerrar pestaña")
-        btn.setStyleSheet("""
-            QToolButton {
-                color: #CCCCCC;
-                background: transparent;
-                border: none;
-                font-size: 14px;
-                font-weight: bold;
-                border-radius: 3px;
-            }
-            QToolButton:hover {
-                color: #FFFFFF;
-                background-color: #E81123;
-            }
-        """)
-
-        def _make_close_handler(c_widget):
-            return lambda *args: self._on_custom_close_tab_clicked(c_widget)
-
-        btn.clicked.connect(_make_close_handler(container))
-        layout.addWidget(btn)
-
-        tb.setTabButton(index, tb.ButtonPosition.RightSide, container)
-
-    def _on_custom_close_tab_clicked(self, container_widget):
-        tb = self.tab_widget.tabBar()
-        for idx in range(self.tab_widget.count()):
-            if tb.tabButton(idx, tb.ButtonPosition.RightSide) == container_widget:
-                QTimer.singleShot(0, lambda i=idx: self._on_tab_close_requested(i))
-                return
 
     def _on_tab_changed(self, index):
         if index < 0 or index >= self.tab_widget.count():
@@ -311,10 +268,6 @@ class PaintNotNet(QMainWindow):
 
             self.actualizar_titulo_ventana()
 
-    def reaplicar_botones_cerrar_pestanas(self):
-        for idx in range(self.tab_widget.count()):
-            self.aplicar_boton_cerrar_estetico(idx)
-
     def _on_tab_close_requested(self, index):
         if index < 0 or index >= self.tab_widget.count():
             return
@@ -333,8 +286,6 @@ class PaintNotNet(QMainWindow):
             return
 
         if self.cerrar_pestana_confirmada(index):
-            tb = self.tab_widget.tabBar()
-            tb.setTabButton(index, tb.ButtonPosition.RightSide, None)
             area_scroll = self.tab_widget.widget(index)
             if area_scroll and hasattr(area_scroll, 'widget'):
                 canvas = area_scroll.widget()
@@ -349,8 +300,6 @@ class PaintNotNet(QMainWindow):
 
             if area_scroll:
                 area_scroll.deleteLater()
-
-            self.reaplicar_botones_cerrar_pestanas()
 
     def cerrar_pestana_confirmada(self, index):
         area_scroll = self.tab_widget.widget(index)
@@ -404,12 +353,13 @@ class PaintNotNet(QMainWindow):
         if not area_scroll:
             return
         canvas = area_scroll.widget()
+        from core.i18n import t
         if getattr(canvas, 'nombre_personalizado', None):
             nombre = canvas.nombre_personalizado
         elif canvas.archivo_actual:
             nombre = os.path.basename(canvas.archivo_actual)
         else:
-            nombre = "Sin Título"
+            nombre = t("Sin Título")
         asterisco = " *" if getattr(canvas, 'lienzo_modificado', False) else ""
         self.tab_widget.setTabText(index, f"{nombre}{asterisco}")
 
@@ -422,12 +372,13 @@ class PaintNotNet(QMainWindow):
 
     def actualizar_titulo_ventana(self):
         if hasattr(self, 'canvas') and self.canvas:
+            from core.i18n import t
             if getattr(self.canvas, 'nombre_personalizado', None):
                 nombre = self.canvas.nombre_personalizado
             elif self.canvas.archivo_actual:
                 nombre = self.canvas.archivo_actual
             else:
-                nombre = "Sin Título"
+                nombre = t("Sin Título")
             asterisco = " *" if getattr(self.canvas, 'lienzo_modificado', False) else ""
             self.setWindowTitle(f"PaintNotNet - {nombre}{asterisco}")
             idx = self._find_tab_index_for_canvas(self.canvas)
@@ -460,6 +411,17 @@ class PaintNotNet(QMainWindow):
         if hasattr(self, 'tool_panel') and hasattr(self.tool_panel, 'retraducir_tooltips'):
             self.tool_panel.retraducir_tooltips()
 
+        if hasattr(self, 'text_panel') and hasattr(self.text_panel, 'retraducir_panel'):
+            self.text_panel.retraducir_panel()
+        if hasattr(self, 'layers_panel') and hasattr(self.layers_panel, 'retraducir_panel'):
+            self.layers_panel.retraducir_panel()
+        if hasattr(self, 'history_panel') and hasattr(self.history_panel, 'retraducir_panel'):
+            self.history_panel.retraducir_panel()
+        if hasattr(self, 'color_panel') and hasattr(self.color_panel, 'retraducir_panel'):
+            self.color_panel.retraducir_panel()
+
+        if hasattr(self, 'text_dock'):
+            self.text_dock.setWindowTitle(t("Texto"))
         if hasattr(self, 'tools_dock'):
             self.tools_dock.setWindowTitle(t("Herramientas"))
         if hasattr(self, 'layers_dock'):
@@ -468,6 +430,9 @@ class PaintNotNet(QMainWindow):
             self.history_dock.setWindowTitle(t("Historial"))
         if hasattr(self, 'color_dock'):
             self.color_dock.setWindowTitle(t("Color"))
+
+        for i in range(self.tab_widget.count()):
+            self.actualizar_titulo_pestana(i)
 
         self.actualizar_titulo_ventana()
 

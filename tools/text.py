@@ -270,6 +270,7 @@ class TextTool(BaseTool, QObject):
         if texto_completo:
             qimg = canvas.layer_mgr.buffer
             painter = QPainter(qimg)
+            canvas.aplicar_clip_seleccion(painter)
             self._render_text_effects(painter, canvas, color_activo, is_commit=True)
             painter.end()
 
