@@ -262,4 +262,10 @@ class SelectionEngine:
                     Qt.AspectRatioMode.IgnoreAspectRatio,
                     Qt.TransformationMode.SmoothTransformation
                 )
+                # Actualizar la base de rotación al tamaño nuevo.
+                # Si no se hace esto, rotar luego del resize usa la imagen
+                # original ignorando el nuevo tamaño.
+                self.unscaled_floating_image = self.floating_image.copy()
+                self.rotation_angle = 0.0
+                self.base_rotation_angle = 0.0
                 self.original_image_pos = new_rect.topLeft()

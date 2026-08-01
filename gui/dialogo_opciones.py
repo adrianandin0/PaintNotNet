@@ -1,7 +1,7 @@
 import os
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-    QPushButton, QComboBox, QFileDialog, QDialogButtonBox, QGroupBox, QCheckBox
+    QPushButton, QComboBox, QDialogButtonBox, QGroupBox, QCheckBox
 )
 from PyQt6.QtCore import QSettings, QSize, Qt
 from PyQt6.QtGui import QIcon
@@ -133,9 +133,19 @@ class DialogoOpciones(QDialog):
         self.setLayout(layout)
 
     def _on_examinar(self):
-        folder = QFileDialog.getExistingDirectory(self, "Seleccionar directorio", self.input_dir.text())
-        if folder:
-            self.input_dir.setText(folder)
+        from gui.dialogo_archivo import DialogoArchivo
+        directorio_actual = self.input_dir.text().strip()
+        if not directorio_actual or not os.path.isdir(directorio_actual):
+            import os as _os
+            directorio_actual = _os.path.expanduser('~')
+        dialogo = DialogoArchivo(
+            parent=self,
+            modo="directorio",
+            directorio=directorio_actual,
+            titulo="Seleccionar directorio predeterminado"
+        )
+        if dialogo.exec() and dialogo.ruta_seleccionada():
+            self.input_dir.setText(dialogo.ruta_seleccionada())
 
     def _on_accept(self):
         from core.i18n import I18nManager

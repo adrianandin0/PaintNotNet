@@ -90,7 +90,9 @@ class CanvasWidget(QWidget):
 
     def _canvas_event(self, event):
         off_x, off_y = self.obtener_offset_canvas()
-        pos_mapped = event.position() - QPointF(float(off_x), float(off_y))
+        raw = event.position() - QPointF(float(off_x), float(off_y))
+        sf = self.scale_factor if self.scale_factor > 0 else 1.0
+        pos_mapped = QPointF(raw.x() / sf, raw.y() / sf)
         return QMouseEvent(
             event.type(),
             pos_mapped,

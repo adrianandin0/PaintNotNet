@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QFont, QPainter, QBrush, QPen, QColor
 from PyQt6.QtCore import Qt, QPointF, pyqtSignal, QSettings
+from core.i18n import t
 
 
 class ShadowColorButton(QPushButton):
@@ -85,11 +86,11 @@ class TextPanelWidget(QWidget):
         super().__init__()
         self.main_window = main_window
 
-        lbl_style = "color: #FFFFFF; font-size: 9px; font-weight: normal;"
+        lbl_style = "color: #CCCCCC; font-size: 9px; font-weight: normal;"
 
         layout = QVBoxLayout()
-        layout.setContentsMargins(2, 2, 2, 2)
-        layout.setSpacing(2)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(4)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         # --- 1. Fuente y Tamaño ---
@@ -155,8 +156,11 @@ class TextPanelWidget(QWidget):
         layout.addLayout(styles_layout)
 
         group_style = (
-            "QGroupBox { font-size: 9px; color: #FFFFFF; font-weight: normal; margin-top: 8px; padding-top: 4px; border: 1px solid #444; }"
-            "QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top center; padding: 0 3px; color: #FFFFFF; background-color: transparent; }"
+            "QGroupBox { font-size: 9px; color: #CCCCCC; font-weight: normal; "
+            "margin-top: 10px; padding: 4px 4px 4px 4px; "
+            "border: 1px solid #383838; border-radius: 3px; } "
+            "QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top center; "
+            "padding: 0 4px; color: #CCCCCC; background-color: #2b2b2b; }"
         )
 
         # --- 3. Borde ---
@@ -333,13 +337,13 @@ class TextPanelWidget(QWidget):
             border_color = "#0078D7" if is_active5 else "#777777"
             border_w = "2px" if is_active5 else "1px"
             btn5.setStyleSheet(f"background-color: #2D2D2D; border: {border_w} dashed {border_color}; border-radius: 2px;")
-            btn5.setToolTip("Slot vacío: Clic para Guardar color activo del panel")
+            btn5.setToolTip(t("Slot vacío: Clic para Guardar color activo del panel"))
         else:
             border_color = "#0078D7" if is_active5 else "#555555"
             border_w = "2px" if is_active5 else "1px"
             rgba_str = f"rgba({self.sombra_custom_color.red()}, {self.sombra_custom_color.green()}, {self.sombra_custom_color.blue()}, {self.sombra_custom_color.alpha()/255.0})"
             btn5.setStyleSheet(f"background-color: {rgba_str}; border: {border_w} solid {border_color}; border-radius: 2px;")
-            btn5.setToolTip("Color guardado (Shift+Clic Reemplazar, Ctrl+Clic Eliminar)")
+            btn5.setToolTip(t("Color guardado (Shift+Clic Reemplazar, Ctrl+Clic Eliminar)"))
 
     def obtener_configuracion(self):
         font_obj = self.font_combo.currentFont()
@@ -390,3 +394,6 @@ class TextPanelWidget(QWidget):
             self.lbl_dist.setText(t("Tamaño:"))
         if hasattr(self, 'lbl_s_col'):
             self.lbl_s_col.setText(t("Color:"))
+        # Refresca los tooltips de los slots de color de sombra (usan t() internamente)
+        if hasattr(self, 'actualizar_ui_colores_sombra'):
+            self.actualizar_ui_colores_sombra()

@@ -2,6 +2,7 @@ from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
                              QSpinBox, QCheckBox, QRadioButton, QPushButton,
                              QButtonGroup, QGroupBox, QGridLayout)
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QIcon
 
 
 class AnclajeWidget(QGroupBox):
@@ -221,26 +222,26 @@ class MenuImagen:
 
         self.menu_img = self.menu_bar.addMenu(t("Imagen"))
 
-        accion_tam_img = self.menu_img.addAction(t("Cambiar Tamaño de Imagen..."))
+        accion_tam_img = self.menu_img.addAction(QIcon("gui/iconos/image_size.png"), t("Cambiar Tamaño de Imagen..."))
         accion_tam_img.triggered.connect(self.cambiar_tamano_imagen)
 
-        accion_tam_lienzo = self.menu_img.addAction(t("Cambiar Tamaño de Lienzo..."))
+        accion_tam_lienzo = self.menu_img.addAction(QIcon("gui/iconos/canvas.png"), t("Cambiar Tamaño de Lienzo..."))
         accion_tam_lienzo.triggered.connect(self.cambiar_tamano_lienzo)
 
         self.menu_img.addSeparator()
 
-        accion_v_horiz = self.menu_img.addAction(t("Voltearse Horizontalmente"))
+        accion_v_horiz = self.menu_img.addAction(QIcon("gui/iconos/horizontal-flip.png"), t("Voltearse Horizontalmente"))
         accion_v_horiz.triggered.connect(lambda: self.ventana.lienzo.voltear_contenido(horizontal=True))
 
-        accion_v_vert = self.menu_img.addAction(t("Voltearse Verticalmente"))
+        accion_v_vert = self.menu_img.addAction(QIcon("gui/iconos/vertical-flip.png"), t("Voltearse Verticalmente"))
         accion_v_vert.triggered.connect(lambda: self.ventana.lienzo.voltear_contenido(horizontal=False))
 
         self.menu_img.addSeparator()
 
-        accion_rot_90_der = self.menu_img.addAction(t("Rotar 90° a la Derecha"))
+        accion_rot_90_der = self.menu_img.addAction(QIcon("gui/iconos/rotate-right.png"), t("Rotar 90° a la Derecha"))
         accion_rot_90_der.triggered.connect(lambda: self.ventana.lienzo.rotar_contenido(grados=90))
 
-        accion_rot_90_izq = self.menu_img.addAction(t("Rotar 90° a la Izquierda"))
+        accion_rot_90_izq = self.menu_img.addAction(QIcon("gui/iconos/rotate-left.png"), t("Rotar 90° a la Izquierda"))
         accion_rot_90_izq.triggered.connect(lambda: self.ventana.lienzo.rotar_contenido(grados=-90))
 
     def cambiar_tamano_lienzo(self):

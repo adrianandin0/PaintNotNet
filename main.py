@@ -1,8 +1,8 @@
 import sys
 import os
-from PyQt6.QtWidgets import QApplication, QMainWindow, QScrollArea, QDockWidget, QTabWidget
+from PyQt6.QtWidgets import QApplication, QMainWindow, QScrollArea, QDockWidget, QTabWidget, QWidget, QHBoxLayout, QLabel
 from PyQt6.QtGui import QColor, QCloseEvent, QShortcut, QKeySequence, QIcon
-from PyQt6.QtCore import Qt, QSettings, QTimer
+from PyQt6.QtCore import Qt, QSettings, QTimer, QSize
 
 if getattr(sys, 'frozen', False):
     base_dir = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
@@ -42,14 +42,16 @@ class PaintNotNet(QMainWindow):
         self.tools_dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
         self.tool_panel = ToolPanelWidget(main_window=self)
         self.tools_dock.setWidget(self.tool_panel)
+        self.tools_dock.setTitleBarWidget(self._hacer_titulo_dock("gui/iconos/tools.png", "Herramientas"))
         self.tools_dock.setFixedHeight(330)
         self.tools_dock.setFixedWidth(82)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.tools_dock)
 
-        self.color_dock = QDockWidget("", self)
+        self.color_dock = QDockWidget(self)
         self.color_dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
         self.color_panel = ColorPanelWidget(main_window=self)
         self.color_dock.setWidget(self.color_panel)
+        self.color_dock.setTitleBarWidget(self._hacer_titulo_dock("gui/iconos/color.png", "Colores"))
         self.color_dock.setFixedHeight(275)
         self.color_dock.setFixedWidth(82)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.color_dock)
@@ -60,39 +62,43 @@ class PaintNotNet(QMainWindow):
         # DOCKS LATERALES DERECHOS (Title Case)
         # ==========================================
         # 1. Dock de Texto
-        self.text_dock = QDockWidget("Texto", self)
+        self.text_dock = QDockWidget(self)
         self.text_dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
         self.text_panel = TextPanelWidget(main_window=self)
         self.text_dock.setWidget(self.text_panel)
+        self.text_dock.setTitleBarWidget(self._hacer_titulo_dock("gui/iconos/text.png", "Texto"))
         self.text_dock.setFixedWidth(148)
-        self.text_dock.setFixedHeight(252)
+        self.text_dock.setFixedHeight(280)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.text_dock)
 
         # 2. Dock de Capas
-        self.layers_dock = QDockWidget("Capas", self)
+        self.layers_dock = QDockWidget(self)
         self.layers_dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
         self.layers_panel = LayersPanelWidget(main_window=self)
         self.layers_dock.setWidget(self.layers_panel)
+        self.layers_dock.setTitleBarWidget(self._hacer_titulo_dock("gui/iconos/layers.png", "Capas"))
         self.layers_dock.setFixedWidth(148)
         self.layers_dock.setFixedHeight(260)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.layers_dock)
         self.splitDockWidget(self.text_dock, self.layers_dock, Qt.Orientation.Vertical)
 
         # 3. Dock de Historial
-        self.history_dock = QDockWidget("Historial", self)
+        self.history_dock = QDockWidget(self)
         self.history_dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
         self.history_panel = HistoryPanelWidget(main_window=self)
         self.history_dock.setWidget(self.history_panel)
+        self.history_dock.setTitleBarWidget(self._hacer_titulo_dock("gui/iconos/history.png", "Historial"))
         self.history_dock.setFixedWidth(148)
         self.history_dock.setFixedHeight(180)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.history_dock)
         self.splitDockWidget(self.layers_dock, self.history_dock, Qt.Orientation.Vertical)
 
         # 4. Dock de Color
-        self.advanced_color_dock = QDockWidget("Color", self)
+        self.advanced_color_dock = QDockWidget(self)
         self.advanced_color_dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
         self.advanced_color_panel = AdvancedColorPanelWidget(main_window=self)
         self.advanced_color_dock.setWidget(self.advanced_color_panel)
+        self.advanced_color_dock.setTitleBarWidget(self._hacer_titulo_dock("gui/iconos/color-plus.png", "Color"))
         self.advanced_color_dock.setFixedWidth(148)
         self.advanced_color_dock.setFixedHeight(210)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.advanced_color_dock)
@@ -120,7 +126,7 @@ class PaintNotNet(QMainWindow):
                 border-bottom: none;
                 border-top-left-radius: 4px;
                 border-top-right-radius: 4px;
-                padding: 5px 8px 5px 12px;
+                padding: 5px 14px 5px 12px;
                 margin-right: 3px;
                 font-size: 11px;
             }
@@ -171,7 +177,25 @@ class PaintNotNet(QMainWindow):
         self.shortcut_esc.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
         self.shortcut_esc.activated.connect(self._ejecutar_escape_global)
 
+
+    def _hacer_titulo_dock(self, icono_path, tooltip=""):
+        """Crea un widget de título mínimo con solo un ícono de 16x16 alineado a la izquierda."""
+        widget = QWidget()
+        widget.setFixedHeight(18)
+        widget.setStyleSheet("background: transparent;")
+        layout = QHBoxLayout(widget)
+        layout.setContentsMargins(4, 1, 4, 1)
+        layout.setSpacing(0)
+        lbl = QLabel()
+        lbl.setPixmap(QIcon(icono_path).pixmap(QSize(16, 16)))
+        if tooltip:
+            lbl.setToolTip(tooltip)
+        layout.addWidget(lbl)
+        layout.addStretch()
+        return widget
+
     def _cargar_perfil_usuario(self):
+
         settings = QSettings("PaintNotNet", "PaintNotNet")
         if settings.value("save_on_close", True, type=bool):
             custom_hexs = settings.value("custom_colors", None)
@@ -229,6 +253,19 @@ class PaintNotNet(QMainWindow):
             canvas.color_primario = self.color_panel.color_primario
             canvas.color_secundario = self.color_panel.color_secundario
 
+        if hasattr(self, 'top_toolbar'):
+            tb = self.top_toolbar
+            canvas.grosor_pincel = tb.spin_grosor.value()
+            canvas.ancho_pincel  = tb.spin_grosor.value()
+            if hasattr(canvas, 'tolerancia') and hasattr(tb, 'slider_tol'):
+                canvas.tolerancia = tb.slider_tol.value()
+
+        # Propagar herramienta actualmente seleccionada al canvas nuevo
+        if hasattr(self, 'tool_panel'):
+            herramienta = getattr(self.tool_panel, 'herramienta_anterior', None)
+            if herramienta is not None:
+                canvas.set_active_tool(herramienta)
+
         area_scroll.setWidget(canvas)
         area_scroll.viewport().installEventFilter(canvas)
         canvas._ajustar_tamano_widget(width, height)
@@ -243,8 +280,62 @@ class PaintNotNet(QMainWindow):
                 titulo = f"{base_st} {num}" if self.tab_widget.count() > 0 else base_st
 
         idx = self.tab_widget.addTab(area_scroll, titulo)
+        # Reemplazar botón cierre nativo con widget propio (con margen derecho)
+        btn_cerrar = self._hacer_boton_cerrar()
+        self.tab_widget.tabBar().setTabButton(
+            idx, self.tab_widget.tabBar().ButtonPosition.RightSide, btn_cerrar
+        )
         self.tab_widget.setCurrentIndex(idx)
         return canvas
+
+    def _hacer_boton_cerrar(self):
+        """Crea un botón de cierre de pestaña con margen derecho visible."""
+        from PyQt6.QtWidgets import QToolButton
+
+        # ID único para identificar este wrapper sin comparación de punteros
+        uid = id(self) ^ id(object())
+
+        wrapper = QWidget()
+        wrapper.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        wrapper.setProperty("tab_uid", uid)
+        layout = QHBoxLayout(wrapper)
+        layout.setContentsMargins(2, 0, 7, 0)  # 7px margen derecho
+        layout.setSpacing(0)
+
+        btn = QToolButton()
+        btn.setText("✕")
+        btn.setFixedSize(14, 14)
+        btn.setProperty("tab_uid", uid)
+        btn.setStyleSheet("""
+            QToolButton {
+                background: transparent;
+                border: none;
+                color: #999999;
+                font-size: 10px;
+                font-weight: bold;
+            }
+            QToolButton:hover {
+                background: #c42b1c;
+                color: #ffffff;
+                border-radius: 2px;
+            }
+        """)
+        layout.addWidget(btn)
+        wrapper.setFixedSize(28, 18)
+
+        def on_click(checked=False, _uid=uid):
+            tb = self.tab_widget.tabBar()
+            for i in range(tb.count()):
+                w = tb.tabButton(i, tb.ButtonPosition.RightSide)
+                try:
+                    if w is not None and w.property("tab_uid") == _uid:
+                        QTimer.singleShot(0, lambda idx=i: self.tab_widget.tabCloseRequested.emit(idx))
+                        break
+                except RuntimeError:
+                    pass  # objeto C++ ya destruido, ignorar
+
+        btn.clicked.connect(on_click)
+        return wrapper
 
     def _on_tab_changed(self, index):
         if index < 0 or index >= self.tab_widget.count():
@@ -265,6 +356,20 @@ class PaintNotNet(QMainWindow):
             if hasattr(self, 'color_panel'):
                 canvas.color_primario = self.color_panel.color_primario
                 canvas.color_secundario = self.color_panel.color_secundario
+
+            # Sincronizar valores actuales del toolbar al nuevo canvas
+            if hasattr(self, 'top_toolbar'):
+                tb = self.top_toolbar
+                canvas.grosor_pincel = tb.spin_grosor.value()
+                canvas.ancho_pincel  = tb.spin_grosor.value()
+                if hasattr(canvas, 'tolerancia') and hasattr(tb, 'slider_tol'):
+                    canvas.tolerancia = tb.slider_tol.value()
+
+            # Propagar herramienta actualmente seleccionada al canvas
+            if hasattr(self, 'tool_panel'):
+                herramienta = getattr(self.tool_panel, 'herramienta_anterior', None)
+                if herramienta is not None:
+                    canvas.set_active_tool(herramienta)
 
             self.actualizar_titulo_ventana()
 
@@ -598,7 +703,19 @@ if __name__ == '__main__':
     """)
 
     app.setWindowIcon(QIcon("gui/iconos/paintdotnet.ico"))
+
+    # El singleton de i18n se crea durante los imports (antes de QApplication),
+    # por lo que QSettings no puede leer el idioma guardado en ese momento.
+    # Lo recargamos ahora que QApplication ya existe.
+    from core.i18n import I18nManager
+    I18nManager().cargar_idioma_configurado()
+
     ventana = PaintNotNet()
+
+    # Re-traducir toda la UI para que coincida con el idioma cargado.
+    # Necesario porque los widgets se construyeron con el idioma por defecto.
+    ventana.retraducir_ui()
+
     if len(sys.argv) > 1:
         ruta_arg = sys.argv[1]
         if os.path.exists(ruta_arg) and not ruta_arg.startswith("-"):

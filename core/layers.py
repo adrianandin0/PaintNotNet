@@ -1,5 +1,6 @@
 from PyQt6.QtGui import QImage, QPixmap, QPainter
 from PyQt6.QtCore import Qt
+from core.i18n import t
 
 
 class Layer:
@@ -20,7 +21,8 @@ class LayerManager:
         self.width = width
         self.height = height
 
-        capa_base = Layer("Capa 1", width, height, transparent=True)
+        nombre_inicial = t("Capa %1").replace("%1", "1")
+        capa_base = Layer(nombre_inicial, width, height, transparent=True)
         self.capas = [capa_base]
         self.indice_activo = 0
 

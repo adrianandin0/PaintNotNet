@@ -1,3 +1,4 @@
+from PyQt6.QtGui import QIcon
 from gui.dialogo_opciones import DialogoOpciones
 
 class MenuOpciones:
@@ -16,10 +17,10 @@ class MenuOpciones:
 
         self.menu = self.menu_bar.addMenu(t("Opciones"))
 
-        action_pref = self.menu.addAction(t("Preferencias de usuario..."))
+        action_pref = self.menu.addAction(QIcon("gui/iconos/config.png"), t("Preferencias de usuario..."))
         action_pref.triggered.connect(self._abrir_preferencias)
 
-        action_atajos = self.menu.addAction(t("Atajos de teclado..."))
+        action_atajos = self.menu.addAction(QIcon("gui/iconos/keyboard.png"), t("Atajos de teclado..."))
         action_atajos.triggered.connect(self._abrir_atajos)
 
     def _abrir_preferencias(self):

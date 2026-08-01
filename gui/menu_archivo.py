@@ -3,6 +3,7 @@ from PyQt6.QtWidgets import (QMessageBox, QDialog, QVBoxLayout,
                              QHBoxLayout, QLabel, QSpinBox, QRadioButton,
                              QPushButton, QButtonGroup, QApplication)
 from PyQt6.QtCore import Qt, QSettings
+from PyQt6.QtGui import QIcon
 from gui.dialogo_archivo import DialogoArchivo
 
 
@@ -108,34 +109,35 @@ class MenuArchivo:
 
         self.menu_archivo = self.menu_bar.addMenu(t("Archivo"))
 
-        accion_nuevo = self.menu_archivo.addAction(t("Nuevo"))
+        accion_nuevo = self.menu_archivo.addAction(QIcon("gui/iconos/new.png"), t("Nuevo"))
         accion_nuevo.setShortcut("Ctrl+N")
         accion_nuevo.triggered.connect(self.nuevo_archivo)
 
-        accion_abrir = self.menu_archivo.addAction(t("Abrir..."))
+        accion_abrir = self.menu_archivo.addAction(QIcon("gui/iconos/open.png"), t("Abrir..."))
         accion_abrir.setShortcut("Ctrl+O")
         accion_abrir.triggered.connect(self.abrir_archivo)
 
         self.menu_recientes = self.menu_archivo.addMenu(t("Recientes"))
+        self.menu_recientes.setIcon(QIcon("gui/iconos/history.png"))
         self.actualizar_menu_recientes()
 
-        accion_insertar = self.menu_archivo.addAction(t("Insertar..."))
+        accion_insertar = self.menu_archivo.addAction(QIcon("gui/iconos/picture.png"), t("Insertar..."))
         accion_insertar.setShortcut("Ctrl+I")
         accion_insertar.triggered.connect(self.insertar_imagen)
 
         self.menu_archivo.addSeparator()
 
-        accion_guardar = self.menu_archivo.addAction(t("Guardar"))
+        accion_guardar = self.menu_archivo.addAction(QIcon("gui/iconos/save.png"), t("Guardar"))
         accion_guardar.setShortcut("Ctrl+S")
         accion_guardar.triggered.connect(self.guardar_archivo)
 
-        accion_guardar_como = self.menu_archivo.addAction(t("Guardar como..."))
+        accion_guardar_como = self.menu_archivo.addAction(QIcon("gui/iconos/save.png"), t("Guardar como..."))
         accion_guardar_como.setShortcut("Ctrl+Shift+S")
         accion_guardar_como.triggered.connect(self.guardar_como)
 
         self.menu_archivo.addSeparator()
 
-        accion_salir = self.menu_archivo.addAction(t("Salir"))
+        accion_salir = self.menu_archivo.addAction(QIcon("gui/iconos/close.png"), t("Salir"))
         accion_salir.setShortcut("Ctrl+Q")
         accion_salir.triggered.connect(self.salir_programa)
 
@@ -190,7 +192,9 @@ class MenuArchivo:
 
         for idx, ruta in enumerate(recientes_validos, 1):
             nombre = os.path.basename(ruta)
-            action = self.menu_recientes.addAction(f"{idx}. {nombre}")
+            ext = os.path.splitext(ruta)[1].lower()
+            icono = QIcon("gui/iconos/pnn.png") if ext == ".pnn" else QIcon("gui/iconos/picture.png")
+            action = self.menu_recientes.addAction(icono, f"{idx}. {nombre}")
             action.setToolTip(ruta)
             action.triggered.connect(_make_reciente_handler(ruta))
 

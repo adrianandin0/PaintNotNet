@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QColor, QPainter, QBrush, QPen, QConicalGradient
 from PyQt6.QtCore import Qt, QPointF, QRectF, pyqtSignal
+from core.i18n import t
 
 
 class ColorButton(QPushButton):
@@ -260,7 +261,7 @@ class ColorPanelWidget(QWidget):
         btn_swap = QPushButton("⇆")
         btn_swap.setFixedSize(20, 20)
         btn_swap.setStyleSheet("font-size: 11px; padding: 0;")
-        btn_swap.setToolTip("Intercambiar colores")
+        btn_swap.setToolTip(t("Intercambiar colores"))
         btn_swap.clicked.connect(self.intercambiar_colores)
 
         top_layout.addWidget(self.muestra_container)
@@ -336,7 +337,7 @@ class ColorPanelWidget(QWidget):
             row = idx // 4
             col = idx % 4
             btn_slot = CustomSlotButton(idx)
-            btn_slot.setToolTip("Slot vacío: Clic para Guardar | Slot lleno: Clic para Usar (Shift+Clic Reemplazar, Ctrl+Clic Eliminar)")
+            btn_slot.setToolTip(t("Slot vacío: Clic para Guardar | Slot lleno: Clic para Usar (Shift+Clic Reemplazar, Ctrl+Clic Eliminar)"))
             btn_slot.slot_interacted.connect(self.on_slot_custom_interacted)
 
             grid_custom.addWidget(btn_slot, row, col)
@@ -412,6 +413,9 @@ class ColorPanelWidget(QWidget):
         self.slider_alpha.blockSignals(False)
 
     def retraducir_panel(self):
-        from core.i18n import t
         if hasattr(self, 'lbl_custom'):
             self.lbl_custom.setText(t("Guardadas:"))
+        if hasattr(self, 'botones_custom'):
+            tip = t("Slot vacío: Clic para Guardar | Slot lleno: Clic para Usar (Shift+Clic Reemplazar, Ctrl+Clic Eliminar)")
+            for btn_slot in self.botones_custom:
+                btn_slot.setToolTip(tip)

@@ -23,6 +23,27 @@ DEFAULT_SHORTCUTS = {
     "Difuminar": "D",
 }
 
+TOOL_ICONS = {
+    "Selección Rectangular": "gui/iconos/select_rect.png",
+    "Mover Selección":       "gui/iconos/move_select_only.png",
+    "Selección Libre":       "gui/iconos/select_free.png",
+    "Mover Contenido":       "gui/iconos/move_select_pixels.png",
+    "Selección Elíptica":    "gui/iconos/select_ellipse.png",
+    "Invertir Selección":    "gui/iconos/invert.png",
+    "Balde de Pintura":      "gui/iconos/bucket.png",
+    "Degradado":             "gui/iconos/gradient.png",
+    "Pincel":                "gui/iconos/brush.png",
+    "Cuentagotas":           "gui/iconos/eyedropper.png",
+    "Lápiz":                 "gui/iconos/pencil.png",
+    "Goma de Borrar":        "gui/iconos/eraser.png",
+    "Varita Mágica":         "gui/iconos/magic.png",
+    "Línea":                 "gui/iconos/line.png",
+    "Texto":                 "gui/iconos/text.png",
+    "Zoom":                  "gui/iconos/zoom.png",
+    "Insertar Formas":       "gui/iconos/shapes.png",
+    "Difuminar":             "gui/iconos/blur.png",
+}
+
 def cargar_atajos():
     settings = QSettings("PaintNotNet", "PaintNotNet")
     atajos = {}
@@ -91,6 +112,9 @@ class DialogoAtajos(QDialog):
             item_tool = QTableWidgetItem(t(tool_name))
             item_tool.setData(Qt.ItemDataRole.UserRole, tool_name)
             item_tool.setFlags(item_tool.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            icon_path = TOOL_ICONS.get(tool_name, "")
+            if icon_path:
+                item_tool.setIcon(QIcon(icon_path))
             self.tabla.setItem(i, 0, item_tool)
 
             item_key = QTableWidgetItem(str(key).upper())

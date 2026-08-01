@@ -1,4 +1,4 @@
-from PyQt6.QtGui import QKeySequence
+from PyQt6.QtGui import QKeySequence, QIcon
 
 
 class MenuEditar:
@@ -68,47 +68,47 @@ class MenuEditar:
         self.menu_editar = self.menu_bar.addMenu(t("Editar"))
 
         # 1. Deshacer / Rehacer
-        accion_deshacer = self.menu_editar.addAction(t("Deshacer"))
+        accion_deshacer = self.menu_editar.addAction(QIcon("gui/iconos/back.png"), t("Deshacer"))
         accion_deshacer.setShortcut("Ctrl+Z")
         accion_deshacer.triggered.connect(self.deshacer)
 
-        accion_rehacer = self.menu_editar.addAction(t("Rehacer"))
+        accion_rehacer = self.menu_editar.addAction(QIcon("gui/iconos/forward.png"), t("Rehacer"))
         accion_rehacer.setShortcut("Ctrl+Y")
         accion_rehacer.triggered.connect(self.rehacer)
 
         self.menu_editar.addSeparator()
 
         # 2. Cortar / Copiar / Pegar
-        accion_cortar = self.menu_editar.addAction(t("Cortar"))
+        accion_cortar = self.menu_editar.addAction(QIcon("gui/iconos/cut.png"), t("Cortar"))
         accion_cortar.setShortcut("Ctrl+X")
         accion_cortar.triggered.connect(self.cortar)
 
-        accion_copiar = self.menu_editar.addAction(t("Copiar"))
+        accion_copiar = self.menu_editar.addAction(QIcon("gui/iconos/copy.png"), t("Copiar"))
         accion_copiar.setShortcut("Ctrl+C")
         accion_copiar.triggered.connect(self.copiar)
 
-        accion_pegar = self.menu_editar.addAction(t("Pegar"))
+        accion_pegar = self.menu_editar.addAction(QIcon("gui/iconos/paste.png"), t("Pegar"))
         accion_pegar.setShortcut("Ctrl+V")
         accion_pegar.triggered.connect(self.pegar)
 
         self.menu_editar.addSeparator()
 
         # 3. Selecciones y Borrado
-        accion_sel_todo = self.menu_editar.addAction(t("Seleccionar Todo"))
+        accion_sel_todo = self.menu_editar.addAction(QIcon("gui/iconos/move_select_pixels.png"), t("Seleccionar Todo"))
         accion_sel_todo.setShortcut("Ctrl+A")
         accion_sel_todo.triggered.connect(self.seleccionar_todo)
 
-        accion_desel = self.menu_editar.addAction(t("Deseleccionar"))
+        accion_desel = self.menu_editar.addAction(QIcon("gui/iconos/cancel.png"), t("Deseleccionar"))
         accion_desel.setShortcut("Ctrl+D")
         accion_desel.triggered.connect(self.desechar_seleccion)
 
-        accion_invert = self.menu_editar.addAction(t("Invertir Selección"))
+        accion_invert = self.menu_editar.addAction(QIcon("gui/iconos/invert.png"), t("Invertir Selección"))
         accion_invert.setShortcut("Ctrl+I")
         accion_invert.triggered.connect(self.invertir_seleccion)
 
         self.menu_editar.addSeparator()
 
-        accion_borrar_sel = self.menu_editar.addAction(t("Eliminar Selección"))
+        accion_borrar_sel = self.menu_editar.addAction(QIcon("gui/iconos/bin.png"), t("Eliminar Selección"))
         accion_borrar_sel.setShortcut(QKeySequence.StandardKey.Delete)
         accion_borrar_sel.triggered.connect(self.borrar_seleccion)
 

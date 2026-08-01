@@ -87,7 +87,9 @@ class LayersPanelWidget(QWidget):
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(2)
 
-        self.btn_add = QPushButton("+")
+        self.btn_add = QPushButton()
+        self.btn_add.setIcon(QIcon("gui/iconos/add.png"))
+        self.btn_add.setIconSize(QSize(16, 16))
         self.btn_add.setToolTip("Nueva Capa")
 
         self.btn_up = QPushButton()
@@ -101,7 +103,7 @@ class LayersPanelWidget(QWidget):
         self.btn_down.setToolTip("Mover Capa Abajo")
 
         self.btn_combine = QPushButton()
-        self.btn_combine.setIcon(QIcon("gui/iconos/combine.png"))
+        self.btn_combine.setIcon(QIcon("gui/iconos/merge.png"))
         self.btn_combine.setIconSize(QSize(16, 16))
         self.btn_combine.setToolTip("Combinar")
 
@@ -188,7 +190,8 @@ class LayersPanelWidget(QWidget):
         mgr = canvas.layer_mgr
 
         self.layer_counter += 1
-        nombre = f"Capa {self.layer_counter}"
+        from core.i18n import t as _t
+        nombre = _t("Capa %1").replace("%1", str(self.layer_counter))
         mgr.agregar_capa(nombre)
 
         self.reconstruir_lista_capas()

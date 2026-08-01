@@ -1,14 +1,15 @@
 import numpy as np
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, QSlider, QPushButton)
-from PyQt6.QtGui import QImage, QColor
+from PyQt6.QtGui import QImage, QColor, QIcon
 from PyQt6.QtCore import Qt, QEventLoop
+from core.i18n import t
 
 
 class DialogoTonoSaturacion(QDialog):
     def __init__(self, canvas, parent=None):
         super().__init__(parent)
         self.canvas = canvas
-        self.setWindowTitle("Tono / Saturación")
+        self.setWindowTitle(t("Tono / Saturación"))
         self.setFixedWidth(300)
         self.setWindowFlags(Qt.WindowType.Tool | Qt.WindowType.WindowStaysOnTopHint)
         self.setModal(False)
@@ -23,7 +24,7 @@ class DialogoTonoSaturacion(QDialog):
         layout.setSpacing(10)
 
         # Tono (-180 a 180)
-        lbl_tono = QLabel("Tono:")
+        lbl_tono = QLabel(t("Tono:"))
         self.slider_tono = QSlider(Qt.Orientation.Horizontal)
         self.slider_tono.setRange(-180, 180)
         self.slider_tono.setValue(0)
@@ -36,7 +37,7 @@ class DialogoTonoSaturacion(QDialog):
         layout.addLayout(l_tono)
 
         # Saturación (-100 a 100)
-        lbl_sat = QLabel("Saturación:")
+        lbl_sat = QLabel(t("Saturación:"))
         self.slider_sat = QSlider(Qt.Orientation.Horizontal)
         self.slider_sat.setRange(-100, 100)
         self.slider_sat.setValue(0)
@@ -50,9 +51,9 @@ class DialogoTonoSaturacion(QDialog):
 
         # Botones (Aceptar, Restablecer, Cancelar)
         l_btns = QHBoxLayout()
-        btn_ok = QPushButton("Aceptar")
-        btn_reset = QPushButton("Restablecer")
-        btn_cancel = QPushButton("Cancelar")
+        btn_ok = QPushButton(t("Aceptar"))
+        btn_reset = QPushButton(t("Restablecer por Defecto"))
+        btn_cancel = QPushButton(t("Cancelar"))
 
         btn_ok.clicked.connect(self.accept)
         btn_reset.clicked.connect(self.restablecer)
@@ -157,7 +158,7 @@ class DialogoBrilloContraste(QDialog):
     def __init__(self, canvas, parent=None):
         super().__init__(parent)
         self.canvas = canvas
-        self.setWindowTitle("Brillo / Contraste")
+        self.setWindowTitle(t("Brillo / Contraste"))
         self.setFixedWidth(300)
         self.setWindowFlags(Qt.WindowType.Tool | Qt.WindowType.WindowStaysOnTopHint)
         self.setModal(False)
@@ -172,7 +173,7 @@ class DialogoBrilloContraste(QDialog):
         layout.setSpacing(10)
 
         # Brillo (-100 a 100)
-        lbl_brillo = QLabel("Brillo:")
+        lbl_brillo = QLabel(t("Brillo:"))
         self.slider_brillo = QSlider(Qt.Orientation.Horizontal)
         self.slider_brillo.setRange(-100, 100)
         self.slider_brillo.setValue(0)
@@ -185,7 +186,7 @@ class DialogoBrilloContraste(QDialog):
         layout.addLayout(l_brillo)
 
         # Contraste (-100 a 100)
-        lbl_contraste = QLabel("Contraste:")
+        lbl_contraste = QLabel(t("Contraste:"))
         self.slider_contraste = QSlider(Qt.Orientation.Horizontal)
         self.slider_contraste.setRange(-100, 100)
         self.slider_contraste.setValue(0)
@@ -199,9 +200,9 @@ class DialogoBrilloContraste(QDialog):
 
         # Botones (Aceptar, Restablecer, Cancelar)
         l_btns = QHBoxLayout()
-        btn_ok = QPushButton("Aceptar")
-        btn_reset = QPushButton("Restablecer")
-        btn_cancel = QPushButton("Cancelar")
+        btn_ok = QPushButton(t("Aceptar"))
+        btn_reset = QPushButton(t("Restablecer por Defecto"))
+        btn_cancel = QPushButton(t("Cancelar"))
 
         btn_ok.clicked.connect(self.accept)
         btn_reset.clicked.connect(self.restablecer)
@@ -214,6 +215,7 @@ class DialogoBrilloContraste(QDialog):
 
         self.slider_brillo.valueChanged.connect(self.aplicar_vista_previa)
         self.slider_contraste.valueChanged.connect(self.aplicar_vista_previa)
+
 
     def accept(self):
         if self.target_is_floating:
@@ -297,19 +299,19 @@ class MenuAjustes:
 
         self.menu_ajustes = self.menu_bar.addMenu(t("Ajustes"))
 
-        accion_tono_sat = self.menu_ajustes.addAction(t("Tono / Saturación..."))
+        accion_tono_sat = self.menu_ajustes.addAction(QIcon("gui/iconos/slidecolor.png"), t("Tono / Saturación..."))
         accion_tono_sat.triggered.connect(self.tono_saturacion)
 
-        accion_brillo_cont = self.menu_ajustes.addAction(t("Brillo / Contraste..."))
+        accion_brillo_cont = self.menu_ajustes.addAction(QIcon("gui/iconos/slidebw.png"), t("Brillo / Contraste..."))
         accion_brillo_cont.triggered.connect(self.brillo_contraste)
 
-        accion_bw = self.menu_ajustes.addAction(t("Blanco y Negro"))
+        accion_bw = self.menu_ajustes.addAction(QIcon("gui/iconos/bnw.png"), t("Blanco y Negro"))
         accion_bw.setShortcut("Ctrl+Shift+B")
         accion_bw.triggered.connect(self.blanco_y_negro)
 
         self.menu_ajustes.addSeparator()
 
-        accion_invertir = self.menu_ajustes.addAction(t("Invertir colores"))
+        accion_invertir = self.menu_ajustes.addAction(QIcon("gui/iconos/negative.png"), t("Invertir colores"))
         accion_invertir.setShortcut("Ctrl+Shift+I")
         accion_invertir.triggered.connect(self.invertir_colores)
 

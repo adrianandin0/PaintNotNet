@@ -146,11 +146,16 @@ Desarrollado en Python con la asistencia de **Google Gemini** y **Google Antigra
 
 Agradecimientos a los ilustradores y diseñadores de íconos / Special thanks to Flaticon icon creators:
 
-- [Flaticon](https://www.flaticon.com/)
-- [Magnific](https://www.flaticon.com/authors/magnific)
-- [Uniconlabs](https://www.flaticon.com/authors/uniconlabs)
-- [Balraj Chana](https://www.flaticon.com/authors/balraj-chana)
-- [Gajah Mada](https://www.flaticon.com/authors/gajah-mada)
+| Autor / Author | ES | EN |
+|---|---|---|
+| Flaticon | [flaticon.es](https://www.flaticon.es/) | [flaticon.com](https://www.flaticon.com/) |
+| Nuion | [autores/nuion](https://www.flaticon.es/autores/nuion) | [authors/nuion](https://www.flaticon.com/authors/nuion) |
+| Gungyoga04 | [autores/gungyoga04](https://www.flaticon.es/autores/gungyoga04) | [authors/gungyoga04](https://www.flaticon.com/authors/gungyoga04) |
+| Gulraiz | [autores/gulraiz](https://www.flaticon.es/autores/gulraiz) | [authors/gulraiz](https://www.flaticon.com/authors/gulraiz) |
+| Smashicons | [autores/smashicons](https://www.flaticon.es/autores/smashicons) | [authors/smashicons](https://www.flaticon.com/authors/smashicons) |
+| Magnific | [autores/magnific](https://www.flaticon.es/autores/magnific) | [authors/magnific](https://www.flaticon.com/authors/magnific) |
+| Pixel perfect | [autores/pixel-perfect](https://www.flaticon.es/autores/pixel-perfect) | [authors/pixel-perfect](https://www.flaticon.com/authors/pixel-perfect) |
+| Designspace team | [autores/designspace-team](https://www.flaticon.es/autores/designspace-team) | [authors/designspace-team](https://www.flaticon.com/authors/designspace-team) |
 
 ---
 

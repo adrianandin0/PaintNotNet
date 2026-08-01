@@ -16,7 +16,7 @@ class TopToolBarWidget(QToolBar):
         self.setStyleSheet("QToolBar { spacing: 4px; padding: 2px; }")
 
         # 0. Nueva Pestaña (+)
-        self.action_nueva_pestana = QAction(QIcon("gui/iconos/add.png"), "Nueva Pestaña", self)
+        self.action_nueva_pestana = QAction(QIcon("gui/iconos/new.png"), "Nueva Pestaña", self)
         self.action_nueva_pestana.setToolTip("Nueva Pestaña (Ctrl+N)")
         self.addAction(self.action_nueva_pestana)
 
@@ -101,8 +101,10 @@ class TopToolBarWidget(QToolBar):
         self.addSeparator()
 
         # 9. Selector de Zoom
-        self.lbl_zoom = QLabel(" Zoom: ")
-        self.lbl_zoom.setStyleSheet("font-size: 11px; font-weight: bold;")
+        self.lbl_zoom = QLabel()
+        self.lbl_zoom.setPixmap(QIcon("gui/iconos/zoom.png").pixmap(QSize(16, 16)))
+        self.lbl_zoom.setToolTip("Zoom")
+        self.lbl_zoom.setContentsMargins(4, 0, 2, 0)
         self.addWidget(self.lbl_zoom)
 
         self.combo_zoom = QComboBox()
@@ -119,31 +121,37 @@ class TopToolBarWidget(QToolBar):
         self.addSeparator()
 
         # 10. Opciones de Línea
-        self.lbl_linea = QLabel(" Línea: ")
-        self.lbl_linea.setStyleSheet("font-size: 11px; font-weight: bold; color: #888888;")
+        self.lbl_linea = QLabel()
+        self.lbl_linea.setPixmap(QIcon("gui/iconos/line.png").pixmap(QSize(16, 16)))
+        self.lbl_linea.setToolTip("Línea")
+        self.lbl_linea.setContentsMargins(4, 0, 2, 0)
         self.addWidget(self.lbl_linea)
 
         combo_style = """
             QComboBox {
-                padding: 1px 1px 1px 2px;
+                padding: 1px 2px;
                 font-size: 11px;
             }
             QComboBox::drop-down {
-                subcontrol-origin: padding;
-                subcontrol-position: top right;
-                width: 10px;
+                width: 0px;
                 border: none;
+                image: none;
+            }
+            QComboBox::down-arrow {
+                image: none;
+                width: 0px;
+                height: 0px;
             }
         """
 
         self.combo_linea_inicio = QComboBox()
         self.combo_linea_inicio.setStyleSheet(combo_style)
         self.combo_linea_inicio.setIconSize(QSize(18, 18))
-        self.combo_linea_inicio.setFixedWidth(36)
-        self.combo_linea_inicio.addItem(QIcon("gui/iconos/rectangle.png"), "", "Plana")
-        self.combo_linea_inicio.addItem(QIcon("gui/iconos/line_circle_left.png"), "", "Redonda")
-        self.combo_linea_inicio.addItem(QIcon("gui/iconos/arrow_left.png"), "", "Flecha")
-        self.combo_linea_inicio.addItem(QIcon("gui/iconos/circle.png"), "", "Circulo")
+        self.combo_linea_inicio.setFixedWidth(24)
+        self.combo_linea_inicio.addItem(QIcon("gui/iconos/plain_point_left.png"), "", "Plana")
+        self.combo_linea_inicio.addItem(QIcon("gui/iconos/round_point_left.png"), "", "Redonda")
+        self.combo_linea_inicio.addItem(QIcon("gui/iconos/arrow_point_left.png"), "", "Flecha")
+        self.combo_linea_inicio.addItem(QIcon("gui/iconos/circle_point_left.png"), "", "Circulo")
         self.combo_linea_inicio.setToolTip("Punta Inicial: Plana")
         self.combo_linea_inicio.currentIndexChanged.connect(self._on_linea_inicio_changed)
         self.addWidget(self.combo_linea_inicio)
@@ -151,7 +159,7 @@ class TopToolBarWidget(QToolBar):
         self.combo_linea_estilo = QComboBox()
         self.combo_linea_estilo.setStyleSheet(combo_style)
         self.combo_linea_estilo.setIconSize(QSize(18, 18))
-        self.combo_linea_estilo.setFixedWidth(36)
+        self.combo_linea_estilo.setFixedWidth(24)
         self.combo_linea_estilo.addItem(QIcon("gui/iconos/flat.png"), "", "Recta")
         self.combo_linea_estilo.addItem(QIcon("gui/iconos/pointed.png"), "", "Punteada")
         self.combo_linea_estilo.setToolTip("Estilo de Trazo: Recta")
@@ -161,11 +169,11 @@ class TopToolBarWidget(QToolBar):
         self.combo_linea_fin = QComboBox()
         self.combo_linea_fin.setStyleSheet(combo_style)
         self.combo_linea_fin.setIconSize(QSize(18, 18))
-        self.combo_linea_fin.setFixedWidth(36)
-        self.combo_linea_fin.addItem(QIcon("gui/iconos/rectangle.png"), "", "Plana")
-        self.combo_linea_fin.addItem(QIcon("gui/iconos/line_circle_right.png"), "", "Redonda")
-        self.combo_linea_fin.addItem(QIcon("gui/iconos/arrow_right.png"), "", "Flecha")
-        self.combo_linea_fin.addItem(QIcon("gui/iconos/circle.png"), "", "Circulo")
+        self.combo_linea_fin.setFixedWidth(24)
+        self.combo_linea_fin.addItem(QIcon("gui/iconos/plain_point_right.png"), "", "Plana")
+        self.combo_linea_fin.addItem(QIcon("gui/iconos/round_point_right.png"), "", "Redonda")
+        self.combo_linea_fin.addItem(QIcon("gui/iconos/arrow_point_right.png"), "", "Flecha")
+        self.combo_linea_fin.addItem(QIcon("gui/iconos/circle_point_right.png"), "", "Circulo")
         self.combo_linea_fin.setToolTip("Punta Final: Plana")
         self.combo_linea_fin.currentIndexChanged.connect(self._on_linea_fin_changed)
         self.addWidget(self.combo_linea_fin)
@@ -173,8 +181,10 @@ class TopToolBarWidget(QToolBar):
         self.addSeparator()
 
         # 11. Opciones de Formas Geométrica
-        self.lbl_formas = QLabel(" Formas: ")
-        self.lbl_formas.setStyleSheet("font-size: 11px; font-weight: bold; color: #888888;")
+        self.lbl_formas = QLabel()
+        self.lbl_formas.setPixmap(QIcon("gui/iconos/shapes.png").pixmap(QSize(16, 16)))
+        self.lbl_formas.setToolTip("Formas")
+        self.lbl_formas.setContentsMargins(4, 0, 2, 0)
         self.addWidget(self.lbl_formas)
 
         self.chk_formas_redondeado = QCheckBox("Redondeado")
@@ -185,7 +195,7 @@ class TopToolBarWidget(QToolBar):
         self.combo_forma_estilo = QComboBox()
         self.combo_forma_estilo.setStyleSheet(combo_style)
         self.combo_forma_estilo.setIconSize(QSize(18, 18))
-        self.combo_forma_estilo.setFixedWidth(36)
+        self.combo_forma_estilo.setFixedWidth(24)
         self.combo_forma_estilo.addItem(QIcon("gui/iconos/shape.png"), "", "Solo Borde")
         self.combo_forma_estilo.addItem(QIcon("gui/iconos/shapes_solid.png"), "", "Forma Sólida")
         self.combo_forma_estilo.addItem(QIcon("gui/iconos/shapes_colored.png"), "", "Borde y Relleno")
@@ -195,7 +205,7 @@ class TopToolBarWidget(QToolBar):
         self.combo_forma_tipo = QComboBox()
         self.combo_forma_tipo.setStyleSheet(combo_style)
         self.combo_forma_tipo.setIconSize(QSize(18, 18))
-        self.combo_forma_tipo.setFixedWidth(36)
+        self.combo_forma_tipo.setFixedWidth(24)
         self.combo_forma_tipo.addItem(QIcon("gui/iconos/shape_rectangle.png"), "", "Rectángulo")
         self.combo_forma_tipo.addItem(QIcon("gui/iconos/shape_triangle.png"), "", "Triángulo")
         self.combo_forma_tipo.addItem(QIcon("gui/iconos/shape_circle.png"), "", "Elipse")
@@ -205,8 +215,10 @@ class TopToolBarWidget(QToolBar):
         self.addSeparator()
 
         # 12. Opciones de Difuminar / Blur
-        self.lbl_blur = QLabel(" Difuminar: ")
-        self.lbl_blur.setStyleSheet("font-size: 11px; font-weight: bold; color: #888888;")
+        self.lbl_blur = QLabel()
+        self.lbl_blur.setPixmap(QIcon("gui/iconos/blur.png").pixmap(QSize(16, 16)))
+        self.lbl_blur.setToolTip("Difuminar")
+        self.lbl_blur.setContentsMargins(4, 0, 2, 0)
         self.addWidget(self.lbl_blur)
 
         settings = QSettings("PaintNotNet", "PaintNotNet")
@@ -343,10 +355,18 @@ class TopToolBarWidget(QToolBar):
             val = int(txt)
             val = max(10, min(500, val))
             if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
-                self.main_window.lienzo.zoom_factor = val / 100.0
-                self.main_window.lienzo.update()
+                self.main_window.lienzo.set_zoom(val / 100.0)
         except ValueError:
             pass
+
+    def sync_zoom_from_canvas(self, scale_factor):
+        """Sincroniza el combo de zoom con el valor actual del canvas."""
+        pct = int(round(scale_factor * 100))
+        txt = f"{pct}%"
+        if hasattr(self, 'combo_zoom') and self.combo_zoom.currentText() != txt:
+            self.combo_zoom.blockSignals(True)
+            self.combo_zoom.setCurrentText(txt)
+            self.combo_zoom.blockSignals(False)
 
     def _on_linea_inicio_changed(self, idx):
         from core.i18n import t
@@ -387,13 +407,13 @@ class TopToolBarWidget(QToolBar):
         if hasattr(self, 'lbl_suav'):
             self.lbl_suav.setText(f" {t('Suavizado:')} ")
         if hasattr(self, 'lbl_zoom'):
-            self.lbl_zoom.setText(f" {t('Zoom:')} ")
+            self.lbl_zoom.setToolTip(t("Zoom"))
         if hasattr(self, 'lbl_linea'):
-            self.lbl_linea.setText(f" {t('Línea:')} ")
+            self.lbl_linea.setToolTip(t("Línea"))
         if hasattr(self, 'lbl_formas'):
-            self.lbl_formas.setText(f" {t('Formas:')} ")
+            self.lbl_formas.setToolTip(t("Formas"))
         if hasattr(self, 'lbl_blur'):
-            self.lbl_blur.setText(f" {t('Difuminar:')} ")
+            self.lbl_blur.setToolTip(t("Difuminar"))
         if hasattr(self, 'chk_formas_redondeado'):
             self.chk_formas_redondeado.setText(t("Redondeado"))
 

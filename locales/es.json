@@ -42,7 +42,6 @@
   "Acerca de": "Acerca de",
   "Acerca de...": "Acerca de...",
   "Acerca de PaintNotNet...": "Acerca de PaintNotNet...",
-
   "Selección Rectangular": "Selección Rectangular",
   "Mover Selección": "Mover Selección",
   "Selección Libre": "Selección Libre",
@@ -60,7 +59,6 @@
   "Zoom": "Zoom",
   "Insertar Formas": "Insertar Formas",
   "Difuminar": "Difuminar",
-
   "Capas": "Capas",
   "Nueva Capa": "Nueva Capa",
   "Mover Capa Arriba": "Mover Capa Arriba",
@@ -76,7 +74,6 @@
   "Renombrar capa...": "Renombrar capa...",
   "Historial": "Historial",
   "Color": "Color",
-
   "Grosor:": "Grosor:",
   "Tolerancia:": "Tolerancia:",
   "Suavizado:": "Suavizado:",
@@ -126,7 +123,6 @@
   "Punta Final:": "Punta Final:",
   "Estilo de Forma:": "Estilo de Forma:",
   "Tipo de Forma:": "Tipo de Forma:",
-
   "Preferencias de usuario": "Preferencias de usuario",
   "Idioma / Language": "Idioma / Language",
   "Idioma:": "Idioma:",
@@ -134,20 +130,18 @@
   "Formato predeterminado": "Formato predeterminado",
   "Formato:": "Formato:",
   "Guardar cambios al cerrar": "Guardar cambios al cerrar",
-  "Restablecer por Defecto": "Restablecer por Defecto",
+  "Restablecer por Defecto": "Restaurar",
   "Cancelar": "Cancelar",
   "Atajos de Teclado": "Atajos de Teclado",
   "Herramienta": "Herramienta",
   "Tecla de Atajo": "Tecla de Atajo",
   "Haz doble clic en una celda o presiona una tecla para cambiar el atajo (un único carácter):": "Haz doble clic en una celda o presiona una tecla para cambiar el atajo (un único carácter):",
-
   "Cambios no guardados": "Cambios no guardados",
   "Se realizaron cambios en %1. ¿Desea guardarlos antes de continuar?": "Se realizaron cambios en %1. ¿Desea guardarlos antes de continuar?",
   "Sí": "Sí",
   "No": "No",
-
   "Acerca de PaintNotNet": "Acerca de PaintNotNet",
-  "PaintNotNet (Versión Beta)": "PaintNotNet (Versión Beta)",
+  "PaintNotNet (Versión Beta)": "PaintNotNet v1.0.2",
   "Cerrar": "Cerrar",
-  "ACERCA_BODY_HTML": "<div style='font-size: 11px; color: #DDDDDD; line-height: 1.5;'>PaintNotNet es un software de diseño y edición de imágenes sencillo pero potente, desarrollado para Linux e inspirado en el clásico Paint.NET.<br><br>Ofrece características clave para el trabajo con imágenes, tales como manejo de capas, historial de acciones y la posibilidad de guardar tus proyectos para continuarlos en cualquier momento.<br><br>Desarrollado en Python con la asistencia de <b>Google Gemini</b> y <b>Google Antigravity</b>.<br><br><b>Autor:</b> Adrian &nbsp;|&nbsp; <b>X:</b> <a href='https://www.x.com/adrian_and_ino' style='color: #64B4FF; text-decoration: underline;'>@adrian_and_ino</a> &nbsp;|&nbsp; <b>GitHub:</b> <a href='https://github.com/adrianandin0/PaintNotNet/' style='color: #64B4FF; text-decoration: underline;'>PaintNotNet Repository</a><br><br>El proyecto se encuentra en constante desarrollo. Todos son bienvenidos a colaborar o reportar errores.<br><br><b>Créditos de Íconos y Recursos Gráficos:</b><br><a href='https://www.flaticon.com/' style='color: #64B4FF; text-decoration: underline;'>Flaticon</a> &bull; <a href='https://www.flaticon.com/authors/magnific' style='color: #64B4FF; text-decoration: underline;'>Magnific</a> &bull; <a href='https://www.flaticon.com/authors/uniconlabs' style='color: #64B4FF; text-decoration: underline;'>Uniconlabs</a> &bull; <a href='https://www.flaticon.com/authors/balraj-chana' style='color: #64B4FF; text-decoration: underline;'>Balraj Chana</a> &bull; <a href='https://www.flaticon.com/authors/gajah-mada' style='color: #64B4FF; text-decoration: underline;'>Gajah Mada</a></div>"
+  "ACERCA_BODY_HTML": "<div style='font-size: 11px; color: #DDDDDD; line-height: 1.5;'>PaintNotNet es un software de diseño y edición de imágenes sencillo pero potente, desarrollado para Linux e inspirado en el clásico Paint.NET.<br><br>Ofrece características clave para el trabajo con imágenes, tales como manejo de capas, historial de acciones y la posibilidad de guardar tus proyectos para continuarlos en cualquier momento.<br><br>Desarrollado en Python con la asistencia de <b>Google Gemini</b> y <b>Google Antigravity</b>.<br><br><b>Autor:</b> Adrian &nbsp;|&nbsp; <b>X:</b> <a href='https://www.x.com/adrian_and_ino' style='color: #64B4FF; text-decoration: underline;'>@adrian_and_ino</a> &nbsp;|&nbsp; <b>GitHub:</b> <a href='https://github.com/adrianandin0/PaintNotNet/' style='color: #64B4FF; text-decoration: underline;'>PaintNotNet Repository</a><br><br>El proyecto se encuentra en constante desarrollo. Todos son bienvenidos a colaborar o reportar errores.<br><br><b>Créditos de Íconos y Recursos Gráficos:</b><br><a href='https://www.flaticon.es/' style='color: #64B4FF; text-decoration: underline;'>Flaticon</a> &bull; <a href='https://www.flaticon.es/autores/nuion' style='color: #64B4FF; text-decoration: underline;'>Nuion</a> &bull; <a href='https://www.flaticon.es/autores/gungyoga04' style='color: #64B4FF; text-decoration: underline;'>Gungyoga04</a> &bull; <a href='https://www.flaticon.es/autores/gulraiz' style='color: #64B4FF; text-decoration: underline;'>Gulraiz</a> &bull; <a href='https://www.flaticon.es/autores/smashicons' style='color: #64B4FF; text-decoration: underline;'>Smashicons</a> &bull; <a href='https://www.flaticon.es/autores/magnific' style='color: #64B4FF; text-decoration: underline;'>Magnific</a> &bull; <a href='https://www.flaticon.es/autores/pixel-perfect' style='color: #64B4FF; text-decoration: underline;'>Pixel perfect</a> &bull; <a href='https://www.flaticon.es/autores/designspace-team' style='color: #64B4FF; text-decoration: underline;'>Designspace team</a></div>"
 }
