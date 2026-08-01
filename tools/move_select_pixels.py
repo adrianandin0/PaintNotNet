@@ -28,7 +28,7 @@ class MoveSelectPixelsTool(BaseTool):
                 engine.floating_image = buffer.copy(rect)
                 engine.unscaled_floating_image = engine.floating_image.copy()
                 engine.original_image_pos = QPointF(rect.topLeft())
-
+                engine.is_new_content = False
                 canvas.floating_history = [engine.floating_image.copy()]
 
                 painter = QPainter(buffer)
@@ -65,7 +65,8 @@ class MoveSelectPixelsTool(BaseTool):
         if engine.floating_image and not engine.floating_image.isNull():
             buffer = canvas.layer_mgr.buffer
             painter = QPainter(buffer)
-            if not engine.active_path.isEmpty():
+            es_contenido_nuevo = getattr(engine, 'is_new_content', False)
+            if not engine.active_path.isEmpty() and not es_contenido_nuevo:
                 painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
                 painter.fillPath(engine.active_path, Qt.GlobalColor.transparent)
                 painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
@@ -73,6 +74,7 @@ class MoveSelectPixelsTool(BaseTool):
             painter.end()
             engine.floating_image = None
             engine.unscaled_floating_image = None
+            engine.is_new_content = False
             if hasattr(engine, 'original_selection_region'):
                 engine.original_selection_region = None
             canvas.update()

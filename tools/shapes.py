@@ -195,7 +195,7 @@ class ShapesTool(BaseTool):
         canvas.selection_engine.active_path = shape_path_global
         canvas.selection_engine.active_rect = shape_path_global.boundingRect()
         canvas.selection_engine.is_transforming = True
-
+        canvas.selection_engine.is_new_content = True
         canvas.previous_tool_obj = self
 
         # Cambiar a la herramienta de mover píxeles (Mover píxeles de selección)
