@@ -1,8 +1,9 @@
 import os
-from PyQt6.QtWidgets import (QFileDialog, QMessageBox, QDialog, QVBoxLayout,
+from PyQt6.QtWidgets import (QMessageBox, QDialog, QVBoxLayout,
                              QHBoxLayout, QLabel, QSpinBox, QRadioButton,
                              QPushButton, QButtonGroup, QApplication)
 from PyQt6.QtCore import Qt, QSettings
+from gui.dialogo_archivo import DialogoArchivo
 
 
 class DialogoNuevoArchivo(QDialog):
@@ -231,14 +232,22 @@ class MenuArchivo:
 
     def abrir_archivo(self):
         dir_home = self.obtener_home_real()
-        filtros = "Todos los archivos soportados (*.pnn *.png *.jpg *.jpeg *.bmp *.webp);;Borrador PaintNotNet (*.pnn);;Imágenes (*.png *.jpg *.jpeg *.bmp *.webp);;Todos los archivos (*)"
-
-        ruta, _ = QFileDialog.getOpenFileName(
+        filtros = [
+            ("Todos los archivos soportados", "*.pnn *.png *.jpg *.jpeg *.bmp *.webp"),
+            ("Borrador PaintNotNet",          "*.pnn"),
+            ("Imágenes",                      "*.png *.jpg *.jpeg *.bmp *.webp"),
+            ("Todos los archivos",            "*"),
+        ]
+        dialogo = DialogoArchivo(
             self.ventana,
-            "Abrir Imagen o Borrador",
-            dir_home,
-            filtros
+            modo="abrir",
+            directorio=dir_home,
+            filtros=filtros,
+            titulo="Abrir Imagen o Borrador"
         )
+        if dialogo.exec() != QDialog.DialogCode.Accepted:
+            return
+        ruta = dialogo.ruta_seleccionada()
         if ruta:
             tab_widget = self.ventana.tab_widget
             canvas_actual = self.ventana.lienzo
@@ -263,13 +272,20 @@ class MenuArchivo:
 
     def insertar_imagen(self):
         dir_home = self.obtener_home_real()
-
-        ruta, _ = QFileDialog.getOpenFileName(
+        filtros = [
+            ("Imágenes",          "*.png *.jpg *.jpeg *.bmp *.webp"),
+            ("Todos los archivos", "*"),
+        ]
+        dialogo = DialogoArchivo(
             self.ventana,
-            "Insertar Imagen",
-            dir_home,
-            "Imágenes (*.png *.jpg *.jpeg *.bmp);;Todos los archivos (*)"
+            modo="abrir",
+            directorio=dir_home,
+            filtros=filtros,
+            titulo="Insertar Imagen"
         )
+        if dialogo.exec() != QDialog.DialogCode.Accepted:
+            return
+        ruta = dialogo.ruta_seleccionada()
         if ruta:
             if self.ventana.lienzo.insertar_imagen(ruta):
                 if hasattr(self.ventana, 'panel_herramientas'):
@@ -322,28 +338,34 @@ class MenuArchivo:
         sug_nombre = base_nombre if base_nombre.lower().endswith(ext_defecto) else f"{base_nombre}{ext_defecto}"
         sug_path = os.path.join(dir_home, sug_nombre)
 
-        ruta_elegida, filtro_seleccionado = QFileDialog.getSaveFileName(
-            self.ventana,
-            "Guardar como...",
-            sug_path,
-            filtros,
-            initialFilter=filtro_defecto
+        # Construir lista de filtros para DialogoArchivo
+        filtros_dialogo = [
+            ("Borrador PaintNotNet", "*.pnn"),
+            ("Imagen PNG",          "*.png"),
+            ("Imagen JPG",          "*.jpg *.jpeg"),
+            ("Imagen BMP",          "*.bmp"),
+        ]
+        # Poner el filtro por defecto primero
+        _orden = {"pnn": 0, "png": 1, "jpg": 2, "bmp": 3}
+        idx_defecto = _orden.get(ext_defecto.lstrip('.'), 1)
+        filtros_dialogo = (
+            filtros_dialogo[idx_defecto:idx_defecto+1] +
+            [f for i, f in enumerate(filtros_dialogo) if i != idx_defecto]
         )
 
+        dialogo = DialogoArchivo(
+            self.ventana,
+            modo="guardar",
+            directorio=dir_home,
+            filtros=filtros_dialogo,
+            nombre_sugerido=sug_nombre,
+            titulo="Guardar como…"
+        )
+        if dialogo.exec() != QDialog.DialogCode.Accepted:
+            return False
+        ruta_elegida = dialogo.ruta_seleccionada()
+
         if ruta_elegida:
-            ext_por_defecto = {
-                filtro_pnn: ".pnn",
-                filtro_png: ".png",
-                filtro_jpg: ".jpg",
-                filtro_bmp: ".bmp"
-            }
-
-            _, ext_actual = os.path.splitext(ruta_elegida)
-
-            if not ext_actual:
-                extension_estandar = ext_por_defecto.get(filtro_seleccionado, ext_defecto)
-                ruta_elegida += extension_estandar
-
             if canvas.guardar_imagen(ruta_elegida):
                 canvas.archivo_actual = ruta_elegida
                 canvas.lienzo_modificado = False
