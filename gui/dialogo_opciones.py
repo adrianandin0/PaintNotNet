@@ -23,7 +23,7 @@ class DialogoOpciones(QDialog):
                 font-size: 11px;
                 font-weight: bold;
                 color: #64B4FF;
-                border: 1px solid #444444;
+                border: 1px solid #686868;
                 border-radius: 4px;
                 margin-top: 8px;
                 padding-top: 6px;

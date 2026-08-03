@@ -138,13 +138,13 @@ def _nav_btn(icono_nombre, tooltip, size=28):
     btn.setToolTip(tooltip)
     btn.setStyleSheet("""
         QToolButton {
-            background: #3a3a3a;
+            background: #5C5C5C;
             border: 1px solid #505050;
             border-radius: 4px;
         }
-        QToolButton:hover { background: #4a4a4a; border-color: #6a8fd0; }
+        QToolButton:hover { background: #6A6A6A; border-color: #6a8fd0; }
         QToolButton:pressed { background: #2e5094; }
-        QToolButton:disabled { background: #2d2d2d; border-color: #3a3a3a; opacity: 0.4; }
+        QToolButton:disabled { background: #525252; border-color: #5C5C5C; opacity: 0.4; }
     """)
     return btn
 
@@ -233,7 +233,7 @@ class DialogoArchivo(QDialog):
 
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.VLine)
-        sep.setStyleSheet("color: #444;")
+        sep.setStyleSheet("color: #686868;")
 
         self.edit_ruta = QLineEdit()
         self.edit_ruta.setPlaceholderText(t("Ruta o nombre de carpeta…"))
@@ -355,7 +355,7 @@ class DialogoArchivo(QDialog):
         self.setStyleSheet("""
             QDialog {
                 background-color: #252525;
-                color: #e0e0e0;
+                color: #EDEDED;
             }
             QLabel {
                 color: #b8b8b8;
@@ -364,14 +364,14 @@ class DialogoArchivo(QDialog):
             QLineEdit {
                 background-color: #1c1c1c;
                 color: #ececec;
-                border: 1px solid #404040;
+                border: 1px solid #626262;
                 border-radius: 4px;
                 padding: 4px 8px;
                 font-size: 12px;
             }
             QLineEdit:focus {
                 border: 1px solid #4a7cc7;
-                background-color: #1e1e1e;
+                background-color: #525252;
             }
             QLineEdit:read-only {
                 background-color: #1a1a1a;
@@ -379,7 +379,7 @@ class DialogoArchivo(QDialog):
             }
             QPushButton {
                 background-color: #383838;
-                color: #e0e0e0;
+                color: #EDEDED;
                 border: 1px solid #505050;
                 border-radius: 4px;
                 padding: 4px 12px;
@@ -395,7 +395,7 @@ class DialogoArchivo(QDialog):
             QPushButton#btn_ok {
                 background-color: #2c5490;
                 border-color: #3a6ac0;
-                color: #ffffff;
+                color: #EDEDED;
                 font-weight: bold;
             }
             QPushButton#btn_ok:hover {
@@ -406,8 +406,8 @@ class DialogoArchivo(QDialog):
             }
             QListWidget {
                 background-color: #1c1c1c;
-                color: #e0e0e0;
-                border: 1px solid #3a3a3a;
+                color: #EDEDED;
+                border: 1px solid #5C5C5C;
                 border-radius: 4px;
                 font-size: 12px;
                 outline: none;
@@ -418,14 +418,14 @@ class DialogoArchivo(QDialog):
             }
             QListWidget::item:selected {
                 background-color: #2c5490;
-                color: #ffffff;
+                color: #EDEDED;
             }
             QListWidget::item:hover:!selected {
                 background-color: #303030;
             }
             QComboBox {
                 background-color: #383838;
-                color: #e0e0e0;
+                color: #EDEDED;
                 border: 1px solid #505050;
                 border-radius: 4px;
                 padding: 4px 8px;
@@ -434,10 +434,10 @@ class DialogoArchivo(QDialog):
             QComboBox:hover { border-color: #6a8fd0; }
             QComboBox::drop-down { border: none; width: 20px; }
             QComboBox QAbstractItemView {
-                background-color: #2b2b2b;
-                color: #e0e0e0;
+                background-color: #5C5C5C;
+                color: #EDEDED;
                 selection-background-color: #2c5490;
-                border: 1px solid #404040;
+                border: 1px solid #626262;
             }
             QSplitter::handle {
                 background-color: #333333;

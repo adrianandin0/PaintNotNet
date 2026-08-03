@@ -13,9 +13,11 @@ from gui.tool_panel import ToolPanelWidget
 from gui.color_panel import ColorPanelWidget
 from gui.advanced_color_panel import AdvancedColorPanelWidget
 from gui.text_panel import TextPanelWidget
+from gui.effects_panel import EffectsPanelWidget
 from gui.layers_panel import LayersPanelWidget
 from gui.history_panel import HistoryPanelWidget
 from gui.top_toolbar import TopToolBarWidget
+from gui.brushes_panel import BrushesPanelWidget
 
 from gui.menu_archivo import MenuArchivo
 from gui.menu_editar import MenuEditar
@@ -36,7 +38,7 @@ class PaintNotNet(QMainWindow):
         self.setDockOptions(QMainWindow.DockOption.AllowNestedDocks | QMainWindow.DockOption.AnimatedDocks)
 
         # ==========================================
-        # DOCKS LATERALES IZQUIERDOS
+        # DOCKS LATERALES IZQUIERDOS: Herramientas / Pinceles / Colores
         # ==========================================
         self.tools_dock = QDockWidget(self)
         self.tools_dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
@@ -47,6 +49,15 @@ class PaintNotNet(QMainWindow):
         self.tools_dock.setFixedWidth(82)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.tools_dock)
 
+        self.brushes_panel = BrushesPanelWidget(main_window=self)
+        self.brushes_dock = QDockWidget(self)
+        self.brushes_dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
+        self.brushes_dock.setWidget(self.brushes_panel)
+        self.brushes_dock.setTitleBarWidget(self._hacer_titulo_dock("gui/iconos/brush.png", "Pinceles"))
+        self.brushes_dock.setFixedHeight(60)
+        self.brushes_dock.setFixedWidth(82)
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.brushes_dock)
+
         self.color_dock = QDockWidget(self)
         self.color_dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
         self.color_panel = ColorPanelWidget(main_window=self)
@@ -56,10 +67,11 @@ class PaintNotNet(QMainWindow):
         self.color_dock.setFixedWidth(82)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.color_dock)
 
-        self.splitDockWidget(self.tools_dock, self.color_dock, Qt.Orientation.Vertical)
+        self.splitDockWidget(self.tools_dock,   self.brushes_dock, Qt.Orientation.Vertical)
+        self.splitDockWidget(self.brushes_dock, self.color_dock,   Qt.Orientation.Vertical)
 
         # ==========================================
-        # DOCKS LATERALES DERECHOS (Title Case)
+        # DOCKS LATERALES DERECHOS: Texto / Colores / Efectos de Texto / Historial / Capas
         # ==========================================
         # 1. Dock de Texto
         self.text_dock = QDockWidget(self)
@@ -67,42 +79,53 @@ class PaintNotNet(QMainWindow):
         self.text_panel = TextPanelWidget(main_window=self)
         self.text_dock.setWidget(self.text_panel)
         self.text_dock.setTitleBarWidget(self._hacer_titulo_dock("gui/iconos/text.png", "Texto"))
-        self.text_dock.setFixedWidth(148)
-        self.text_dock.setFixedHeight(280)
+        self.text_dock.setFixedWidth(160)
+        self.text_dock.setFixedHeight(140)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.text_dock)
 
-        # 2. Dock de Capas
-        self.layers_dock = QDockWidget(self)
-        self.layers_dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
-        self.layers_panel = LayersPanelWidget(main_window=self)
-        self.layers_dock.setWidget(self.layers_panel)
-        self.layers_dock.setTitleBarWidget(self._hacer_titulo_dock("gui/iconos/layers.png", "Capas"))
-        self.layers_dock.setFixedWidth(148)
-        self.layers_dock.setFixedHeight(260)
-        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.layers_dock)
-        self.splitDockWidget(self.text_dock, self.layers_dock, Qt.Orientation.Vertical)
-
-        # 3. Dock de Historial
-        self.history_dock = QDockWidget(self)
-        self.history_dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
-        self.history_panel = HistoryPanelWidget(main_window=self)
-        self.history_dock.setWidget(self.history_panel)
-        self.history_dock.setTitleBarWidget(self._hacer_titulo_dock("gui/iconos/history.png", "Historial"))
-        self.history_dock.setFixedWidth(148)
-        self.history_dock.setFixedHeight(180)
-        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.history_dock)
-        self.splitDockWidget(self.layers_dock, self.history_dock, Qt.Orientation.Vertical)
-
-        # 4. Dock de Color
+        # 2. Dock de Color avanzado
         self.advanced_color_dock = QDockWidget(self)
         self.advanced_color_dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
         self.advanced_color_panel = AdvancedColorPanelWidget(main_window=self)
         self.advanced_color_dock.setWidget(self.advanced_color_panel)
         self.advanced_color_dock.setTitleBarWidget(self._hacer_titulo_dock("gui/iconos/color-plus.png", "Color"))
-        self.advanced_color_dock.setFixedWidth(148)
+        self.advanced_color_dock.setFixedWidth(160)
         self.advanced_color_dock.setFixedHeight(210)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.advanced_color_dock)
-        self.splitDockWidget(self.history_dock, self.advanced_color_dock, Qt.Orientation.Vertical)
+        self.splitDockWidget(self.text_dock, self.advanced_color_dock, Qt.Orientation.Vertical)
+
+        # 3. Dock de Efectos de Texto
+        self.effects_panel = EffectsPanelWidget(main_window=self)
+        self.effects_dock = QDockWidget(self)
+        self.effects_dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
+        self.effects_dock.setWidget(self.effects_panel)
+        self.effects_dock.setTitleBarWidget(self._hacer_titulo_dock("gui/iconos/effects.png", "Efectos de Texto"))
+        self.effects_dock.setFixedWidth(160)
+        self.effects_dock.setFixedHeight(220)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.effects_dock)
+        self.splitDockWidget(self.advanced_color_dock, self.effects_dock, Qt.Orientation.Vertical)
+
+        # 4. Dock de Historial
+        self.history_dock = QDockWidget(self)
+        self.history_dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
+        self.history_panel = HistoryPanelWidget(main_window=self)
+        self.history_dock.setWidget(self.history_panel)
+        self.history_dock.setTitleBarWidget(self._hacer_titulo_dock("gui/iconos/history.png", "Historial"))
+        self.history_dock.setFixedWidth(160)
+        self.history_dock.setFixedHeight(180)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.history_dock)
+        self.splitDockWidget(self.effects_dock, self.history_dock, Qt.Orientation.Vertical)
+
+        # 5. Dock de Capas
+        self.layers_dock = QDockWidget(self)
+        self.layers_dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
+        self.layers_panel = LayersPanelWidget(main_window=self)
+        self.layers_dock.setWidget(self.layers_panel)
+        self.layers_dock.setTitleBarWidget(self._hacer_titulo_dock("gui/iconos/layers.png", "Capas"))
+        self.layers_dock.setFixedWidth(160)
+        self.layers_dock.setFixedHeight(180)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.layers_dock)
+        self.splitDockWidget(self.history_dock, self.layers_dock, Qt.Orientation.Vertical)
 
         import sys
         ico_path = "gui/paintdotnet.ico" if sys.platform == "win32" and os.path.exists("gui/paintdotnet.ico") else "gui/icono.png"
@@ -117,12 +140,12 @@ class PaintNotNet(QMainWindow):
         self.tab_widget.setStyleSheet("""
             QTabWidget::pane {
                 border: none;
-                background-color: #2D2D2D;
+                background-color: #525252;
             }
             QTabBar::tab {
-                background: #353535;
-                color: #B0B0B0;
-                border: 1px solid #444444;
+                background: #7A7A7A;
+                color: #D8D8D8;
+                border: 1px solid #686868;
                 border-bottom: none;
                 border-top-left-radius: 4px;
                 border-top-right-radius: 4px;
@@ -131,14 +154,14 @@ class PaintNotNet(QMainWindow):
                 font-size: 11px;
             }
             QTabBar::tab:selected {
-                background: #2D2D2D;
-                color: #FFFFFF;
+                background: #525252;
+                color: #EDEDED;
                 border-color: #0078D7;
                 font-weight: bold;
             }
             QTabBar::tab:hover {
-                background: #404040;
-                color: #FFFFFF;
+                background: #626262;
+                color: #EDEDED;
             }
         """)
 
@@ -155,6 +178,7 @@ class PaintNotNet(QMainWindow):
         self.advanced_color_panel.color_primario_cambiado.connect(self._on_color_primario_changed)
         self.advanced_color_panel.color_secundario_cambiado.connect(self._on_color_secundario_changed)
         self.text_panel.text_config_changed.connect(lambda cfg: self.canvas.actualizar_config_texto(cfg) if hasattr(self, 'canvas') and self.canvas else None)
+        self.effects_panel.effects_changed.connect(lambda _: self.canvas.update() if hasattr(self, 'canvas') and self.canvas else None)
 
         from core.i18n import t
         # Crear primera pestaña por defecto
@@ -219,6 +243,13 @@ class PaintNotNet(QMainWindow):
             if self.advanced_color_panel.color_primario != color:
                 self.advanced_color_panel.color_primario = color
                 self.advanced_color_panel._actualizar_interfaz_desde_color(color)
+        # Si la herramienta de texto está activa con selección, aplicar color al texto seleccionado
+        canvas = getattr(self, 'lienzo', None)
+        if canvas:
+            from tools.text import TextTool
+            tool = getattr(canvas, 'active_tool_obj', None)
+            if isinstance(tool, TextTool) and tool.is_editing and tool._has_selection():
+                tool.apply_format_to_selection({"color": color})
 
     def _on_color_secundario_changed(self, color):
         if hasattr(self, 'canvas') and self.canvas:
@@ -236,7 +267,7 @@ class PaintNotNet(QMainWindow):
 
     def crear_nueva_pestana(self, width=800, height=600, transparent=True, ruta=None, titulo=None):
         area_scroll = QScrollArea()
-        area_scroll.setStyleSheet("QScrollArea { background-color: #2D2D2D; border: none; }")
+        area_scroll.setStyleSheet("QScrollArea { background-color: #525252; border: none; }")
         area_scroll.setAlignment(Qt.AlignmentFlag.AlignCenter)
         area_scroll.setWidgetResizable(False)
 
@@ -316,7 +347,7 @@ class PaintNotNet(QMainWindow):
             }
             QToolButton:hover {
                 background: #c42b1c;
-                color: #ffffff;
+                color: #EDEDED;
                 border-radius: 2px;
             }
         """)
@@ -518,12 +549,16 @@ class PaintNotNet(QMainWindow):
 
         if hasattr(self, 'text_panel') and hasattr(self.text_panel, 'retraducir_panel'):
             self.text_panel.retraducir_panel()
+        if hasattr(self, 'effects_panel') and hasattr(self.effects_panel, 'retraducir_panel'):
+            self.effects_panel.retraducir_panel()
         if hasattr(self, 'layers_panel') and hasattr(self.layers_panel, 'retraducir_panel'):
             self.layers_panel.retraducir_panel()
         if hasattr(self, 'history_panel') and hasattr(self.history_panel, 'retraducir_panel'):
             self.history_panel.retraducir_panel()
         if hasattr(self, 'color_panel') and hasattr(self.color_panel, 'retraducir_panel'):
             self.color_panel.retraducir_panel()
+        if hasattr(self, 'brushes_panel') and hasattr(self.brushes_panel, 'retraducir_panel'):
+            self.brushes_panel.retraducir_panel()
 
         if hasattr(self, 'text_dock'):
             self.text_dock.setWindowTitle(t("Texto"))
@@ -535,6 +570,8 @@ class PaintNotNet(QMainWindow):
             self.history_dock.setWindowTitle(t("Historial"))
         if hasattr(self, 'color_dock'):
             self.color_dock.setWindowTitle(t("Color"))
+        if hasattr(self, 'brushes_dock'):
+            self.brushes_dock.setWindowTitle(t("Pinceles"))
 
         for i in range(self.tab_widget.count()):
             self.actualizar_titulo_pestana(i)
@@ -646,23 +683,25 @@ if __name__ == '__main__':
 
     app.setStyle("Fusion")
     paleta_oscura = app.palette()
-    paleta_oscura.setColor(paleta_oscura.ColorRole.Window, QColor(45, 45, 45))
-    paleta_oscura.setColor(paleta_oscura.ColorRole.WindowText, Qt.GlobalColor.white)
-    paleta_oscura.setColor(paleta_oscura.ColorRole.Base, QColor(30, 30, 30))
-    paleta_oscura.setColor(paleta_oscura.ColorRole.AlternateBase, QColor(45, 45, 45))
-    paleta_oscura.setColor(paleta_oscura.ColorRole.Text, Qt.GlobalColor.white)
-    paleta_oscura.setColor(paleta_oscura.ColorRole.Button, QColor(45, 45, 45))
-    paleta_oscura.setColor(paleta_oscura.ColorRole.ButtonText, Qt.GlobalColor.white)
-    paleta_oscura.setColor(paleta_oscura.ColorRole.Highlight, QColor(42, 130, 218))
-    paleta_oscura.setColor(paleta_oscura.ColorRole.HighlightedText, Qt.GlobalColor.white)
+    paleta_oscura.setColor(paleta_oscura.ColorRole.Window,        QColor(82,  82,  82))   # #525252
+    paleta_oscura.setColor(paleta_oscura.ColorRole.WindowText,    QColor(237, 237, 237))  # #EDEDED
+    paleta_oscura.setColor(paleta_oscura.ColorRole.Base,          QColor(45,  45,  45))   # #2D2D2D (inputs bg)
+    paleta_oscura.setColor(paleta_oscura.ColorRole.AlternateBase, QColor(82,  82,  82))   # #525252
+    paleta_oscura.setColor(paleta_oscura.ColorRole.Text,          QColor(237, 237, 237))  # #EDEDED
+    paleta_oscura.setColor(paleta_oscura.ColorRole.Button,        QColor(92,  92,  92))   # #5C5C5C
+    paleta_oscura.setColor(paleta_oscura.ColorRole.ButtonText,    QColor(237, 237, 237))  # #EDEDED
+    paleta_oscura.setColor(paleta_oscura.ColorRole.Highlight,     QColor(42,  130, 218))
+    paleta_oscura.setColor(paleta_oscura.ColorRole.HighlightedText, QColor(237, 237, 237))
+    paleta_oscura.setColor(paleta_oscura.ColorRole.ToolTipBase,   QColor(60,  60,  60))
+    paleta_oscura.setColor(paleta_oscura.ColorRole.ToolTipText,   QColor(237, 237, 237))
     app.setPalette(paleta_oscura)
 
     app.setStyleSheet("""
-        QWidget { color: #ffffff; }
+        QWidget { color: #EDEDED; }
         QDockWidget::title {
             text-align: center;
-            background-color: #353535;
-            color: #ffffff;
+            background-color: #7A7A7A;
+            color: #EDEDED;
             font-size: 9px;
             font-weight: bold;
             padding: 2px;
@@ -670,7 +709,7 @@ if __name__ == '__main__':
         QGroupBox {
             font-weight: normal;
             font-size: 8px;
-            border: 1px solid #5a5a5a;
+            border: 1px solid #7A7A7A;
             border-radius: 3px;
             margin-top: 8px;
             padding-top: 4px;
@@ -679,20 +718,25 @@ if __name__ == '__main__':
             subcontrol-origin: margin;
             subcontrol-position: top center;
             padding: 0 4px;
-            color: #ffffff;
+            color: #EDEDED;
             background-color: transparent;
         }
-        QComboBox, QSpinBox, QFontComboBox, QLineEdit {
-            background-color: #2b2b2b;
-            color: #ffffff;
-            border: 1px solid #4a4a4a;
+        QComboBox, QSpinBox, QDoubleSpinBox, QFontComboBox, QLineEdit {
+            background-color: #5C5C5C;
+            color: #EDEDED;
+            border: 1px solid #6A6A6A;
             padding: 1px;
             border-radius: 2px;
         }
+        QComboBox QAbstractItemView {
+            background-color: #5C5C5C;
+            color: #EDEDED;
+            selection-background-color: #2a82da;
+        }
         QToolButton {
-            background-color: #3a3a3a;
-            color: #ffffff;
-            border: 1px solid #5a5a5a;
+            background-color: #5C5C5C;
+            color: #EDEDED;
+            border: 1px solid #7A7A7A;
             padding: 1px;
             border-radius: 2px;
         }

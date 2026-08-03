@@ -247,6 +247,8 @@ class ColorPanelWidget(QWidget):
         layout.setContentsMargins(4, 4, 4, 4)
         layout.setSpacing(4)
         layout.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        self.setStyleSheet("ColorPanelWidget { background-color: #2D2D2D; }")
+        self.setAutoFillBackground(True)
 
         # 1. Muestras Superpuestas + Swap
         top_layout = QHBoxLayout()
@@ -324,7 +326,7 @@ class ColorPanelWidget(QWidget):
 
         # 4. Slots de Usuario (Guardados - 1px de separación exacta)
         self.lbl_custom = QLabel("Guardadas:")
-        self.lbl_custom.setStyleSheet("font-size: 9px; font-weight: bold; margin-top: 2px;")
+        self.lbl_custom.setStyleSheet("font-size: 9px; font-weight: normal; margin-top: 2px;")
         layout.addWidget(self.lbl_custom, alignment=Qt.AlignmentFlag.AlignCenter)
 
         grid_custom = QGridLayout()

@@ -201,6 +201,15 @@ class SelectionEngine:
         self.last_mouse_pos = pos
 
     def end_transform(self):
+        # Si se hizo un resize, actualizar la imagen base al nuevo tamaño
+        # para que rotaciones posteriores usen las dimensiones correctas.
+        if (self.is_moving
+                and self.active_handle not in (self.HANDLE_NONE, self.HANDLE_MOVE)
+                and self.floating_image and not self.floating_image.isNull()):
+            self.unscaled_floating_image = self.floating_image.copy()
+            self.rotation_angle = 0.0
+            self.base_rotation_angle = 0.0
+
         self.is_moving = False
         self.is_rotating = False
         self.active_handle = self.HANDLE_NONE
@@ -257,15 +266,13 @@ class SelectionEngine:
             if self.unscaled_floating_image and not self.unscaled_floating_image.isNull():
                 new_w = max(1, int(new_rect.width()))
                 new_h = max(1, int(new_rect.height()))
+                # Siempre escalar desde el original sin modificar (unscaled_floating_image).
+                # NO sobrescribir unscaled_floating_image aquí: si se hace, cada
+                # movimiento del handle escala una imagen ya degradada y produce
+                # manchas/deformación cuando se reduce después de ampliar.
                 self.floating_image = self.unscaled_floating_image.scaled(
                     new_w, new_h,
                     Qt.AspectRatioMode.IgnoreAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation
+                    Qt.TransformationMode.FastTransformation  # Nearest-neighbor: sin blur
                 )
-                # Actualizar la base de rotación al tamaño nuevo.
-                # Si no se hace esto, rotar luego del resize usa la imagen
-                # original ignorando el nuevo tamaño.
-                self.unscaled_floating_image = self.floating_image.copy()
-                self.rotation_angle = 0.0
-                self.base_rotation_angle = 0.0
                 self.original_image_pos = new_rect.topLeft()

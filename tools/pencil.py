@@ -2,6 +2,7 @@ from PyQt6.QtCore import Qt, QPoint
 from PyQt6.QtGui import QPainter, QPen, QColor, QBrush
 from tools.base_tool import BaseTool
 
+
 class PencilTool(BaseTool):
     def __init__(self):
         super().__init__("Lápiz", "gui/iconos/pencil.png")
@@ -16,17 +17,16 @@ class PencilTool(BaseTool):
         radius = size / 2.0
 
         painter.save()
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        # Cursor del lápiz: siempre sin antialiasing (pixel-perfect)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
 
         col_pri = QColor(canvas.color_primario)
 
-        # 1. Borde exterior negro para contraste
         pen_outer = QPen(QColor(0, 0, 0, 180), 1.5)
         painter.setPen(pen_outer)
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawEllipse(pos, radius + 0.5, radius + 0.5)
 
-        # 2. Círculo interior con el color elegido
         col_rim = QColor(col_pri)
         col_rim.setAlpha(255)
         pen_inner = QPen(col_rim, 1.0)
@@ -44,16 +44,18 @@ class PencilTool(BaseTool):
             self.is_drawing = True
             self.last_point = event.position().toPoint()
             color = QColor(color_activo if color_activo else canvas.color_primario)
-            color.setAlpha(255)  # Lápiz es siempre 100% sólido, sin alpha
+            color.setAlpha(255)  # Lápiz es siempre 100% sólido
 
             w = max(1, canvas.grosor_pincel)
             buffer = canvas.layer_mgr.buffer
             painter = QPainter(buffer)
             canvas.aplicar_clip_seleccion(painter)
-            painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)  # Lápiz sin suavizado
-            x, y = self.last_point.x(), self.last_point.y()
-            offset = w // 2
-            painter.fillRect(x - offset, y - offset, w, w, color)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
+            # RoundCap para que el punto inicial sea redondo, sin suavizado
+            pen = QPen(color, w, Qt.PenStyle.SolidLine,
+                       Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+            painter.setPen(pen)
+            painter.drawPoint(self.last_point)
             painter.end()
             canvas.update()
 
@@ -61,14 +63,16 @@ class PencilTool(BaseTool):
         if self.is_drawing:
             current_point = event.position().toPoint()
             color = QColor(color_activo if color_activo else canvas.color_primario)
-            color.setAlpha(255)  # Lápiz es siempre 100% sólido, sin alpha
+            color.setAlpha(255)  # Lápiz es siempre 100% sólido
 
             w = max(1, canvas.grosor_pincel)
             buffer = canvas.layer_mgr.buffer
             painter = QPainter(buffer)
             canvas.aplicar_clip_seleccion(painter)
-            painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)  # Lápiz sin suavizado
-            pen = QPen(color, w, Qt.PenStyle.SolidLine, Qt.PenCapStyle.SquareCap, Qt.PenJoinStyle.MiterJoin)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
+            # RoundCap sin antialiasing = puntas redondeadas pero pixeladas
+            pen = QPen(color, w, Qt.PenStyle.SolidLine,
+                       Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
             painter.setPen(pen)
             painter.drawLine(self.last_point, current_point)
             painter.end()

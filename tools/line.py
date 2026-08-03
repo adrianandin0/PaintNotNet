@@ -1,6 +1,6 @@
 import math
 from PyQt6.QtCore import Qt, QPointF, QRectF
-from PyQt6.QtGui import QPainter, QPen, QColor, QPainterPath, QBrush, QTransform
+from PyQt6.QtGui import QPainter, QPen, QColor, QPainterPath, QBrush, QTransform, QCursor
 from PyQt6.QtWidgets import QApplication
 from tools.base_tool import BaseTool
 
@@ -57,8 +57,10 @@ class LineTool(BaseTool):
     HANDLE_P1 = 2
     HANDLE_P2 = 3
     HANDLE_P3 = 4
+    HANDLE_BODY = 5   # arrastrar toda la línea
 
     HANDLE_SIZE = 8
+    BODY_HIT_RADIUS = 8  # px máximo para considerar clic "en" la línea
 
     def __init__(self):
         super().__init__("Línea", "gui/iconos/line.png")
@@ -77,6 +79,9 @@ class LineTool(BaseTool):
         self.orig_p1 = None
         self.orig_p2 = None
         self.orig_p3 = None
+
+        # Para arrastre del cuerpo
+        self._drag_start = None
 
     def reset(self):
         self.p0 = None
@@ -109,7 +114,29 @@ class LineTool(BaseTool):
         for h_id, pt in pts:
             if pt and QRectF(pt.x() - s2, pt.y() - s2, self.HANDLE_SIZE, self.HANDLE_SIZE).contains(pos):
                 return h_id
+
+        # Si no toca ningún handle, comprobar si toca el cuerpo de la curva
+        if self._point_near_bezier(pos):
+            return self.HANDLE_BODY
+
         return self.HANDLE_NONE
+
+    def _point_near_bezier(self, pos):
+        """Samplea 60 puntos a lo largo de la curva bezier y comprueba distancia."""
+        if not (self.p0 and self.p1 and self.p2 and self.p3):
+            return False
+        r2 = self.BODY_HIT_RADIUS ** 2
+        p0, p1, p2, p3 = self.p0, self.p1, self.p2, self.p3
+        for i in range(61):
+            t = i / 60.0
+            mt = 1.0 - t
+            x = mt**3*p0.x() + 3*mt**2*t*p1.x() + 3*mt*t**2*p2.x() + t**3*p3.x()
+            y = mt**3*p0.y() + 3*mt**2*t*p1.y() + 3*mt*t**2*p2.y() + t**3*p3.y()
+            dx = x - pos.x()
+            dy = y - pos.y()
+            if dx*dx + dy*dy <= r2:
+                return True
+        return False
 
     def mouse_press(self, canvas, event, color_activo=None):
         pos = event.position()
@@ -129,7 +156,16 @@ class LineTool(BaseTool):
                 return
 
             hit = self.hit_test(pos)
-            if hit != self.HANDLE_NONE:
+            if hit == self.HANDLE_BODY:
+                # Arrastrar toda la línea
+                self.active_handle = self.HANDLE_BODY
+                self._drag_start = QPointF(pos)
+                self.orig_p0 = QPointF(self.p0)
+                self.orig_p1 = QPointF(self.p1)
+                self.orig_p2 = QPointF(self.p2)
+                self.orig_p3 = QPointF(self.p3)
+                return
+            elif hit != self.HANDLE_NONE:
                 self.active_handle = hit
                 return
             else:
@@ -166,6 +202,14 @@ class LineTool(BaseTool):
                 self.p2 = t.map(self.orig_p2)
                 self.p3 = t.map(self.orig_p3)
                 canvas.update()
+            elif self.active_handle == self.HANDLE_BODY:
+                # Mover toda la línea
+                delta = pos - self._drag_start
+                self.p0 = self.orig_p0 + delta
+                self.p1 = self.orig_p1 + delta
+                self.p2 = self.orig_p2 + delta
+                self.p3 = self.orig_p3 + delta
+                canvas.update()
             elif self.active_handle != self.HANDLE_NONE:
                 if self.active_handle == self.HANDLE_P0:
                     self.p0 = QPointF(pos)
@@ -183,8 +227,16 @@ class LineTool(BaseTool):
                     self.p1 = QPointF(pos)
                 elif self.active_handle == self.HANDLE_P2:
                     self.p2 = QPointF(pos)
-
                 canvas.update()
+            else:
+                # Sin arrastre activo: actualizar cursor según hover
+                hit = self.hit_test(pos)
+                if hit == self.HANDLE_BODY:
+                    canvas.setCursor(QCursor(Qt.CursorShape.SizeAllCursor))
+                elif hit != self.HANDLE_NONE:
+                    canvas.setCursor(QCursor(Qt.CursorShape.CrossCursor))
+                else:
+                    canvas.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
 
     def mouse_release(self, canvas, event, color_activo=None):
         if self.state == 1:
@@ -193,6 +245,7 @@ class LineTool(BaseTool):
         elif self.state == 2:
             self.active_handle = self.HANDLE_NONE
             self.is_rotating = False
+            self._drag_start = None
 
     def key_press(self, canvas, event, color_activo=None):
         if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_Escape):

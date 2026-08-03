@@ -16,8 +16,8 @@ class StrokePanelWidget(QWidget):
         layout.setSpacing(4)
 
         group_style = (
-            "QGroupBox { font-size: 9px; color: #FFFFFF; font-weight: normal; margin-top: 8px; padding-top: 4px; border: 1px solid #444; }"
-            "QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top center; padding: 0 3px; color: #FFFFFF; background-color: transparent; }"
+            "QGroupBox { font-size: 9px; color: #EDEDED; font-weight: normal; margin-top: 8px; padding-top: 4px; border: 1px solid #686868; }"
+            "QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top center; padding: 0 3px; color: #EDEDED; background-color: transparent; }"
         )
 
         # --- Forma del Pincel ---
@@ -57,13 +57,13 @@ class StrokePanelWidget(QWidget):
         layout_ancho.setContentsMargins(2, 2, 2, 2)
 
         lbl_ancho = QLabel("Ancho:")
-        lbl_ancho.setStyleSheet("font-size: 9px; font-weight: normal; color: #FFFFFF;")
+        lbl_ancho.setStyleSheet("font-size: 9px; font-weight: normal; color: #EDEDED;")
 
         self.spin_ancho = QSpinBox()
         self.spin_ancho.setRange(1, 100)
         self.spin_ancho.setValue(3)
         self.spin_ancho.setFixedHeight(20)
-        self.spin_ancho.setStyleSheet("font-size: 9px; color: #FFFFFF;")
+        self.spin_ancho.setStyleSheet("font-size: 9px; color: #EDEDED;")
         self.spin_ancho.valueChanged.connect(self._on_ancho_changed)
 
         layout_ancho.addWidget(lbl_ancho)
@@ -83,7 +83,7 @@ class StrokePanelWidget(QWidget):
         self.slider_suavizado.valueChanged.connect(self._on_suavizado_changed)
 
         self.lbl_suav_val = QLabel("100%")
-        self.lbl_suav_val.setStyleSheet("font-size: 9px; color: #FFFFFF;")
+        self.lbl_suav_val.setStyleSheet("font-size: 9px; color: #EDEDED;")
         self.lbl_suav_val.setFixedWidth(36)
 
         h_layout_suav.addWidget(self.slider_suavizado)

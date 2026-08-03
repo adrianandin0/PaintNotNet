@@ -24,7 +24,7 @@ class LayerRowWidget(QWidget):
 
         # 2. Nombre de la Capa
         self.lbl_name = QLabel(capa.name)
-        self.lbl_name.setStyleSheet("font-size: 11px; color: #FFFFFF;")
+        self.lbl_name.setStyleSheet("font-size: 11px; color: #EDEDED;")
         layout.addWidget(self.lbl_name)
 
         layout.addStretch()
@@ -56,7 +56,7 @@ class LayerRowWidget(QWidget):
     def actualizar_estado_visibilidad(self):
         if self.capa.visible:
             self.btn_eye.setStyleSheet("QToolButton { opacity: 1.0; border: none; }")
-            self.lbl_name.setStyleSheet("font-size: 11px; color: #FFFFFF;")
+            self.lbl_name.setStyleSheet("font-size: 11px; color: #EDEDED;")
         else:
             self.btn_eye.setStyleSheet("QToolButton { opacity: 0.2; background: transparent; border: none; }")
             self.lbl_name.setStyleSheet("font-size: 11px; color: #777777; text-decoration: line-through;")
@@ -73,7 +73,7 @@ class LayersPanelWidget(QWidget):
         layout.setSpacing(4)
 
         self.lista_capas = QListWidget()
-        self.lista_capas.setStyleSheet("QListWidget { font-size: 11px; color: #FFFFFF; }")
+        self.lista_capas.setStyleSheet("QListWidget { font-size: 11px; color: #EDEDED; }")
         self.lista_capas.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.lista_capas.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
         self.lista_capas.setDefaultDropAction(Qt.DropAction.MoveAction)

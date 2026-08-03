@@ -127,15 +127,19 @@ class CanvasWidget(QWidget):
         self.update()
 
     def set_active_tool(self, tool_object):
+        from tools.text import TextTool
         if hasattr(self, 'active_tool_obj') and isinstance(self.active_tool_obj, TextTool):
             self.active_tool_obj.commit_text(self, self.color_primario)
+        self.active_tool_obj = tool_object
+        # Habilitar input method para composición de caracteres (dead keys, IME)
+        enable_ime = isinstance(tool_object, TextTool)
+        self.setAttribute(Qt.WidgetAttribute.WA_InputMethodEnabled, enable_ime)
 
         if hasattr(self, 'selection_engine') and self.selection_engine.floating_image:
             from tools.move_select_pixels import MoveSelectPixelsTool
             if not isinstance(tool_object, MoveSelectPixelsTool):
                 MoveSelectPixelsTool.commit_floating_image(self)
 
-        self.active_tool_obj = tool_object
         self.herramienta_actual = getattr(tool_object, 'name', 'Herramienta')
 
         from tools.blur import BlurTool
@@ -161,8 +165,28 @@ class CanvasWidget(QWidget):
         color_activo = self.color_primario
         if hasattr(self.active_tool_obj, 'key_press'):
             if self.active_tool_obj.key_press(self, event, color_activo):
+                event.accept()
                 return
         super().keyPressEvent(event)
+
+    def inputMethodEvent(self, event):
+        """Forwarding para dead-key composition (á, é, ñ, etc.)"""
+        from tools.text import TextTool
+        if isinstance(self.active_tool_obj, TextTool) and self.active_tool_obj.is_editing:
+            commit_str = event.commitString()
+            if commit_str:
+                if self.active_tool_obj._has_selection():
+                    self.active_tool_obj._delete_selection()
+                from tools.text import _insert_text_at
+                tool = self.active_tool_obj
+                tool.cursor_col = _insert_text_at(
+                    tool.rich_lines[tool.cursor_line],
+                    tool.cursor_col, commit_str, tool._default_fmt)
+                tool._clear_sel()
+                self.update()
+            event.accept()
+            return
+        super().inputMethodEvent(event)
 
     @property
     def ancho(self):
@@ -561,6 +585,47 @@ class CanvasWidget(QWidget):
         # Registrar el cambio en el historial
         self.push_document_state("Tamaño de la imagen")
         self.update()
+
+    def recortar_a_seleccion(self):
+        """Recorta el lienzo al bounding rect de la selección activa."""
+        from PyQt6.QtCore import QRectF
+        from PyQt6.QtGui import QImage, QPainter
+
+        if not self.selection_engine.has_selection():
+            return False
+
+        # Bounding rect de la selección (en coordenadas del canvas)
+        rect = self.selection_engine.active_path.boundingRect()
+        if rect.isEmpty():
+            rect = QRectF(self.selection_engine.active_rect)
+
+        # Clampear al tamaño del canvas
+        canvas_rect = QRectF(0, 0, self.layer_mgr.width, self.layer_mgr.height)
+        rect = rect.intersected(canvas_rect)
+        if rect.isEmpty():
+            return False
+
+        x, y = int(rect.x()), int(rect.y())
+        w, h = max(1, int(rect.width())), max(1, int(rect.height()))
+
+        # Recortar cada capa al rect
+        for capa in self.layer_mgr.capas:
+            new_img = QImage(w, h, QImage.Format.Format_ARGB32_Premultiplied)
+            new_img.fill(Qt.GlobalColor.transparent)
+            painter = QPainter(new_img)
+            painter.drawImage(0, 0, capa.image, x, y, w, h)
+            painter.end()
+            capa.image = new_img
+
+        self.layer_mgr.width = w
+        self.layer_mgr.height = h
+        self.selection_engine.clear_selection()
+        self._ajustar_tamano_widget(w, h)
+        self.capa_trazo_temp = QImage(w, h, QImage.Format.Format_ARGB32_Premultiplied)
+        self.capa_trazo_temp.fill(Qt.GlobalColor.transparent)
+        self.push_document_state("Recortar")
+        self.update()
+        return True
 
     def actualizar_historial_gui(self):
         if hasattr(self, 'main_window') and self.main_window and hasattr(self.main_window, 'history_panel'):

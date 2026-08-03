@@ -19,19 +19,72 @@ class MenuEditar:
             c.rehacer()
 
     def cortar(self):
+        from PyQt6.QtWidgets import QApplication
+        from tools.text import TextTool
         c = self._get_canvas()
-        if c:
-            c.cortar_seleccion()
+        if not c: return
+        tool = getattr(c, 'active_tool_obj', None)
+        if isinstance(tool, TextTool) and tool.is_editing:
+            from PyQt6.QtCore import Qt, QEvent
+            from PyQt6.QtGui import QKeyEvent
+            tool.key_press(c,
+                QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_X,
+                          Qt.KeyboardModifier.ControlModifier),
+                c.color_primario)
+            return
+        c.cortar_seleccion()
 
     def copiar(self):
+        from PyQt6.QtWidgets import QApplication
+        from tools.text import TextTool
         c = self._get_canvas()
-        if c:
-            c.copiar_seleccion()
+        if not c: return
+        tool = getattr(c, 'active_tool_obj', None)
+        if isinstance(tool, TextTool) and tool.is_editing:
+            from PyQt6.QtCore import Qt, QEvent
+            from PyQt6.QtGui import QKeyEvent
+            tool.key_press(c,
+                QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_C,
+                          Qt.KeyboardModifier.ControlModifier),
+                c.color_primario)
+            return
+        c.copiar_seleccion()
 
     def pegar(self):
+        from PyQt6.QtWidgets import QApplication
+        from tools.text import TextTool
+
         c = self._get_canvas()
-        if c:
-            c.pegar_portapapeles()
+        if not c:
+            return
+
+        # Si la herramienta de texto está activa y el clipboard tiene texto,
+        # pegar como texto plano (no como imagen).
+        tool = getattr(c, 'active_tool_obj', None)
+        if isinstance(tool, TextTool):
+            clipboard = QApplication.clipboard()
+            paste_text = clipboard.text()
+            if paste_text:
+                from PyQt6.QtCore import Qt, QPoint, QEvent
+                from PyQt6.QtGui import QKeyEvent
+                # Si no está en modo edición, iniciar uno en el centro del canvas
+                if not tool.is_editing:
+                    tool.is_editing  = True
+                    tool.text_lines  = [""]
+                    tool.cursor_line = 0
+                    tool.cursor_col  = 0
+                    tool.sel_line    = None
+                    tool.sel_col     = None
+                    tool.current_canvas = c
+                    center = QPoint(c.width() // 2, c.height() // 2)
+                    tool.pos = center
+                fake_event = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_V,
+                                       Qt.KeyboardModifier.ControlModifier)
+                tool.key_press(c, fake_event, c.color_primario)
+                return  # NO pegar imagen, NO cambiar a mover
+
+        # Comportamiento normal: pegar imagen del portapapeles
+        c.pegar_portapapeles()
         if hasattr(self.ventana, 'activar_herramienta_mover'):
             self.ventana.activar_herramienta_mover()
 

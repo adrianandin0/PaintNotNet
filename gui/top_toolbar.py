@@ -47,6 +47,12 @@ class TopToolBarWidget(QToolBar):
         self.action_pegar.setToolTip("Pegar contenido (Ctrl+V)")
         self.addAction(self.action_pegar)
 
+        # 6. Recortar a selección
+        self.action_crop = QAction(QIcon("gui/iconos/crop.png"), "Recortar", self)
+        self.action_crop.setToolTip("Recortar a selección")
+        self.action_crop.triggered.connect(self._on_crop_clicked)
+        self.addAction(self.action_crop)
+
         self.addSeparator()
 
         # 6. Selector de Grosor / Ancho Global
@@ -55,7 +61,7 @@ class TopToolBarWidget(QToolBar):
         self.addWidget(self.lbl_grosor)
 
         self.spin_grosor = QSpinBox()
-        self.spin_grosor.setRange(1, 100)
+        self.spin_grosor.setRange(1, 9999)
         self.spin_grosor.setValue(3)
         self.spin_grosor.setSuffix(" px")
         self.spin_grosor.setFixedWidth(65)
@@ -77,7 +83,7 @@ class TopToolBarWidget(QToolBar):
         self.addWidget(self.slider_tol)
 
         self.lbl_tol_val = QLabel("32%")
-        self.lbl_tol_val.setStyleSheet("font-size: 11px; font-weight: bold; color: #888888;")
+        self.lbl_tol_val.setStyleSheet("font-size: 11px; font-weight: bold;")
         self.addWidget(self.lbl_tol_val)
 
         self.addSeparator()
@@ -95,7 +101,7 @@ class TopToolBarWidget(QToolBar):
         self.addWidget(self.slider_suav)
 
         self.lbl_suav_val = QLabel("100%")
-        self.lbl_suav_val.setStyleSheet("font-size: 11px; font-weight: bold; color: #888888;")
+        self.lbl_suav_val.setStyleSheet("font-size: 11px; font-weight: bold;")
         self.addWidget(self.lbl_suav_val)
 
         self.addSeparator()
@@ -244,7 +250,7 @@ class TopToolBarWidget(QToolBar):
         self.addWidget(self.slider_blur)
 
         self.lbl_blur_val = QLabel(f"{saved_val}%")
-        self.lbl_blur_val.setStyleSheet("font-size: 11px; font-weight: bold; color: #888888;")
+        self.lbl_blur_val.setStyleSheet("font-size: 11px; font-weight: bold;")
         self.addWidget(self.lbl_blur_val)
 
         if main_window:
@@ -277,9 +283,10 @@ class TopToolBarWidget(QToolBar):
         from tools.line import LineTool
         from tools.shapes import ShapesTool
         from tools.blur import BlurTool
+        from tools.eraser import EraserTool
 
         uses_tolerance = isinstance(tool_obj, (BucketTool, MagicWandTool))
-        uses_smoothness = isinstance(tool_obj, (BrushTool, LineTool))
+        uses_smoothness = isinstance(tool_obj, (BrushTool, LineTool, EraserTool))
         uses_zoom = isinstance(tool_obj, ZoomTool)
         uses_line = isinstance(tool_obj, LineTool)
         uses_shapes = isinstance(tool_obj, ShapesTool)
@@ -327,6 +334,21 @@ class TopToolBarWidget(QToolBar):
                 self.action_copiar.triggered.connect(self.main_window.menu_editar.copiar)
                 self.action_pegar.triggered.connect(self.main_window.menu_editar.pegar)
 
+    def _on_crop_clicked(self):
+        from core.i18n import t
+        canvas = None
+        if self.main_window and hasattr(self.main_window, 'lienzo'):
+            canvas = self.main_window.lienzo
+        if canvas and hasattr(canvas, 'recortar_a_seleccion'):
+            ok = canvas.recortar_a_seleccion()
+            if not ok:
+                from PyQt6.QtWidgets import QMessageBox
+                QMessageBox.information(
+                    self.main_window,
+                    t("Sin selección"),
+                    t("No hay selección activa para recortar.")
+                )
+
     def _on_grosor_changed(self, val):
         if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
             self.main_window.lienzo.ancho_pincel = val
@@ -346,8 +368,16 @@ class TopToolBarWidget(QToolBar):
 
     def _on_suavizado_changed(self, val):
         self.lbl_suav_val.setText(f"{val}%")
-        if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
-            self.main_window.lienzo.suavizado = val
+        # suavizado_pincel es bool: cualquier valor > 0 activa antialiasing
+        suav_bool = val > 0
+        if self.main_window and hasattr(self.main_window, 'tab_widget'):
+            for i in range(self.main_window.tab_widget.count()):
+                area = self.main_window.tab_widget.widget(i)
+                canvas = area.widget() if (area and hasattr(area, 'widget')) else area
+                if canvas and hasattr(canvas, 'suavizado_pincel'):
+                    canvas.suavizado_pincel = suav_bool
+        elif self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
+            self.main_window.lienzo.suavizado_pincel = suav_bool
 
     def _on_zoom_changed(self):
         txt = self.combo_zoom.currentText().replace("%", "").strip()
@@ -400,6 +430,8 @@ class TopToolBarWidget(QToolBar):
         self.action_cortar.setToolTip(f"{t('Cortar')} (Ctrl+X)")
         self.action_copiar.setToolTip(f"{t('Copiar')} (Ctrl+C)")
         self.action_pegar.setToolTip(f"{t('Pegar')} (Ctrl+V)")
+        if hasattr(self, 'action_crop'):
+            self.action_crop.setToolTip(t('Recortar a selección'))
         if hasattr(self, 'lbl_grosor'):
             self.lbl_grosor.setText(f" {t('Grosor:')} ")
         if hasattr(self, 'lbl_tol'):

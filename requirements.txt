@@ -1,8 +1,111 @@
 # ==============================================================================
-# PaintNotNet - Archivo de Requerimientos / Requirements File
+# PaintNotNet v1.0.2 — Archivo de Requerimientos Completo
+# Full Requirements File — Linux
 # ==============================================================================
-# Linux:   pip install -r requirements_linux.txt
-# Windows: pip install -r requirements_windows.txt
+#
+# USO / USAGE:
+#   python -m venv venv
+#   source venv/bin/activate
+#   pip install -r requirements.txt
+#
+# Luego ejecutar / Then run:
+#   python main.py
+#
+# ==============================================================================
+# DEPENDENCIAS DEL SISTEMA (instalar ANTES con el gestor de paquetes)
+# SYSTEM DEPENDENCIES (install FIRST with your package manager)
+# ==============================================================================
+#
+# ── Debian / Ubuntu / Linux Mint / Pop!_OS ────────────────────────────────────
+#   sudo apt install python3 python3-pip python3-venv \
+#        libgl1 libglib2.0-0 libdbus-1-3 \
+#        libfontconfig1 libfreetype6 libxcb-cursor0 \
+#        libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
+#        libxcb-randr0 libxcb-render-util0 libxcb-shape0 \
+#        libxcb-xinerama0 libxcb-xkb1 libxkbcommon-x11-0 \
+#        libcups2
+#
+# ── Fedora / RHEL / CentOS Stream / Rocky Linux ───────────────────────────────
+#   sudo dnf install python3 python3-pip python3-venv \
+#        mesa-libGL glib2 dbus-libs \
+#        fontconfig freetype xcb-util-cursor \
+#        xcb-util-image xcb-util-keysyms xcb-util-renderutil \
+#        xcb-util-wm libxkbcommon-x11 cups-libs
+#
+# ── Arch Linux / Manjaro / EndeavourOS ────────────────────────────────────────
+#   sudo pacman -S python python-pip \
+#        mesa glib2 dbus \
+#        fontconfig freetype2 xcb-util-cursor \
+#        xcb-util-image xcb-util-keysyms xcb-util-renderutil \
+#        xcb-util-wm libxkbcommon-x11 libcups
+#
+# ── openSUSE Tumbleweed / Leap ─────────────────────────────────────────────────
+#   sudo zypper install python3 python3-pip python3-venv \
+#        libGL1 libglib-2_0-0 libdbus-1-3 \
+#        fontconfig libfreetype6 libxcb-cursor0 \
+#        libxcb-image0 libxcb-keysyms1 libxcb-renderutil0 \
+#        libxcb-icccm4 libxkbcommon-x11-0 libcups2
+#
+# ── Void Linux ────────────────────────────────────────────────────────────────
+#   sudo xbps-install -S python3 python3-pip \
+#        libGL glib-devel dbus-libs \
+#        fontconfig freetype xcb-util-cursor \
+#        xcb-util-image xcb-util-keysyms xcb-util-renderutil \
+#        xcb-util-wm libxkbcommon cups-libs
+#
+# ==============================================================================
+# NOTAS ADICIONALES POR ENTORNO DE ESCRITORIO
+# ADDITIONAL NOTES BY DESKTOP ENVIRONMENT
+# ==============================================================================
+#
+# ── GNOME (Wayland) ───────────────────────────────────────────────────────────
+#   Sin dependencias adicionales. PyQt6 funciona vía XWayland automáticamente.
+#   No additional dependencies. PyQt6 runs via XWayland automatically.
+#
+# ── KDE Plasma (Wayland / X11) ────────────────────────────────────────────────
+#   Sin dependencias adicionales. Qt6 es nativo en Plasma.
+#   No additional dependencies. Qt6 is native on Plasma.
+#
+# ── XFCE / LXDE / LXQt (X11) ─────────────────────────────────────────────────
+#   Sin dependencias adicionales.
+#   No additional dependencies.
+#
+# ── Sway / Hyprland / Wayland puro (sin XWayland) ────────────────────────────
+#   Requiere XWayland activo, o ejecutar con:
+#   Requires XWayland running, or launch with:
+#   QT_QPA_PLATFORM=xcb python main.py
+#
+# ── Sin entorno de escritorio (servidor headless) ─────────────────────────────
+#   No compatible. Requiere display X11 o Wayland.
+#   Not compatible. Requires an X11 or Wayland display.
+#
+# ── Impresión / Printing (Imprimir... / Exportar PDF...) ──────────────────────
+#   Debian/Ubuntu: sudo apt install cups libcups2
+#   Fedora:        sudo dnf install cups cups-libs
+#   Arch:          sudo pacman -S cups libcups
+#   openSUSE:      sudo zypper install cups libcups2
+#   (Solo necesario si usás Imprimir / Only needed if you use Print feature)
+#
+# ==============================================================================
+# DEPENDENCIAS PYTHON / PYTHON DEPENDENCIES
 # ==============================================================================
 
--r requirements_linux.txt
+# Framework de interfaz gráfica Qt6 / Qt6 GUI framework
+# Incluye: QtWidgets, QtCore, QtGui, QtPrintSupport (impresión/PDF)
+PyQt6>=6.5.0
+
+# Procesamiento numérico de arrays / Numeric array processing
+# Requerido por: herramienta difuminar, magia de varita, gradiente
+# Required by: blur tool, magic wand, gradient tool
+numpy>=1.24.0
+
+# Algoritmos de visión computacional / Computer vision algorithms
+# Requerido por: difuminar (Gaussian blur), procesamiento de píxeles
+# Required by: blur tool (Gaussian blur), pixel processing
+opencv-python>=4.8.0
+
+# ==============================================================================
+# SOLO PARA GENERAR EJECUTABLE / ONLY TO BUILD EXECUTABLE (.bin / .exe)
+# ==============================================================================
+# No instalar en producción / Do not install in production
+# pyinstaller>=6.0.0

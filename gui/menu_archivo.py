@@ -137,6 +137,16 @@ class MenuArchivo:
 
         self.menu_archivo.addSeparator()
 
+        accion_imprimir = self.menu_archivo.addAction(QIcon("gui/iconos/printer.png"), t("Imprimir..."))
+        accion_imprimir.setShortcut("Ctrl+P")
+        accion_imprimir.triggered.connect(self.imprimir_lienzo)
+
+        accion_pdf = self.menu_archivo.addAction(QIcon("gui/iconos/pdf.png"), t("Exportar PDF..."))
+        accion_pdf.setShortcut("Ctrl+Shift+P")
+        accion_pdf.triggered.connect(self.exportar_pdf)
+
+        self.menu_archivo.addSeparator()
+
         accion_salir = self.menu_archivo.addAction(QIcon("gui/iconos/close.png"), t("Salir"))
         accion_salir.setShortcut("Ctrl+Q")
         accion_salir.triggered.connect(self.salir_programa)
@@ -406,6 +416,100 @@ class MenuArchivo:
             if not os.path.exists(candidato):
                 return candidato
             contador += 1
+
+    def _obtener_imagen_compuesta(self):
+        """Devuelve la imagen aplanada del canvas activo."""
+        canvas = self.ventana.canvas
+        from PyQt6.QtGui import QImage, QPainter
+        from PyQt6.QtCore import Qt
+        img = QImage(canvas.layer_mgr.width, canvas.layer_mgr.height,
+                     QImage.Format.Format_ARGB32_Premultiplied)
+        img.fill(Qt.GlobalColor.white)
+        painter = QPainter(img)
+        for capa in canvas.layer_mgr.capas:
+            if capa.visible:
+                painter.drawImage(0, 0, capa.image)
+        painter.end()
+        return img
+
+    def imprimir_lienzo(self):
+        from core.i18n import t
+        from PyQt6.QtPrintSupport import QPrinter, QPrintPreviewDialog
+        from PyQt6.QtGui import QPainter
+        from PyQt6.QtCore import QRectF
+        from PyQt6.QtWidgets import QMessageBox
+
+        printer = QPrinter(QPrinter.PrinterMode.HighResolution)
+        preview = QPrintPreviewDialog(printer, self.ventana)
+        preview.setWindowTitle(t("Vista previa de impresión..."))
+
+        def render_page(prn):
+            try:
+                img = self._obtener_imagen_compuesta()
+                painter = QPainter(prn)
+                page_rect = QRectF(prn.pageRect(QPrinter.Unit.DevicePixel))
+                src_rect = QRectF(img.rect())
+                # Escala manteniendo proporción
+                scale = min(page_rect.width() / src_rect.width(),
+                            page_rect.height() / src_rect.height())
+                w = src_rect.width() * scale
+                h = src_rect.height() * scale
+                x = (page_rect.width() - w) / 2
+                y = (page_rect.height() - h) / 2
+                painter.drawImage(QRectF(x, y, w, h), img, src_rect)
+                painter.end()
+            except Exception as e:
+                QMessageBox.critical(self.ventana,
+                                     t("Error de impresión"),
+                                     t("No se pudo imprimir el lienzo.") + f"\n{e}")
+
+        preview.paintRequested.connect(render_page)
+        preview.resize(900, 700)
+        preview.exec()
+
+    def exportar_pdf(self):
+        from core.i18n import t
+        from PyQt6.QtPrintSupport import QPrinter
+        from PyQt6.QtGui import QPainter
+        from PyQt6.QtCore import QRectF
+        from PyQt6.QtWidgets import QFileDialog, QMessageBox
+        import os
+
+        ruta, _ = QFileDialog.getSaveFileName(
+            self.ventana,
+            t("Guardar PDF"),
+            os.path.expanduser("~"),
+            t("Archivos PDF (*.pdf)")
+        )
+        if not ruta:
+            return
+        if not ruta.lower().endswith(".pdf"):
+            ruta += ".pdf"
+
+        try:
+            printer = QPrinter(QPrinter.PrinterMode.HighResolution)
+            printer.setOutputFormat(QPrinter.OutputFormat.PdfFormat)
+            printer.setOutputFileName(ruta)
+
+            img = self._obtener_imagen_compuesta()
+            painter = QPainter(printer)
+            page_rect = QRectF(printer.pageRect(QPrinter.Unit.DevicePixel))
+            src_rect = QRectF(img.rect())
+            scale = min(page_rect.width() / src_rect.width(),
+                        page_rect.height() / src_rect.height())
+            w = src_rect.width() * scale
+            h = src_rect.height() * scale
+            x = (page_rect.width() - w) / 2
+            y = (page_rect.height() - h) / 2
+            painter.drawImage(QRectF(x, y, w, h), img, src_rect)
+            painter.end()
+            QMessageBox.information(self.ventana,
+                                    t("Exportar PDF..."),
+                                    t("PDF guardado en") + f":\n{ruta}")
+        except Exception as e:
+            QMessageBox.critical(self.ventana,
+                                 t("Error al exportar PDF"),
+                                 t("No se pudo exportar el PDF.") + f"\n{e}")
 
     def salir_programa(self):
         if getattr(self.ventana.lienzo, 'lienzo_modificado', False):

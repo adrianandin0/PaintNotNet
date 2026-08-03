@@ -11,7 +11,7 @@ class AnclajeWidget(QGroupBox):
         super().__init__("", parent)
         self.setStyleSheet("""
             QGroupBox {
-                border: 1px solid #444444;
+                border: 1px solid #686868;
                 border-radius: 4px;
                 margin-top: 4px;
                 padding-top: 4px;
@@ -42,7 +42,7 @@ class AnclajeWidget(QGroupBox):
         btn_style = """
             QPushButton {
                 background-color: #3b3b3b;
-                color: #ffffff;
+                color: #EDEDED;
                 border: 1px solid #555555;
                 font-weight: bold;
                 font-size: 13px;

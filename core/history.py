@@ -43,6 +43,15 @@ class HistoryManager:
         self.current_index = -1
         self._notify()
 
+    def pop_last_state(self):
+        """Elimina la última entrada del stack sin restaurar el buffer.
+        Usar cuando se cancela una operación que ya restauró el buffer manualmente.
+        Esto evita que undo() retroceda un paso extra al estado anterior a la op."""
+        if self.current_index >= 0 and self.current_index == len(self.history_stack) - 1:
+            self.history_stack.pop()
+            self.current_index = len(self.history_stack) - 1
+            self._notify()
+
     def _notify(self):
         if callable(self.on_change):
             self.on_change()

@@ -132,8 +132,8 @@ class AdvancedColorPanelWidget(QWidget):
         self.modo_color = "primario"
         self._updating = False
 
-        lbl_style = "font-size: 9px; color: #FFFFFF;"
-        hdr_style = "font-size: 10px; font-weight: bold; color: #E0E0E0;"
+        lbl_style = "font-size: 9px; color: #EDEDED;"
+        hdr_style = "font-size: 10px; font-weight: bold; color: #EDEDED;"
         input_style = "font-size: 9px; padding: 0px;"
 
         main_layout = QVBoxLayout(self)
