@@ -131,7 +131,7 @@ class MenuArchivo:
         accion_guardar.setShortcut("Ctrl+S")
         accion_guardar.triggered.connect(self.guardar_archivo)
 
-        accion_guardar_como = self.menu_archivo.addAction(QIcon("gui/iconos/save.png"), t("Guardar como..."))
+        accion_guardar_como = self.menu_archivo.addAction(QIcon("gui/iconos/save_as.png"), t("Guardar como..."))
         accion_guardar_como.setShortcut("Ctrl+Shift+S")
         accion_guardar_como.triggered.connect(self.guardar_como)
 

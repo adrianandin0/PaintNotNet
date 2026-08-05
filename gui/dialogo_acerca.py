@@ -19,18 +19,38 @@ class DialogoAcerca(QDialog):
         lbl_titulo.setStyleSheet("font-size: 16px; font-weight: bold; color: #00AAFF;")
         layout.addWidget(lbl_titulo)
 
+        from core.theme import ThemeManager
+        tm = ThemeManager()
+        is_light = (tm.resolver_nombre_tema(tm.current_theme) == "Claro")
+
+        bg_col  = "#DFDFDF" if is_light else "#2D2D2D"
+        txt_col = "#222222" if is_light else "#EDEDED"
+
+        self.setStyleSheet(f"QDialog {{ background-color: {bg_col}; color: {txt_col}; }}")
+
         # Scroll Area para permitir lectura completa en cualquier DPI / resolución
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        scroll.setStyleSheet(f"QScrollArea, QScrollArea > QWidget > QWidget {{ border: none; background-color: {bg_col}; color: {txt_col}; }}")
 
         scroll_content = QWidget()
+        scroll_content.setStyleSheet(f"background-color: {bg_col}; color: {txt_col};")
         scroll_layout = QVBoxLayout(scroll_content)
         scroll_layout.setContentsMargins(4, 4, 4, 4)
 
         html_content = t("ACERCA_BODY_HTML")
+        if is_light:
+            html_content = (html_content
+                .replace("#DDDDDD", "#222222")
+                .replace("#EDEDED", "#222222")
+                .replace("#FFFFFF", "#222222")
+                .replace("#b8b8b8", "#444444")
+                .replace("#aaaaaa", "#555555")
+                .replace("#64B4FF", "#0066CC")
+            )
 
         lbl_body = QLabel(html_content)
+        lbl_body.setStyleSheet(f"color: {txt_col}; background-color: {bg_col};")
         lbl_body.setWordWrap(True)
         lbl_body.setOpenExternalLinks(True)
         lbl_body.setAlignment(Qt.AlignmentFlag.AlignLeft)

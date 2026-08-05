@@ -90,9 +90,15 @@ class CustomSlotButton(QPushButton):
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.drawRect(0, 0, w - 1, h - 1)
         else:
-            # Slot vacío: fondo oscuro con borde punteado
-            painter.fillRect(0, 0, w, h, QColor(35, 35, 35))
-            pen = QPen(QColor(100, 100, 100), 1, Qt.PenStyle.DashLine)
+            # Slot vacío: fondo según tema con borde continuo o punteado
+            from core.theme import ThemeManager
+            tm = ThemeManager()
+            if tm.resolver_nombre_tema(tm.current_theme) == "Claro":
+                painter.fillRect(0, 0, w, h, QColor(225, 225, 225))
+                pen = QPen(QColor(120, 120, 120), 1, Qt.PenStyle.SolidLine)
+            else:
+                painter.fillRect(0, 0, w, h, QColor(35, 35, 35))
+                pen = QPen(QColor(100, 100, 100), 1, Qt.PenStyle.DashLine)
             painter.setPen(pen)
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.drawRect(0, 0, w - 1, h - 1)

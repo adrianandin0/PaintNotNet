@@ -35,7 +35,7 @@ class PaintNotNet(QMainWindow):
         self.archivo_actual = None
         self.lienzo_modificado = False
 
-        self.setDockOptions(QMainWindow.DockOption.AllowNestedDocks | QMainWindow.DockOption.AnimatedDocks)
+        self.setDockOptions(QMainWindow.DockOption.AnimatedDocks)
 
         # ==========================================
         # DOCKS LATERALES IZQUIERDOS: Herramientas / Pinceles / Colores
@@ -67,9 +67,6 @@ class PaintNotNet(QMainWindow):
         self.color_dock.setFixedWidth(82)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.color_dock)
 
-        self.splitDockWidget(self.tools_dock,   self.brushes_dock, Qt.Orientation.Vertical)
-        self.splitDockWidget(self.brushes_dock, self.color_dock,   Qt.Orientation.Vertical)
-
         # ==========================================
         # DOCKS LATERALES DERECHOS: Texto / Colores / Efectos de Texto / Historial / Capas
         # ==========================================
@@ -92,7 +89,6 @@ class PaintNotNet(QMainWindow):
         self.advanced_color_dock.setFixedWidth(160)
         self.advanced_color_dock.setFixedHeight(210)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.advanced_color_dock)
-        self.splitDockWidget(self.text_dock, self.advanced_color_dock, Qt.Orientation.Vertical)
 
         # 3. Dock de Efectos de Texto
         self.effects_panel = EffectsPanelWidget(main_window=self)
@@ -103,7 +99,6 @@ class PaintNotNet(QMainWindow):
         self.effects_dock.setFixedWidth(160)
         self.effects_dock.setFixedHeight(220)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.effects_dock)
-        self.splitDockWidget(self.advanced_color_dock, self.effects_dock, Qt.Orientation.Vertical)
 
         # 4. Dock de Historial
         self.history_dock = QDockWidget(self)
@@ -114,7 +109,6 @@ class PaintNotNet(QMainWindow):
         self.history_dock.setFixedWidth(160)
         self.history_dock.setFixedHeight(180)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.history_dock)
-        self.splitDockWidget(self.effects_dock, self.history_dock, Qt.Orientation.Vertical)
 
         # 5. Dock de Capas
         self.layers_dock = QDockWidget(self)
@@ -125,7 +119,6 @@ class PaintNotNet(QMainWindow):
         self.layers_dock.setFixedWidth(160)
         self.layers_dock.setFixedHeight(180)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.layers_dock)
-        self.splitDockWidget(self.history_dock, self.layers_dock, Qt.Orientation.Vertical)
 
         import sys
         ico_path = "gui/paintdotnet.ico" if sys.platform == "win32" and os.path.exists("gui/paintdotnet.ico") else "gui/icono.png"
@@ -137,33 +130,7 @@ class PaintNotNet(QMainWindow):
         self.tab_widget = QTabWidget()
         self.tab_widget.setTabsClosable(True)
         self.tab_widget.setMovable(True)
-        self.tab_widget.setStyleSheet("""
-            QTabWidget::pane {
-                border: none;
-                background-color: #525252;
-            }
-            QTabBar::tab {
-                background: #7A7A7A;
-                color: #D8D8D8;
-                border: 1px solid #686868;
-                border-bottom: none;
-                border-top-left-radius: 4px;
-                border-top-right-radius: 4px;
-                padding: 5px 14px 5px 12px;
-                margin-right: 3px;
-                font-size: 11px;
-            }
-            QTabBar::tab:selected {
-                background: #525252;
-                color: #EDEDED;
-                border-color: #0078D7;
-                font-weight: bold;
-            }
-            QTabBar::tab:hover {
-                background: #626262;
-                color: #EDEDED;
-            }
-        """)
+        self.tab_widget.setObjectName("tab_widget_central")
 
         self.tab_widget.currentChanged.connect(self._on_tab_changed)
         self.tab_widget.tabCloseRequested.connect(self._on_tab_close_requested)
@@ -188,6 +155,12 @@ class PaintNotNet(QMainWindow):
         # RESTAURAR PERFIL DE USUARIO SI EXISTE
         # ==========================================
         self._cargar_perfil_usuario()
+
+        # ==========================================
+        # APLICAR TEMA DE INTERFAZ (CLARO / OSCURO / SISTEMA)
+        # ==========================================
+        from core.theme import ThemeManager
+        ThemeManager().establecer_tema(ThemeManager().current_theme, self)
 
         # ==========================================
         # MENÚS Y ATAJOS GLOBALES
@@ -266,8 +239,14 @@ class PaintNotNet(QMainWindow):
                     self.advanced_color_panel.muestras.set_colores(self.advanced_color_panel.color_primario, color, self.advanced_color_panel.modo_color)
 
     def crear_nueva_pestana(self, width=800, height=600, transparent=True, ruta=None, titulo=None):
+        from core.theme import ThemeManager
+        tm = ThemeManager()
+        res_nombre = tm.resolver_nombre_tema(tm.current_theme)
+        c_bg = "#525252" if res_nombre == "Oscuro" else "#C8C8C8"
+
         area_scroll = QScrollArea()
-        area_scroll.setStyleSheet("QScrollArea { background-color: #525252; border: none; }")
+        area_scroll.setStyleSheet(f"QScrollArea, QScrollArea > QWidget > QWidget {{ background-color: {c_bg}; border: none; }}")
+        area_scroll.viewport().setStyleSheet(f"background-color: {c_bg};")
         area_scroll.setAlignment(Qt.AlignmentFlag.AlignCenter)
         area_scroll.setWidgetResizable(False)
 
@@ -681,80 +660,14 @@ class PaintNotNet(QMainWindow):
 if __name__ == '__main__':
     app = QApplication(sys.argv)
 
-    app.setStyle("Fusion")
-    paleta_oscura = app.palette()
-    paleta_oscura.setColor(paleta_oscura.ColorRole.Window,        QColor(82,  82,  82))   # #525252
-    paleta_oscura.setColor(paleta_oscura.ColorRole.WindowText,    QColor(237, 237, 237))  # #EDEDED
-    paleta_oscura.setColor(paleta_oscura.ColorRole.Base,          QColor(45,  45,  45))   # #2D2D2D (inputs bg)
-    paleta_oscura.setColor(paleta_oscura.ColorRole.AlternateBase, QColor(82,  82,  82))   # #525252
-    paleta_oscura.setColor(paleta_oscura.ColorRole.Text,          QColor(237, 237, 237))  # #EDEDED
-    paleta_oscura.setColor(paleta_oscura.ColorRole.Button,        QColor(92,  92,  92))   # #5C5C5C
-    paleta_oscura.setColor(paleta_oscura.ColorRole.ButtonText,    QColor(237, 237, 237))  # #EDEDED
-    paleta_oscura.setColor(paleta_oscura.ColorRole.Highlight,     QColor(42,  130, 218))
-    paleta_oscura.setColor(paleta_oscura.ColorRole.HighlightedText, QColor(237, 237, 237))
-    paleta_oscura.setColor(paleta_oscura.ColorRole.ToolTipBase,   QColor(60,  60,  60))
-    paleta_oscura.setColor(paleta_oscura.ColorRole.ToolTipText,   QColor(237, 237, 237))
-    app.setPalette(paleta_oscura)
-
-    app.setStyleSheet("""
-        QWidget { color: #EDEDED; }
-        QDockWidget::title {
-            text-align: center;
-            background-color: #7A7A7A;
-            color: #EDEDED;
-            font-size: 9px;
-            font-weight: bold;
-            padding: 2px;
-        }
-        QGroupBox {
-            font-weight: normal;
-            font-size: 8px;
-            border: 1px solid #7A7A7A;
-            border-radius: 3px;
-            margin-top: 8px;
-            padding-top: 4px;
-        }
-        QGroupBox::title {
-            subcontrol-origin: margin;
-            subcontrol-position: top center;
-            padding: 0 4px;
-            color: #EDEDED;
-            background-color: transparent;
-        }
-        QComboBox, QSpinBox, QDoubleSpinBox, QFontComboBox, QLineEdit {
-            background-color: #5C5C5C;
-            color: #EDEDED;
-            border: 1px solid #6A6A6A;
-            padding: 1px;
-            border-radius: 2px;
-        }
-        QComboBox QAbstractItemView {
-            background-color: #5C5C5C;
-            color: #EDEDED;
-            selection-background-color: #2a82da;
-        }
-        QToolButton {
-            background-color: #5C5C5C;
-            color: #EDEDED;
-            border: 1px solid #7A7A7A;
-            padding: 1px;
-            border-radius: 2px;
-        }
-        QToolButton:checked {
-            background-color: #2a82da;
-            border-color: #1e5fa0;
-        }
-    """)
+    from core.theme import ThemeManager
+    from core.i18n import I18nManager
 
     app.setWindowIcon(QIcon("gui/iconos/paintdotnet.ico"))
-
-    # El singleton de i18n se crea durante los imports (antes de QApplication),
-    # por lo que QSettings no puede leer el idioma guardado en ese momento.
-    # Lo recargamos ahora que QApplication ya existe.
-    from core.i18n import I18nManager
     I18nManager().cargar_idioma_configurado()
 
     ventana = PaintNotNet()
+    ThemeManager().establecer_tema(ThemeManager().current_theme, ventana)
 
     # Re-traducir toda la UI para que coincida con el idioma cargado.
     # Necesario porque los widgets se construyeron con el idioma por defecto.

@@ -17,15 +17,19 @@ FORMAS = [
 ICON_SIZE = 36
 
 
-def _make_icon(forma: str) -> QPixmap:
+def _make_icon(forma: str, is_dark: bool = True) -> QPixmap:
     pm = QPixmap(ICON_SIZE, ICON_SIZE)
     pm.fill(Qt.GlobalColor.transparent)
     p = QPainter(pm)
     p.setRenderHint(QPainter.RenderHint.Antialiasing)
 
     cx, cy = ICON_SIZE / 2, ICON_SIZE / 2
-    pen = QPen(QColor(220, 220, 220), 2)
-    brush = QBrush(QColor(180, 180, 180))
+    if is_dark:
+        pen = QPen(QColor(220, 220, 220), 2)
+        brush = QBrush(QColor(180, 180, 180))
+    else:
+        pen = QPen(QColor(40, 40, 40), 2)
+        brush = QBrush(QColor(230, 230, 230))
     p.setPen(pen)
     p.setBrush(brush)
 
@@ -53,8 +57,6 @@ class BrushesPanelWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
         layout.setSpacing(3)
-        self.setStyleSheet("BrushesPanelWidget { background-color: #2D2D2D; }")
-        self.setAutoFillBackground(True)
 
         row_layout = QHBoxLayout()
         row_layout.setSpacing(4)
@@ -65,25 +67,9 @@ class BrushesPanelWidget(QWidget):
             btn.setCheckable(True)
             btn.setFixedSize(34, 34)
             btn.setIconSize(QSize(28, 28))
-            btn.setIcon(QIcon(_make_icon(forma)))
             btn.setToolTip(t(label_key))
             btn.setProperty("forma", forma)
             btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-            btn.setStyleSheet("""
-                QToolButton {
-                    background: #2D2D2D;
-                    border: 1px solid #686868;
-                    border-radius: 4px;
-                }
-                QToolButton:hover {
-                    background: #5C5C5C;
-                    border: 1px solid #686868;
-                }
-                QToolButton:checked {
-                    background: #1a5fa8;
-                    border: 1px solid #3d8ef0;
-                }
-            """)
             btn.toggled.connect(lambda checked, f=forma: self._on_forma_changed(f, checked))
             row_layout.addWidget(btn)
             self._btn_group.addButton(btn)
@@ -93,11 +79,44 @@ class BrushesPanelWidget(QWidget):
         layout.addStretch()
         self.setLayout(layout)
 
+        self.actualizar_estilo_tema()
+
         # Seleccionar por defecto
         forma_actual = "Redondo"
         if main_window and hasattr(main_window, 'canvas'):
             forma_actual = getattr(main_window.canvas, 'forma_pincel', 'Redondo')
         self._set_activo(forma_actual)
+
+    def actualizar_estilo_tema(self):
+        from core.theme import ThemeManager
+        tm = ThemeManager()
+        is_dark = (tm.resolver_nombre_tema(tm.current_theme) == "Oscuro")
+
+        bg_col = "#2D2D2D" if is_dark else "#DFDFDF"
+        btn_bg = "#2D2D2D" if is_dark else "#E2E2E2"
+        btn_brd = "#686868" if is_dark else "#B0B0B0"
+        btn_hv = "#5C5C5C" if is_dark else "#D4D4D4"
+        txt_col = "#EDEDED" if is_dark else "#222222"
+
+        self.setStyleSheet(f"BrushesPanelWidget {{ background-color: {bg_col}; }}")
+        btn_style = f"""
+            QToolButton {{
+                background: {btn_bg};
+                color: {txt_col};
+                border: 1px solid {btn_brd};
+                border-radius: 4px;
+            }}
+            QToolButton:hover {{
+                background: {btn_hv};
+            }}
+            QToolButton:checked {{
+                background: #1a5fa8;
+                border: 1px solid #3d8ef0;
+            }}
+        """
+        for forma, btn in self._btns.items():
+            btn.setIcon(QIcon(_make_icon(forma, is_dark)))
+            btn.setStyleSheet(btn_style)
 
     def _on_forma_changed(self, forma: str, checked: bool):
         if not checked:
@@ -129,3 +148,4 @@ class BrushesPanelWidget(QWidget):
             btn = self._btns.get(forma)
             if btn:
                 btn.setToolTip(t(label_key))
+

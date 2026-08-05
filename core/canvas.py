@@ -149,12 +149,18 @@ class CanvasWidget(QWidget):
         if hasattr(self, 'main_window') and self.main_window and hasattr(self.main_window, 'top_toolbar'):
             self.main_window.top_toolbar.update_tool_states(tool_object)
 
-        if hasattr(tool_object, 'icon_path') and tool_object.icon_path:
+        if isinstance(tool_object, TextTool):
+            self.setCursor(Qt.CursorShape.IBeamCursor)
+        elif hasattr(tool_object, 'icon_path') and tool_object.icon_path:
             self.actualizar_cursor_herramienta(tool_object.icon_path)
         else:
             self.unsetCursor()
 
     def actualizar_cursor_herramienta(self, icon_path):
+        from tools.text import TextTool
+        if isinstance(self.active_tool_obj, TextTool):
+            self.setCursor(Qt.CursorShape.IBeamCursor)
+            return
         self.unsetCursor()
 
     def actualizar_config_texto(self, config):
@@ -199,8 +205,10 @@ class CanvasWidget(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         
-        # Fondo uniforme sin recuadro ni borde delimitador exterior
-        painter.fillRect(self.rect(), QColor(45, 45, 45))
+        # Fondo uniforme según el tema activo
+        from core.theme import ThemeManager
+        bg_col = ThemeManager().obtener_color_area_canvas()
+        painter.fillRect(self.rect(), bg_col)
 
         off_x, off_y = self.obtener_offset_canvas()
         painter.save()
@@ -295,7 +303,12 @@ class CanvasWidget(QWidget):
                     painter.drawEllipse(rect)
 
         # 6. DIBUJAR ESQUINAS, GUÍAS MEDIAS Y COORDENADAS DEL CURSOR (FUERA DEL LIENZO)
-        pen_guias = QPen(QColor(180, 180, 180), 1.5, Qt.PenStyle.SolidLine)
+        from core.theme import ThemeManager
+        tm = ThemeManager()
+        is_dark = (tm.resolver_nombre_tema(tm.current_theme) == "Oscuro")
+        col_guias = QColor(180, 180, 180) if is_dark else QColor(40, 40, 40)
+
+        pen_guias = QPen(col_guias, 1.5, Qt.PenStyle.SolidLine)
         painter.setPen(pen_guias)
         painter.setBrush(Qt.BrushStyle.NoBrush)
 
@@ -336,7 +349,7 @@ class CanvasWidget(QWidget):
         # --- TEXTO DE COORDENADAS DEL CURSOR (ABAJO A LA DERECHA) ---
         font_coords = QFont("SansSerif", 9)
         painter.setFont(font_coords)
-        painter.setPen(QColor(180, 180, 180))
+        painter.setPen(col_guias)
 
         if hasattr(self, 'cursor_pos') and self.cursor_pos is not None:
             cx, cy = int(self.cursor_pos.x()), int(self.cursor_pos.y())

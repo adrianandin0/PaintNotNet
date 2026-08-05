@@ -132,8 +132,8 @@ class AdvancedColorPanelWidget(QWidget):
         self.modo_color = "primario"
         self._updating = False
 
-        lbl_style = "font-size: 9px; color: #EDEDED;"
-        hdr_style = "font-size: 10px; font-weight: bold; color: #EDEDED;"
+        lbl_style = "font-size: 9px;"
+        hdr_style = "font-size: 10px; font-weight: bold;"
         input_style = "font-size: 9px; padding: 0px;"
 
         main_layout = QVBoxLayout(self)
@@ -317,6 +317,17 @@ class AdvancedColorPanelWidget(QWidget):
 
         self.slider_v.valueChanged.connect(lambda val: self._on_hsv_slider_changed("v", val))
         self.spin_v.valueChanged.connect(lambda val: self._on_hsv_spin_changed("v", val))
+
+        self.actualizar_estilo_tema()
+
+    def actualizar_estilo_tema(self):
+        from core.theme import ThemeManager
+        tm = ThemeManager()
+        is_dark = (tm.resolver_nombre_tema(tm.current_theme) == "Oscuro")
+
+        p_bg = "#383838" if is_dark else "#DFDFDF"
+        txt_col = "#EDEDED" if is_dark else "#222222"
+        self.setStyleSheet(f"AdvancedColorPanelWidget, QWidget {{ background-color: {p_bg}; color: {txt_col}; }}")
 
         self._actualizar_interfaz_desde_color(self.color_primario)
 

@@ -12,8 +12,8 @@ class DialogoOpciones(QDialog):
     """Diálogo de Preferencias de Usuario compacto y con fuentes legibles."""
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Preferencias de usuario")
-        self.setFixedSize(370, 275)
+        self.setWindowTitle(t("Preferencias de usuario"))
+        self.setFixedSize(370, 330)
 
         self.setStyleSheet("""
             QDialog {
@@ -22,8 +22,6 @@ class DialogoOpciones(QDialog):
             QGroupBox {
                 font-size: 11px;
                 font-weight: bold;
-                color: #64B4FF;
-                border: 1px solid #686868;
                 border-radius: 4px;
                 margin-top: 8px;
                 padding-top: 6px;
@@ -32,11 +30,9 @@ class DialogoOpciones(QDialog):
                 subcontrol-origin: margin;
                 subcontrol-position: top center;
                 padding: 0 4px;
-                color: #64B4FF;
             }
             QLabel {
                 font-size: 11px;
-                color: #DDDDDD;
             }
             QComboBox, QLineEdit {
                 font-size: 11px;
@@ -44,7 +40,6 @@ class DialogoOpciones(QDialog):
             }
             QCheckBox {
                 font-size: 11px;
-                color: #DDDDDD;
             }
         """)
 
@@ -54,7 +49,37 @@ class DialogoOpciones(QDialog):
         layout.setContentsMargins(12, 8, 12, 8)
         layout.setSpacing(6)
 
-        # 1. Idioma
+        # 1. Tema de la interfaz
+        from core.theme import ThemeManager
+        group_theme = QGroupBox(t("Tema de la interfaz"))
+        layout_theme = QHBoxLayout()
+        layout_theme.setContentsMargins(8, 6, 8, 6)
+        layout_theme.setSpacing(8)
+
+        lbl_icon_theme = QLabel()
+        lbl_icon_theme.setPixmap(QIcon("gui/iconos/dark-mode.png").pixmap(QSize(16, 16)))
+
+        self.combo_theme = QComboBox()
+        temas_disponibles = ThemeManager().obtener_temas_disponibles()
+        self.combo_theme.addItems([t(item) for item in temas_disponibles])
+        self.combo_theme_raw = temas_disponibles
+
+        default_theme = self.settings.value("theme", "Definido por el sistema")
+        idx_theme = -1
+        for i, raw_t in enumerate(temas_disponibles):
+            if raw_t.lower() == str(default_theme).lower():
+                idx_theme = i
+                break
+        if idx_theme >= 0:
+            self.combo_theme.setCurrentIndex(idx_theme)
+
+        layout_theme.addWidget(lbl_icon_theme)
+        layout_theme.addWidget(QLabel(t("Tema:")))
+        layout_theme.addWidget(self.combo_theme)
+        group_theme.setLayout(layout_theme)
+        layout.addWidget(group_theme)
+
+        # 2. Idioma
         group_lang = QGroupBox(t("Idioma / Language"))
         layout_lang = QHBoxLayout()
         layout_lang.setContentsMargins(8, 6, 8, 6)
@@ -72,7 +97,7 @@ class DialogoOpciones(QDialog):
         group_lang.setLayout(layout_lang)
         layout.addWidget(group_lang)
 
-        # 2. Directorio Predeterminado
+        # 3. Directorio Predeterminado
         group_dir = QGroupBox(t("Directorio predeterminado"))
         layout_dir = QHBoxLayout()
         layout_dir.setContentsMargins(8, 6, 8, 6)
@@ -94,7 +119,7 @@ class DialogoOpciones(QDialog):
         group_dir.setLayout(layout_dir)
         layout.addWidget(group_dir)
 
-        # 3. Formato Predeterminado
+        # 4. Formato Predeterminado
         group_format = QGroupBox(t("Formato predeterminado"))
         layout_format = QHBoxLayout()
         layout_format.setContentsMargins(8, 6, 8, 6)
@@ -118,7 +143,7 @@ class DialogoOpciones(QDialog):
         group_format.setLayout(layout_format)
         layout.addWidget(group_format)
 
-        # 4. Guardar cambios al cerrar
+        # 5. Guardar cambios al cerrar
         self.chk_save_on_close = QCheckBox(t("Guardar cambios al cerrar"))
         save_on_close = self.settings.value("save_on_close", True, type=bool)
         self.chk_save_on_close.setChecked(save_on_close)
@@ -149,6 +174,14 @@ class DialogoOpciones(QDialog):
 
     def _on_accept(self):
         from core.i18n import I18nManager
+        from core.theme import ThemeManager
+
+        nuevo_tema_idx = self.combo_theme.currentIndex()
+        if 0 <= nuevo_tema_idx < len(self.combo_theme_raw):
+            nuevo_tema = self.combo_theme_raw[nuevo_tema_idx]
+            self.settings.setValue("theme", nuevo_tema)
+            ThemeManager().establecer_tema(nuevo_tema, self.parent())
+
         nuevo_idioma = self.combo_lang.currentText()
         self.settings.setValue("language", nuevo_idioma)
         self.settings.setValue("default_dir", self.input_dir.text())
@@ -161,3 +194,4 @@ class DialogoOpciones(QDialog):
             self.parent().retraducir_ui()
 
         self.accept()
+

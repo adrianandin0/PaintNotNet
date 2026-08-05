@@ -57,7 +57,7 @@ class TopToolBarWidget(QToolBar):
 
         # 6. Selector de Grosor / Ancho Global
         self.lbl_grosor = QLabel(" Grosor: ")
-        self.lbl_grosor.setStyleSheet("font-size: 11px; font-weight: bold;")
+        self.lbl_grosor.setStyleSheet("font-size: 11px; font-weight: normal;")
         self.addWidget(self.lbl_grosor)
 
         self.spin_grosor = QSpinBox()
@@ -72,7 +72,7 @@ class TopToolBarWidget(QToolBar):
 
         # 7. Selector de Tolerancia Global
         self.lbl_tol = QLabel(" Tolerancia: ")
-        self.lbl_tol.setStyleSheet("font-size: 11px; font-weight: bold;")
+        self.lbl_tol.setStyleSheet("font-size: 11px; font-weight: normal;")
         self.addWidget(self.lbl_tol)
 
         self.slider_tol = QSlider(Qt.Orientation.Horizontal)
@@ -83,14 +83,14 @@ class TopToolBarWidget(QToolBar):
         self.addWidget(self.slider_tol)
 
         self.lbl_tol_val = QLabel("32%")
-        self.lbl_tol_val.setStyleSheet("font-size: 11px; font-weight: bold;")
+        self.lbl_tol_val.setStyleSheet("font-size: 11px; font-weight: normal;")
         self.addWidget(self.lbl_tol_val)
 
         self.addSeparator()
 
         # 8. Selector de Suavizado Global
         self.lbl_suav = QLabel(" Suavizado: ")
-        self.lbl_suav.setStyleSheet("font-size: 11px; font-weight: bold;")
+        self.lbl_suav.setStyleSheet("font-size: 11px; font-weight: normal;")
         self.addWidget(self.lbl_suav)
 
         self.slider_suav = QSlider(Qt.Orientation.Horizontal)
@@ -101,7 +101,7 @@ class TopToolBarWidget(QToolBar):
         self.addWidget(self.slider_suav)
 
         self.lbl_suav_val = QLabel("100%")
-        self.lbl_suav_val.setStyleSheet("font-size: 11px; font-weight: bold;")
+        self.lbl_suav_val.setStyleSheet("font-size: 11px; font-weight: normal;")
         self.addWidget(self.lbl_suav_val)
 
         self.addSeparator()
@@ -250,11 +250,38 @@ class TopToolBarWidget(QToolBar):
         self.addWidget(self.slider_blur)
 
         self.lbl_blur_val = QLabel(f"{saved_val}%")
-        self.lbl_blur_val.setStyleSheet("font-size: 11px; font-weight: bold;")
+        self.lbl_blur_val.setStyleSheet("font-size: 11px; font-weight: normal;")
         self.addWidget(self.lbl_blur_val)
 
         if main_window:
             self.conectar_acciones()
+
+        self.actualizar_estilo_tema()
+
+    def actualizar_estilo_tema(self):
+        from core.theme import ThemeManager
+        tm = ThemeManager()
+        is_dark = (tm.resolver_nombre_tema(tm.current_theme) == "Oscuro")
+        suf = "_d.png" if is_dark else "_l.png"
+
+        if hasattr(self, 'combo_linea_inicio'):
+            self.combo_linea_inicio.setItemIcon(0, QIcon(f"gui/iconos/plain_point_left{suf}"))
+            self.combo_linea_inicio.setItemIcon(1, QIcon(f"gui/iconos/round_point_left{suf}"))
+            self.combo_linea_inicio.setItemIcon(2, QIcon(f"gui/iconos/arrow_point_left{suf}"))
+            self.combo_linea_inicio.setItemIcon(3, QIcon(f"gui/iconos/circle_point_left{suf}"))
+
+        if hasattr(self, 'combo_linea_estilo'):
+            self.combo_linea_estilo.setItemIcon(0, QIcon(f"gui/iconos/flat{suf}"))
+            self.combo_linea_estilo.setItemIcon(1, QIcon(f"gui/iconos/pointed{suf}"))
+
+        if hasattr(self, 'combo_linea_fin'):
+            self.combo_linea_fin.setItemIcon(0, QIcon(f"gui/iconos/plain_point_right{suf}"))
+            self.combo_linea_fin.setItemIcon(1, QIcon(f"gui/iconos/round_point_right{suf}"))
+            self.combo_linea_fin.setItemIcon(2, QIcon(f"gui/iconos/arrow_point_right{suf}"))
+            self.combo_linea_fin.setItemIcon(3, QIcon(f"gui/iconos/circle_point_right{suf}"))
+
+        if hasattr(self, 'combo_forma_estilo'):
+            self.combo_forma_estilo.setItemIcon(0, QIcon(f"gui/iconos/shape{suf}"))
 
     def _on_blur_changed(self, *args):
         val = self.slider_blur.value()

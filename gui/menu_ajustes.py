@@ -149,7 +149,7 @@ class SliderRow(QWidget):
 
         # Label
         lbl = QLabel(label)
-        lbl.setStyleSheet("font-size:11px; color:#E8E8E8;")
+        lbl.setStyleSheet("font-size:11px;")
         layout.addWidget(lbl)
 
         # Fila de control
@@ -584,11 +584,17 @@ class CurveWidget(QWidget):
         gw = W - 2 * margin
         gh = H - 2 * margin
 
+        from core.theme import ThemeManager
+        tm = ThemeManager()
+        is_dark = (tm.resolver_nombre_tema(tm.current_theme) == "Oscuro")
+
         # Fondo
-        p.fillRect(self.rect(), QColor(45, 45, 45))
+        bg_col = QColor(45, 45, 45) if is_dark else QColor(245, 245, 245)
+        p.fillRect(self.rect(), bg_col)
 
         # Grid
-        p.setPen(QPen(QColor(80, 80, 80), 1, Qt.PenStyle.DotLine))
+        grid_col = QColor(80, 80, 80) if is_dark else QColor(200, 200, 200)
+        p.setPen(QPen(grid_col, 1, Qt.PenStyle.DotLine))
         for i in range(1, 4):
             x = margin + i * gw / 4
             y = margin + i * gh / 4
@@ -596,7 +602,8 @@ class CurveWidget(QWidget):
             p.drawLine(margin, int(y), margin + gw, int(y))
 
         # Diagonal de referencia
-        p.setPen(QPen(QColor(100, 100, 100), 1, Qt.PenStyle.DashLine))
+        diag_col = QColor(100, 100, 100) if is_dark else QColor(160, 160, 160)
+        p.setPen(QPen(diag_col, 1, Qt.PenStyle.DashLine))
         p.drawLine(margin, margin + gh, margin + gw, margin)
 
         # Curva
@@ -617,6 +624,10 @@ class CurveWidget(QWidget):
                     p1 = to_widget(*pts_sorted[i + 1])
                     cx = (p0.x() + p1.x()) / 2
                     path.cubicTo(QPointF(cx, p0.y()), QPointF(cx, p1.y()), p1)
+
+            curve_col = self._color if is_dark else QColor(30, 30, 30)
+            p.setPen(QPen(curve_col, 2))
+            p.drawPath(path)
 
             pen = QPen(self._color, 2)
             p.setPen(pen)

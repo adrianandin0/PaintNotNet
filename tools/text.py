@@ -434,6 +434,24 @@ class TextTool(BaseTool, QObject):
         if self.current_canvas:
             self.current_canvas.update()
 
+    def _update_panel_ui(self, canvas):
+        if not canvas: return
+        mw = getattr(canvas, 'main_window', None)
+        if mw and hasattr(mw, 'text_panel') and mw.text_panel:
+            fmt = _fmt_at(self.rich_lines[self.cursor_line], self.cursor_col)
+            mw.text_panel.actualizar_desde_formato(fmt)
+
+    def _calc_extra_per_space(self, li: int, seg_s: int, seg_e: int, is_last_v: bool) -> float:
+        line = self.rich_lines[li]
+        alignment = line[0].fmt.alignment if line else Qt.AlignmentFlag.AlignLeft
+        if alignment == Qt.AlignmentFlag.AlignJustify and not is_last_v and self.text_rect:
+            seg_txt = _line_text(line)[seg_s:seg_e]
+            lw = self._measure_text_width(li, seg_s, seg_e)
+            n_spaces = seg_txt.count(" ")
+            if n_spaces > 0 and self.text_rect.width() > lw:
+                return (self.text_rect.width() - lw) / n_spaces
+        return 0.0
+
     # ── hit-test KERNING-AWARE ─────────────────────────────────────────────
 
     def _pos_from_point(self, canvas, click: QPoint):
@@ -450,21 +468,22 @@ class TextTool(BaseTool, QObject):
             segs = self._wrap_line(li)
             lh   = self._line_height(li)
             for vi, (seg_s, seg_e) in enumerate(segs):
-                is_last = (li == len(self.rich_lines) - 1 and vi == len(segs) - 1)
-                if click.y() <= y + lh or is_last:
+                is_last_v = (vi == len(segs) - 1)
+                is_last_line_seg = (li == len(self.rich_lines) - 1 and is_last_v)
+                if click.y() <= y + lh or is_last_line_seg:
                     target_li = li
                     # 2. Identificar columna dentro del segmento
-                    bx    = self._visual_line_x(li, seg_s, seg_e,
-                                                 vi == len(segs) - 1)
+                    bx    = self._visual_line_x(li, seg_s, seg_e, is_last_v)
                     rel_x = click.x() - bx
-                    return li, self._col_from_x(li, seg_s, seg_e, rel_x)
+                    return li, self._col_from_x(li, seg_s, seg_e, rel_x, is_last_v)
                 y += lh
 
         return target_li, len(_line_text(self.rich_lines[target_li]))
 
-    def _col_from_x(self, li: int, seg_s: int, seg_e: int, rel_x: float) -> int:
+    def _col_from_x(self, li: int, seg_s: int, seg_e: int, rel_x: float, is_last_v: bool = True) -> int:
         """Columna lógica más cercana a rel_x dentro del segmento [seg_s, seg_e)."""
         line = self.rich_lines[li]
+        extra_space = self._calc_extra_per_space(li, seg_s, seg_e, is_last_v)
         pos  = 0
         x    = 0.0
         for span in line:
@@ -474,15 +493,15 @@ class TextTool(BaseTool, QObject):
             m       = QFontMetrics(span.fmt.build_font())
             t_start = max(seg_s, pos) - pos
             t_end   = min(seg_e, pos + l) - pos
-
             for i in range(t_start, t_end):
-                # Avance del prefijo hasta i y hasta i+1 (kerning-aware)
-                x0 = x + m.horizontalAdvance(span.text[t_start:i])
-                x1 = x + m.horizontalAdvance(span.text[t_start:i + 1])
-                mid = (x0 + x1) / 2
+                sub_prev = span.text[t_start:i]
+                sub_curr = span.text[t_start:i + 1]
+                cw_prev = m.horizontalAdvance(sub_prev) + (sub_prev.count(" ") * extra_space)
+                cw_curr = m.horizontalAdvance(sub_curr) + (sub_curr.count(" ") * extra_space)
+                mid = x + (cw_prev + cw_curr) / 2.0
                 if rel_x < mid:
                     return pos + i
-            x   += m.horizontalAdvance(span.text[t_start:t_end])
+            x   += m.horizontalAdvance(span.text[t_start:t_end]) + (span.text[t_start:t_end].count(" ") * extra_space)
             pos += l
             if pos >= seg_e:
                 break
@@ -491,12 +510,13 @@ class TextTool(BaseTool, QObject):
     # ── offset X de col en una línea lógica ──────────────────────────────
 
     def _col_x_offset(self, li: int, col: int,
-                       seg_s: int = 0, seg_e: int | None = None) -> int:
+                       seg_s: int = 0, seg_e: int | None = None, is_last_v: bool = True) -> float:
         """Offset X desde el inicio del segmento [seg_s, ...) hasta col."""
         line = self.rich_lines[li]
         if seg_e is None:
             seg_e = len(_line_text(line))
-        pos, x = 0, 0
+        extra_space = self._calc_extra_per_space(li, seg_s, seg_e, is_last_v)
+        pos, x = 0, 0.0
         for span in line:
             l = len(span.text)
             if pos + l <= seg_s:
@@ -506,41 +526,111 @@ class TextTool(BaseTool, QObject):
             t_end   = min(seg_e, pos + l) - pos
             col_in  = col - pos
             if t_start <= col_in <= t_end:
-                x += m.horizontalAdvance(span.text[t_start:col_in])
+                sub = span.text[t_start:col_in]
+                x += m.horizontalAdvance(sub) + (sub.count(" ") * extra_space)
                 return x
-            x   += m.horizontalAdvance(span.text[t_start:t_end])
+            sub = span.text[t_start:t_end]
+            x   += m.horizontalAdvance(sub) + (sub.count(" ") * extra_space)
             pos += l
             if pos >= seg_e: break
         return x
 
     # ── handles del text-box ──────────────────────────────────────────────
 
-    def _handle_rects(self) -> list[QRect]:
-        if not self.text_rect: return []
-        r  = self.text_rect
-        cx = r.center().x(); cy = r.center().y()
+    def _get_content_rect(self) -> QRect:
+        if self.text_rect:
+            return QRect(self.text_rect)
+        total_h = max(sum(self._line_height(i) for i in range(len(self.rich_lines))), 24)
+        asc0 = self._line_ascent(0)
+        max_w = max(self._max_line_width(), 60)
+        return QRect(self.pos.x(), self.pos.y() - asc0, max_w, total_h)
+
+    def _handle_rects(self) -> list[tuple[int, QRect]]:
+        r = self._get_content_rect()
+        cx = r.center().x()
+        cy = r.center().y()
         hs = _HANDLE_SIZE // 2
-        pts = [r.topLeft(), QPoint(cx, r.top()), r.topRight(),
-               QPoint(r.right(), cy), r.bottomRight(),
-               QPoint(cx, r.bottom()), r.bottomLeft(),
-               QPoint(r.left(), cy)]
-        return [QRect(p.x() - hs, p.y() - hs, _HANDLE_SIZE, _HANDLE_SIZE) for p in pts]
+
+        pts = [
+            r.topLeft(),                     # 0: TL
+            QPoint(cx, r.top()),            # 1: TC
+            r.topRight(),                    # 2: TR
+            QPoint(r.right(), cy),          # 3: RC
+            r.bottomRight(),                 # 4: BR
+            QPoint(cx, r.bottom()),         # 5: BC
+            r.bottomLeft(),                  # 6: BL
+            QPoint(r.left(), cy),           # 7: LC
+        ]
+        resizes = [(i, QRect(p.x() - hs, p.y() - hs, _HANDLE_SIZE, _HANDLE_SIZE)) for i, p in enumerate(pts)]
+
+        # Handle 8: Cuadradito de Mover (12x12px) al centro arriba del cuadro de texto
+        move_sz = 12
+        move_rect = QRect(cx - move_sz // 2, r.top() - move_sz - 4, move_sz, move_sz)
+        resizes.append((8, move_rect))
+
+        return resizes
 
     def _hit_handle(self, pt: QPoint) -> int | None:
-        for i, hr in enumerate(self._handle_rects()):
-            if hr.contains(pt): return i
+        for idx, hr in self._handle_rects():
+            if hr.contains(pt):
+                return idx
         return None
 
-    def _resize_rect_by_handle(self, handle: int, pt: QPoint):
-        if not self.text_rect: return
-        r = self.text_rect
-        l, t, ri, b = r.left(), r.top(), r.right(), r.bottom()
-        # Handles: 0=TL 1=TC 2=TR 3=RC 4=BR 5=BC 6=BL 7=LC
-        if handle in (0, 6, 7): l = min(pt.x(), ri - 20)
-        if handle in (2, 3, 4): ri = max(pt.x(), l + 20)
-        if handle in (0, 1, 2): t = min(pt.y(), b - 20)
-        if handle in (4, 5, 6): b = max(pt.y(), t + 20)
-        self.text_rect = QRect(l, t, ri - l, b - t)
+    def _get_cursor_for_handle(self, handle: int) -> Qt.CursorShape:
+        cursors = {
+            0: Qt.CursorShape.SizeFDiagCursor, # TL
+            1: Qt.CursorShape.SizeVerCursor,   # TC
+            2: Qt.CursorShape.SizeBDiagCursor, # TR
+            3: Qt.CursorShape.SizeHorCursor,   # RC
+            4: Qt.CursorShape.SizeFDiagCursor, # BR
+            5: Qt.CursorShape.SizeVerCursor,   # BC
+            6: Qt.CursorShape.SizeBDiagCursor, # BL
+            7: Qt.CursorShape.SizeHorCursor,   # LC
+            8: Qt.CursorShape.SizeAllCursor,   # MV
+        }
+        return cursors.get(handle, Qt.CursorShape.IBeamCursor)
+
+    def _resize_or_move_by_handle(self, handle: int, pt: QPoint):
+        if not hasattr(self, '_drag_start_rect') or not self._drag_start_rect:
+            return
+
+        dx = pt.x() - self._drag_click_pos.x()
+        dy = pt.y() - self._drag_click_pos.y()
+
+        if handle == 8:
+            # Move handle: desplaza la caja de texto completa sin alterar su tamaño
+            self.pos = self._drag_start_pos + QPoint(dx, dy)
+            if self.text_rect:
+                self.text_rect = QRect(self._drag_start_rect.translated(dx, dy))
+            return
+
+        # Handles 0..7: Redimensión
+        if not self.text_rect:
+            self.text_rect = QRect(self._drag_start_rect)
+
+        sr = self._drag_start_rect
+        l, t = sr.left(), sr.top()
+        w, h = sr.width(), sr.height()
+        r_edge, b_edge = sr.right(), sr.bottom()
+        min_w, min_h = 40, 20
+
+        # Eje Horizontal (Izquierda: 0,6,7 / Derecha: 2,3,4)
+        if handle in (0, 6, 7):
+            l = min(sr.left() + dx, r_edge - min_w)
+            w = r_edge - l + 1
+        elif handle in (2, 3, 4):
+            w = max(min_w, sr.width() + dx)
+
+        # Eje Vertical (Superior: 0,1,2 / Inferior: 4,5,6)
+        if handle in (0, 1, 2):
+            t = min(sr.top() + dy, b_edge - min_h)
+            h = b_edge - t + 1
+        elif handle in (4, 5, 6):
+            h = max(min_h, sr.height() + dy)
+
+        new_rect = QRect(l, t, w, h)
+        self.text_rect = new_rect
+        self.pos = new_rect.topLeft()
 
     # ── mouse ──────────────────────────────────────────────────────────────
 
@@ -553,18 +643,20 @@ class TextTool(BaseTool, QObject):
         click = event.position().toPoint()
 
         if not self.is_editing:
-            # Iniciar drag para detectar si es punto o rect
             self._drag_start      = click
             self._mouse_selecting = False
             self._drag_handle     = None
             return
 
-        # Ya editando → ¿clic en handle de resize?
-        if self.text_rect:
-            h = self._hit_handle(click)
-            if h is not None:
-                self._drag_handle = h
-                return
+        # Ya editando → ¿clic en handle (resize o move)?
+        h = self._hit_handle(click)
+        if h is not None:
+            self._drag_handle = h
+            self._drag_click_pos = click
+            self._drag_start_pos = QPoint(self.pos)
+            self._drag_start_rect = QRect(self._get_content_rect())
+            canvas.setCursor(self._get_cursor_for_handle(h))
+            return
 
         # ¿Clic dentro del bounding rect?
         br = self._get_bounding_rect(canvas)
@@ -572,18 +664,15 @@ class TextTool(BaseTool, QObject):
             li, ci = self._pos_from_point(canvas, click)
             shift  = bool(event.modifiers() & Qt.KeyboardModifier.ShiftModifier)
             if shift:
-                # Shift+click extiende la selección desde el ancla actual
                 if self.sel_line is None:
                     self._set_sel_anchor()
             else:
-                # Clic simple: mover cursor SIN selección
-                # El ancla se pone en el punto del clic para permitir drag
                 self._clear_sel()
-                self.sel_line = li   # ancla = punto del clic
-                self.sel_col  = ci
+                self._sel_anchor = (li, ci)
             self.cursor_line, self.cursor_col = li, ci
             self._mouse_selecting = True
             self._drag_handle     = None
+            self._update_panel_ui(canvas)
         else:
             # Clic fuera → confirmar texto actual e iniciar nuevo
             self.commit_text(canvas, color_activo)
@@ -596,18 +685,19 @@ class TextTool(BaseTool, QObject):
     def mouse_move(self, canvas, event, color_activo):
         click = event.position().toPoint()
 
-        # Resize de text_rect
-        if self._drag_handle is not None and self.text_rect:
-            self._resize_rect_by_handle(self._drag_handle, click)
-            canvas.update(); return
+        # Resize / Move de text_rect
+        if self._drag_handle is not None:
+            self._resize_or_move_by_handle(self._drag_handle, click)
+            canvas.setCursor(self._get_cursor_for_handle(self._drag_handle))
+            canvas.update()
+            return
 
-        # Drag para crear text_rect
+        # Drag para crear text_rect inicial
         if (not self.is_editing and self._drag_start is not None and
                 (event.buttons() & Qt.MouseButton.LeftButton)):
             dx = abs(click.x() - self._drag_start.x())
             dy = abs(click.y() - self._drag_start.y())
             if dx > 5 or dy > 5:
-                # Mostrar rect provisional
                 self._preview_rect = QRect(
                     min(click.x(), self._drag_start.x()),
                     min(click.y(), self._drag_start.y()),
@@ -621,25 +711,35 @@ class TextTool(BaseTool, QObject):
                 event.buttons() & Qt.MouseButton.LeftButton):
             li, ci = self._pos_from_point(canvas, click)
             self.cursor_line, self.cursor_col = li, ci
+            if hasattr(self, '_sel_anchor') and self._sel_anchor:
+                if (self.cursor_line, self.cursor_col) != self._sel_anchor:
+                    self.sel_line, self.sel_col = self._sel_anchor
+                else:
+                    self._clear_sel()
+            self._update_panel_ui(canvas)
             canvas.update()
+            return
 
-        # Cursor IBeam cuando está sobre el área de texto
+        # Hovering cursor feedback (siempre IBeam excepto sobre tiradores)
         if self.is_editing:
-            br = self._get_bounding_rect(canvas)
-            if br.contains(click):
-                canvas.setCursor(Qt.CursorShape.IBeamCursor)
+            h_hover = self._hit_handle(click)
+            if h_hover is not None:
+                canvas.setCursor(self._get_cursor_for_handle(h_hover))
             else:
-                canvas.unsetCursor()
+                canvas.setCursor(Qt.CursorShape.IBeamCursor)
 
     def mouse_release(self, canvas, event, color_activo):
         click = event.position().toPoint()
         self._drag_handle     = None
         self._mouse_selecting = False
 
-        # Si cursor == ancla (clic sin drag), limpiar selección
-        if (self.sel_line == self.cursor_line and
-                self.sel_col == self.cursor_col):
+        if self.is_editing:
+            canvas.setCursor(Qt.CursorShape.IBeamCursor)
+
+        if not self._has_selection():
             self._clear_sel()
+        if hasattr(self, '_sel_anchor'):
+            del self._sel_anchor
 
         if not self.is_editing and self._drag_start is not None:
             dx = click.x() - self._drag_start.x()
@@ -669,7 +769,6 @@ class TextTool(BaseTool, QObject):
         self.cursor_line  = self.cursor_col = 0
         self._clear_sel()
         self.pos = QPoint(pos.x(), pos.y() + self._line_ascent(0))
-        canvas.setCursor(Qt.CursorShape.IBeamCursor)
 
     def _start_editing_rect(self, canvas, rect: QRect, color_activo):
         self.is_editing   = True
@@ -680,7 +779,6 @@ class TextTool(BaseTool, QObject):
         self.cursor_line  = self.cursor_col = 0
         self._clear_sel()
         self.pos = rect.topLeft()
-        canvas.setCursor(Qt.CursorShape.IBeamCursor)
 
     def _fmt_from_canvas(self, canvas, color_activo) -> CharFormat:
         cfg = getattr(canvas, 'config_texto', {})
@@ -823,6 +921,7 @@ class TextTool(BaseTool, QObject):
         else:
             return False
 
+        self._update_panel_ui(canvas)
         canvas.update()
         return True
 
@@ -864,7 +963,6 @@ class TextTool(BaseTool, QObject):
 
     def draw_preview(self, painter: QPainter, canvas):
         if not self.is_editing:
-            # Mostrar preview del rect mientras se hace drag
             if hasattr(self, '_preview_rect'):
                 painter.setPen(QPen(QColor(80, 140, 220), 1, Qt.PenStyle.DashLine))
                 painter.setBrush(Qt.BrushStyle.NoBrush)
@@ -872,16 +970,24 @@ class TextTool(BaseTool, QObject):
             return
 
         self._render(painter, canvas, is_commit=False)
-        rect = self._get_bounding_rect(canvas)
-        painter.setPen(QPen(QColor(100, 100, 100), 1, Qt.PenStyle.DashLine))
+
+        # Contorno delimitador del cuadro de texto
+        rect = self._get_content_rect()
+        painter.setPen(QPen(QColor(0, 120, 215), 1, Qt.PenStyle.DashLine))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawRect(rect)
 
-        # Handles de resize si es modo rect
-        if self.text_rect:
-            for hr in self._handle_rects():
-                painter.fillRect(hr, QColor(80, 140, 220))
-                painter.setPen(QPen(QColor(255, 255, 255), 1))
+        # Dibujar tiradores 0..7 (Resize) y 8 (Move)
+        for idx, hr in self._handle_rects():
+            if idx == 8:
+                # Handle de mover: Cuadradito de mover un poco más grande (azul con borde blanco)
+                painter.setPen(QPen(QColor(255, 255, 255), 1.5))
+                painter.setBrush(QBrush(QColor(26, 95, 168)))
+                painter.drawRect(hr)
+            else:
+                # Tiradores de redimensión (cuadritos blancos con borde azul)
+                painter.setPen(QPen(QColor(0, 120, 215), 1))
+                painter.setBrush(QBrush(QColor(255, 255, 255)))
                 painter.drawRect(hr)
 
     def _render(self, painter: QPainter, canvas, is_commit: bool = False):

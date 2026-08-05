@@ -125,9 +125,15 @@ class _EffectColorSlot(QPushButton):
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.drawRect(0, 0, w - 1, h - 1)
         else:
-            # Slot vacío
-            painter.fillRect(0, 0, w, h, QColor(35, 35, 35))
-            pen = QPen(QColor(100, 100, 100), 1, Qt.PenStyle.DashLine)
+            # Slot vacío: adaptable al tema (igual que panel de colores)
+            from core.theme import ThemeManager
+            tm = ThemeManager()
+            if tm.resolver_nombre_tema(tm.current_theme) == "Claro":
+                painter.fillRect(0, 0, w, h, QColor(225, 225, 225))
+                pen = QPen(QColor(120, 120, 120), 1, Qt.PenStyle.SolidLine)
+            else:
+                painter.fillRect(0, 0, w, h, QColor(35, 35, 35))
+                pen = QPen(QColor(100, 100, 100), 1, Qt.PenStyle.DashLine)
             painter.setPen(pen)
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.drawRect(0, 0, w - 1, h - 1)
@@ -159,23 +165,31 @@ class _LightDirectionWidget(QWidget):
         self.light_y = 0.5
 
     def paintEvent(self, event):
+        from core.theme import ThemeManager
+        tm = ThemeManager()
+        is_light = (tm.resolver_nombre_tema(tm.current_theme) == "Claro")
+
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         radius = (self.width() - 4) / 2.0
         center = QPointF(self.width() / 2.0, self.height() / 2.0)
 
-        painter.setBrush(QBrush(QColor("#3C3C3C")))
-        painter.setPen(QPen(QColor("#686868"), 1))
+        bg_col     = QColor("#E0E0E0") if is_light else QColor("#3C3C3C")
+        border_col = QColor("#A0A0A0") if is_light else QColor("#686868")
+        cross_col  = QColor("#B0B0B0") if is_light else QColor("#5C5C5C")
+
+        painter.setBrush(QBrush(bg_col))
+        painter.setPen(QPen(border_col, 1))
         painter.drawEllipse(center, radius, radius)
 
-        painter.setPen(QPen(QColor("#5C5C5C"), 1, Qt.PenStyle.DashLine))
+        painter.setPen(QPen(cross_col, 1, Qt.PenStyle.DashLine))
         painter.drawLine(int(center.x()), 2, int(center.x()), self.height() - 2)
         painter.drawLine(2, int(center.y()), self.width() - 2, int(center.y()))
 
         ix = center.x() + (self.light_x * radius)
         iy = center.y() + (self.light_y * radius)
         painter.setBrush(QBrush(QColor("#0078D7")))
-        painter.setPen(QPen(Qt.GlobalColor.white, 1))
+        painter.setPen(QPen(QColor(40, 40, 40) if is_light else Qt.GlobalColor.white, 1))
         painter.drawEllipse(QPointF(ix, iy), 4.0, 4.0)
 
     def mousePressEvent(self, event):
@@ -320,6 +334,49 @@ class EffectsPanelWidget(QWidget):
         layout.addStretch()
         self.setLayout(layout)
         self.setFixedWidth(155)
+
+        self.actualizar_estilo_tema()
+
+    def actualizar_estilo_tema(self):
+        from core.theme import ThemeManager
+        tm = ThemeManager()
+        is_dark = (tm.resolver_nombre_tema(tm.current_theme) == "Oscuro")
+
+        txt_col  = "#EDEDED" if is_dark else "#222222"
+        brd_col  = "#3A3A3A" if is_dark else "#B0B0B0"
+        title_bg = "#5C5C5C" if is_dark else "#D0D0D0"
+        title_fg = "#E8E8E8" if is_dark else "#222222"
+
+        group_style = f"""
+            QGroupBox {{
+                font-size: 9px;
+                color: {txt_col};
+                font-weight: normal;
+                margin-top: 10px;
+                padding: 4px 4px 4px 4px;
+                border: 1px solid {brd_col};
+                border-radius: 3px;
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                subcontrol-position: top center;
+                padding: 0 4px;
+                color: {title_fg};
+                background-color: {title_bg};
+            }}
+        """
+        for g in (self.group_borde, self.group_glow, self.group_shadow):
+            g.setStyleSheet(group_style)
+
+        chk_style = f"color: {txt_col}; font-size: 9px;"
+        for chk in (self.chk_borde, self.chk_glow, self.chk_shadow):
+            chk.setStyleSheet(chk_style)
+
+        spin_style = f"font-size: 9px;"
+        for spin in (self.spin_borde, self.spin_glow, self.spin_shadow):
+            spin.setStyleSheet(spin_style)
+
+        self.light_widget.update()
 
     # ------------------------------------------------------------------ #
     #  Config                                                              #

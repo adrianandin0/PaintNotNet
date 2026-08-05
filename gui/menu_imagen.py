@@ -39,22 +39,32 @@ class AnclajeWidget(QGroupBox):
 
         self.selected_anchor = "top-left"  # Por defecto arriba-izquierda
 
-        btn_style = """
-            QPushButton {
-                background-color: #3b3b3b;
-                color: #EDEDED;
-                border: 1px solid #555555;
+        from core.theme import ThemeManager
+        tm = ThemeManager()
+        is_dark = (tm.resolver_nombre_tema(tm.current_theme) == "Oscuro")
+
+        btn_bg  = "#3b3b3b" if is_dark else "#E2E2E2"
+        txt_col = "#EDEDED" if is_dark else "#222222"
+        brd_col = "#555555" if is_dark else "#B0B0B0"
+        hvr_col = "#4f4f4f" if is_dark else "#D4D4D4"
+
+        btn_style = f"""
+            QPushButton {{
+                background-color: {btn_bg};
+                color: {txt_col};
+                border: 1px solid {brd_col};
                 font-weight: bold;
                 font-size: 13px;
                 border-radius: 3px;
-            }
-            QPushButton:checked {
+            }}
+            QPushButton:checked {{
                 background-color: #007acc;
+                color: #FFFFFF;
                 border: 1px solid #00aaff;
-            }
-            QPushButton:hover {
-                background-color: #4f4f4f;
-            }
+            }}
+            QPushButton:hover {{
+                background-color: {hvr_col};
+            }}
         """
 
         for (r, c), (anchor_id, label) in self.anchors.items():
