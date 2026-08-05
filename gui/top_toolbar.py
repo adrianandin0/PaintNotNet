@@ -84,6 +84,8 @@ class TopToolBarWidget(QToolBar):
 
         self.lbl_tol_val = QLabel("32%")
         self.lbl_tol_val.setStyleSheet("font-size: 11px; font-weight: normal;")
+        self.lbl_tol_val.setFixedWidth(36)
+        self.lbl_tol_val.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.addWidget(self.lbl_tol_val)
 
         self.addSeparator()
@@ -102,6 +104,8 @@ class TopToolBarWidget(QToolBar):
 
         self.lbl_suav_val = QLabel("100%")
         self.lbl_suav_val.setStyleSheet("font-size: 11px; font-weight: normal;")
+        self.lbl_suav_val.setFixedWidth(36)
+        self.lbl_suav_val.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.addWidget(self.lbl_suav_val)
 
         self.addSeparator()
@@ -115,8 +119,13 @@ class TopToolBarWidget(QToolBar):
 
         self.combo_zoom = QComboBox()
         self.combo_zoom.setEditable(True)
-        self.combo_zoom.setFixedWidth(65)
-        self.combo_zoom.addItems(["10%", "25%", "50%", "75%", "100%", "125%", "150%", "200%", "300%"])
+        self.combo_zoom.setFixedWidth(70)
+        self.combo_zoom.addItems([
+            "10%", "25%", "50%", "75%",
+            "100%", "200%", "300%", "400%", "500%",
+            "750%", "1000%", "1250%", "1500%",
+            "2000%", "2500%", "3000%"
+        ])
         self.combo_zoom.setCurrentText("100%")
         self.combo_zoom.setStyleSheet("font-size: 11px; padding: 1px;")
         self.combo_zoom.activated.connect(self._on_zoom_changed)
@@ -251,6 +260,8 @@ class TopToolBarWidget(QToolBar):
 
         self.lbl_blur_val = QLabel(f"{saved_val}%")
         self.lbl_blur_val.setStyleSheet("font-size: 11px; font-weight: normal;")
+        self.lbl_blur_val.setFixedWidth(36)
+        self.lbl_blur_val.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.addWidget(self.lbl_blur_val)
 
         if main_window:
@@ -410,7 +421,7 @@ class TopToolBarWidget(QToolBar):
         txt = self.combo_zoom.currentText().replace("%", "").strip()
         try:
             val = int(txt)
-            val = max(10, min(500, val))
+            val = max(1, min(3000, val))
             if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
                 self.main_window.lienzo.set_zoom(val / 100.0)
         except ValueError:

@@ -124,6 +124,9 @@ class SelectionEngine:
             t_img = QTransform().rotate(total_angle)
             rotated = self.unscaled_floating_image.transformed(t_img, Qt.TransformationMode.SmoothTransformation)
             self.floating_image = rotated
+            self.unscaled_floating_image = rotated.copy()
+            self.rotation_angle = 0.0
+            self.base_rotation_angle = 0.0
 
             new_w = rotated.width()
             new_h = rotated.height()
@@ -201,14 +204,13 @@ class SelectionEngine:
         self.last_mouse_pos = pos
 
     def end_transform(self):
-        # Si se hizo un resize, actualizar la imagen base al nuevo tamaño
-        # para que rotaciones posteriores usen las dimensiones correctas.
-        if (self.is_moving
-                and self.active_handle not in (self.HANDLE_NONE, self.HANDLE_MOVE)
-                and self.floating_image and not self.floating_image.isNull()):
-            self.unscaled_floating_image = self.floating_image.copy()
-            self.rotation_angle = 0.0
-            self.base_rotation_angle = 0.0
+        # Si se hizo un resize o rotación, actualizar la imagen base al nuevo estado
+        # para que transformaciones posteriores usen la imagen acumulada correctamente.
+        if self.floating_image and not self.floating_image.isNull():
+            if (self.is_moving and self.active_handle not in (self.HANDLE_NONE, self.HANDLE_MOVE)) or self.is_rotating:
+                self.unscaled_floating_image = self.floating_image.copy()
+                self.rotation_angle = 0.0
+                self.base_rotation_angle = 0.0
 
         self.is_moving = False
         self.is_rotating = False

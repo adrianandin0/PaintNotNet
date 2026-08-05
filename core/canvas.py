@@ -120,7 +120,7 @@ class CanvasWidget(QWidget):
         self.update()
 
     def set_zoom(self, scale):
-        self.scale_factor = max(0.01, min(3.0, scale))
+        self.scale_factor = max(0.01, min(30.0, scale))
         self._ajustar_tamano_widget()
         if hasattr(self, 'main_window') and self.main_window and hasattr(self.main_window, 'top_toolbar'):
             self.main_window.top_toolbar.sync_zoom_from_canvas(self.scale_factor)
@@ -236,6 +236,11 @@ class CanvasWidget(QWidget):
 
         # Callback para dibujar la previsualización del contenido en el orden Z de la capa activa
         def _dibujar_preview_capa_activa(p_capa):
+            if self.selection_engine.floating_image and not self.selection_engine.floating_image.isNull():
+                p_capa.save()
+                p_capa.setClipRect(0, 0, l_width, l_height)
+                p_capa.drawImage(self.selection_engine.original_image_pos, self.selection_engine.floating_image)
+                p_capa.restore()
             if hasattr(self.active_tool_obj, 'draw_preview'):
                 self.active_tool_obj.draw_preview(p_capa, self)
 
@@ -247,13 +252,6 @@ class CanvasWidget(QWidget):
             selection_path=sel_path
         )
         painter.drawPixmap(0, 0, pixmap)
-
-        # 1b. Dibujar capa flotante si se está moviendo contenido o mostrando preview de difuminado
-        if self.selection_engine.floating_image and not self.selection_engine.floating_image.isNull():
-            painter.save()
-            painter.setClipRect(0, 0, l_width, l_height)
-            painter.drawImage(self.selection_engine.original_image_pos, self.selection_engine.floating_image)
-            painter.restore()
 
         # 3. Tiradores y controles interactivos de herramientas (visibles en primer plano)
         if hasattr(self.active_tool_obj, 'draw_handles'):

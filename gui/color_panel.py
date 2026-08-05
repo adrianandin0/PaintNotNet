@@ -277,21 +277,23 @@ class ColorPanelWidget(QWidget):
         layout.addLayout(top_layout)
 
         # 2. Slider de Alpha
-        alpha_layout = QHBoxLayout()
-        alpha_layout.setSpacing(3)
+        alpha_layout = QVBoxLayout()
+        alpha_layout.setSpacing(1)
+        alpha_layout.setContentsMargins(0, 2, 0, 2)
         alpha_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        lbl_a = QLabel("A:")
-        lbl_a.setStyleSheet("font-size: 9px; font-weight: bold;")
+        self.lbl_alpha = QLabel(t("Alfa:"))
+        self.lbl_alpha.setStyleSheet("font-size: 10px; font-weight: normal;")
+        self.lbl_alpha.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.slider_alpha = QSlider(Qt.Orientation.Horizontal)
         self.slider_alpha.setRange(0, 255)
         self.slider_alpha.setValue(255)
         self.slider_alpha.setFixedHeight(14)
-        self.slider_alpha.setFixedWidth(54)
+        self.slider_alpha.setFixedWidth(64)
         self.slider_alpha.valueChanged.connect(self.on_alpha_slider_changed)
 
-        alpha_layout.addWidget(lbl_a)
+        alpha_layout.addWidget(self.lbl_alpha)
         alpha_layout.addWidget(self.slider_alpha)
         layout.addLayout(alpha_layout)
 
@@ -421,6 +423,8 @@ class ColorPanelWidget(QWidget):
         self.slider_alpha.blockSignals(False)
 
     def retraducir_panel(self):
+        if hasattr(self, 'lbl_alpha'):
+            self.lbl_alpha.setText(t("Alfa:"))
         if hasattr(self, 'lbl_custom'):
             self.lbl_custom.setText(t("Guardadas:"))
         if hasattr(self, 'botones_custom'):

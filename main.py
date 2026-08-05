@@ -30,7 +30,12 @@ from gui.menu_acerca import MenuAcerca
 class PaintNotNet(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setGeometry(100, 50, 1804, 1015)
+        self.settings = QSettings("PaintNotNet", "PaintNotNet")
+        geometry = self.settings.value("geometry")
+        if geometry:
+            self.restoreGeometry(geometry)
+        else:
+            self.resize(1500, 800)
         self.setWindowIcon(QIcon("gui/iconos/paintdotnet.ico"))
         self.archivo_actual = None
         self.lienzo_modificado = False
@@ -63,7 +68,7 @@ class PaintNotNet(QMainWindow):
         self.color_panel = ColorPanelWidget(main_window=self)
         self.color_dock.setWidget(self.color_panel)
         self.color_dock.setTitleBarWidget(self._hacer_titulo_dock("gui/iconos/color.png", "Colores"))
-        self.color_dock.setFixedHeight(275)
+        self.color_dock.setFixedHeight(300)
         self.color_dock.setFixedWidth(82)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.color_dock)
 
@@ -645,6 +650,9 @@ class PaintNotNet(QMainWindow):
                 return
 
         settings = QSettings("PaintNotNet", "PaintNotNet")
+        settings.setValue("geometry", self.saveGeometry())
+        settings.setValue("windowState", self.saveState())
+
         if settings.value("save_on_close", True, type=bool):
             if hasattr(self, 'color_panel'):
                 custom_hexs = []

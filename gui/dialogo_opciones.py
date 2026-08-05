@@ -54,7 +54,7 @@ class DialogoOpciones(QDialog):
         group_theme = QGroupBox(t("Tema de la interfaz"))
         layout_theme = QHBoxLayout()
         layout_theme.setContentsMargins(8, 6, 8, 6)
-        layout_theme.setSpacing(8)
+        layout_theme.setSpacing(6)
 
         lbl_icon_theme = QLabel()
         lbl_icon_theme.setPixmap(QIcon("gui/iconos/dark-mode.png").pixmap(QSize(16, 16)))
@@ -75,6 +75,7 @@ class DialogoOpciones(QDialog):
 
         layout_theme.addWidget(lbl_icon_theme)
         layout_theme.addWidget(QLabel(t("Tema:")))
+        layout_theme.addStretch()
         layout_theme.addWidget(self.combo_theme)
         group_theme.setLayout(layout_theme)
         layout.addWidget(group_theme)
@@ -83,7 +84,10 @@ class DialogoOpciones(QDialog):
         group_lang = QGroupBox(t("Idioma / Language"))
         layout_lang = QHBoxLayout()
         layout_lang.setContentsMargins(8, 6, 8, 6)
-        layout_lang.setSpacing(8)
+        layout_lang.setSpacing(6)
+
+        lbl_icon_lang = QLabel()
+        lbl_icon_lang.setPixmap(QIcon("gui/iconos/languages.png").pixmap(QSize(16, 16)))
 
         self.combo_lang = QComboBox()
         self.combo_lang.addItems(["Español", "English"])
@@ -92,7 +96,9 @@ class DialogoOpciones(QDialog):
         if idx_lang >= 0:
             self.combo_lang.setCurrentIndex(idx_lang)
 
+        layout_lang.addWidget(lbl_icon_lang)
         layout_lang.addWidget(QLabel(t("Idioma:")))
+        layout_lang.addStretch()
         layout_lang.addWidget(self.combo_lang)
         group_lang.setLayout(layout_lang)
         layout.addWidget(group_lang)
@@ -114,8 +120,8 @@ class DialogoOpciones(QDialog):
         btn_examinar.setToolTip("Examinar directorio...")
         btn_examinar.clicked.connect(self._on_examinar)
 
-        layout_dir.addWidget(self.input_dir)
         layout_dir.addWidget(btn_examinar)
+        layout_dir.addWidget(self.input_dir)
         group_dir.setLayout(layout_dir)
         layout.addWidget(group_dir)
 
@@ -123,7 +129,10 @@ class DialogoOpciones(QDialog):
         group_format = QGroupBox(t("Formato predeterminado"))
         layout_format = QHBoxLayout()
         layout_format.setContentsMargins(8, 6, 8, 6)
-        layout_format.setSpacing(8)
+        layout_format.setSpacing(6)
+
+        lbl_icon_fmt = QLabel()
+        lbl_icon_fmt.setPixmap(QIcon("gui/iconos/picture.png").pixmap(QSize(16, 16)))
 
         self.combo_format = QComboBox()
         self.combo_format.addItems([
@@ -138,7 +147,9 @@ class DialogoOpciones(QDialog):
         if idx >= 0:
             self.combo_format.setCurrentIndex(idx)
 
+        layout_format.addWidget(lbl_icon_fmt)
         layout_format.addWidget(QLabel(t("Formato:")))
+        layout_format.addStretch()
         layout_format.addWidget(self.combo_format)
         group_format.setLayout(layout_format)
         layout.addWidget(group_format)
@@ -149,11 +160,18 @@ class DialogoOpciones(QDialog):
         self.chk_save_on_close.setChecked(save_on_close)
         layout.addWidget(self.chk_save_on_close)
 
-        # Botones OK / Cancel
-        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
-        button_box.accepted.connect(self._on_accept)
-        button_box.rejected.connect(self.reject)
-        layout.addWidget(button_box)
+        # Botones Aceptar / Cancelar
+        layout_buttons = QHBoxLayout()
+        layout_buttons.addStretch()
+        btn_ok = QPushButton(t("Aceptar"))
+        btn_cancel = QPushButton(t("Cancelar"))
+        btn_ok.setFixedWidth(80)
+        btn_cancel.setFixedWidth(80)
+        btn_ok.clicked.connect(self._on_accept)
+        btn_cancel.clicked.connect(self.reject)
+        layout_buttons.addWidget(btn_ok)
+        layout_buttons.addWidget(btn_cancel)
+        layout.addLayout(layout_buttons)
 
         self.setLayout(layout)
 
