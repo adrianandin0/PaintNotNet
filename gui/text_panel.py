@@ -6,7 +6,7 @@ Las opciones de Borde/Resplandor/Sombra viven en effects_panel.py.
 import math
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
-    QSpinBox, QFontComboBox, QToolButton, QButtonGroup, QSizePolicy
+    QSpinBox, QFontComboBox, QToolButton, QButtonGroup, QSizePolicy, QAbstractSpinBox
 )
 from PyQt6.QtGui import QFont, QColor, QIcon
 from PyQt6.QtCore import Qt, pyqtSignal
@@ -21,7 +21,7 @@ class TextPanelWidget(QWidget):
         super().__init__()
         self.main_window = main_window
 
-        lbl_style = "color: #E8E8E8; font-size: 9px; font-weight: normal;"
+        lbl_style = "color: #E8E8E8; font-size: 11px; font-weight: normal;"
 
         layout = QVBoxLayout()
         layout.setContentsMargins(4, 4, 4, 4)
@@ -35,7 +35,7 @@ class TextPanelWidget(QWidget):
 
         self.font_combo = QFontComboBox()
         self.font_combo.setFixedHeight(20)
-        self.font_combo.setStyleSheet("font-size: 9px; color: #EDEDED;")
+        self.font_combo.setStyleSheet("font-size: 11px; color: #EDEDED;")
         self.font_combo.currentFontChanged.connect(
             lambda f: self._emitir_cambio_parcial({"font_family": f.family() if isinstance(f, QFont) else str(f)})
         )
@@ -51,7 +51,8 @@ class TextPanelWidget(QWidget):
         self.spin_size.setRange(1, 9999)
         self.spin_size.setValue(24)
         self.spin_size.setFixedHeight(20)
-        self.spin_size.setStyleSheet("font-size: 9px; color: #EDEDED;")
+        self.spin_size.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        self.spin_size.setStyleSheet("font-size: 11px; color: #EDEDED;")
         self.spin_size.valueChanged.connect(
             lambda v: self._emitir_cambio_parcial({"font_size": int(v), "size": int(v)})
         )
@@ -173,11 +174,11 @@ class TextPanelWidget(QWidget):
         btn_brd = "#686868" if is_dark else "#B0B0B0"
         btn_hv  = "#5C5C5C" if is_dark else "#D4D4D4"
 
-        lbl_style = f"color: {txt_col}; font-size: 9px; font-weight: normal;"
+        lbl_style = f"color: {txt_col}; font-size: 11px; font-weight: normal;"
         self.lbl_fuente.setStyleSheet(lbl_style)
         self.lbl_tam.setStyleSheet(lbl_style)
-        self.font_combo.setStyleSheet(f"font-size: 9px;")
-        self.spin_size.setStyleSheet(f"font-size: 9px;")
+        self.font_combo.setStyleSheet(f"font-size: 11px;")
+        self.spin_size.setStyleSheet(f"font-size: 11px;")
 
         self.btn_bold.setStyleSheet(f"font-weight: bold; font-size: 11px;")
         self.btn_italic.setStyleSheet(f"font-style: italic; font-size: 11px;")

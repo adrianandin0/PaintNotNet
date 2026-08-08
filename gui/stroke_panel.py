@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QToolButton, QButtonGroup, QSlider, QSpinBox, QGroupBox
+    QToolButton, QButtonGroup, QSlider, QSpinBox, QGroupBox, QAbstractSpinBox
 )
 from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import QSize, Qt
@@ -63,6 +63,7 @@ class StrokePanelWidget(QWidget):
         self.spin_ancho.setRange(1, 100)
         self.spin_ancho.setValue(3)
         self.spin_ancho.setFixedHeight(20)
+        self.spin_ancho.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         self.spin_ancho.setStyleSheet("font-size: 9px;")
         self.spin_ancho.valueChanged.connect(self._on_ancho_changed)
 

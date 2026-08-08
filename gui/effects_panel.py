@@ -11,7 +11,7 @@ El color de cada slot se persiste en QSettings("PaintNotNet", "EffectsPanel").
 import math
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
-    QSpinBox, QGroupBox, QCheckBox, QSizePolicy
+    QSpinBox, QGroupBox, QCheckBox, QSizePolicy, QAbstractSpinBox
 )
 from PyQt6.QtGui import QPainter, QBrush, QPen, QColor, QPainterPath
 from PyQt6.QtCore import Qt, QPointF, pyqtSignal, QSettings
@@ -226,16 +226,16 @@ class EffectsPanelWidget(QWidget):
         super().__init__()
         self.main_window = main_window
 
-        lbl_style   = "color: #E8E8E8; font-size: 9px; font-weight: normal;"
+        lbl_style   = "color: #E8E8E8; font-size: 11px; font-weight: normal;"
         group_style = (
-            "QGroupBox { font-size: 9px; color: #E8E8E8; font-weight: normal; "
+            "QGroupBox { font-size: 11px; color: #E8E8E8; font-weight: normal; "
             "margin-top: 10px; padding: 4px 4px 4px 4px; "
             "border: 1px solid #3A3A3A; border-radius: 3px; } "
             "QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top center; "
             "padding: 0 4px; color: #E8E8E8; background-color: #5C5C5C; }"
         )
-        spin_style = "font-size: 9px; color: #EDEDED;"
-        chk_style  = "color: #E8E8E8; font-size: 9px;"
+        spin_style = "font-size: 11px; color: #EDEDED;"
+        chk_style  = "color: #E8E8E8; font-size: 11px;"
 
         layout = QVBoxLayout()
         layout.setContentsMargins(4, 4, 4, 4)
@@ -258,6 +258,7 @@ class EffectsPanelWidget(QWidget):
         self.spin_borde.setRange(1, 200)
         self.spin_borde.setValue(4)
         self.spin_borde.setFixedHeight(20)
+        self.spin_borde.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         self.spin_borde.setStyleSheet(spin_style)
         self.spin_borde.valueChanged.connect(self._emit)
         self.slot_borde = _EffectColorSlot(self, "borde_color")
@@ -285,6 +286,7 @@ class EffectsPanelWidget(QWidget):
         self.spin_glow.setRange(1, 200)
         self.spin_glow.setValue(10)
         self.spin_glow.setFixedHeight(20)
+        self.spin_glow.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         self.spin_glow.setStyleSheet(spin_style)
         self.spin_glow.valueChanged.connect(self._emit)
         self.slot_glow = _EffectColorSlot(self, "glow_color")
@@ -320,6 +322,7 @@ class EffectsPanelWidget(QWidget):
         self.spin_shadow.setRange(1, 200)
         self.spin_shadow.setValue(10)
         self.spin_shadow.setFixedHeight(20)
+        self.spin_shadow.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         self.spin_shadow.setStyleSheet(spin_style)
         self.spin_shadow.valueChanged.connect(self._emit)
         self.slot_shadow = _EffectColorSlot(self, "shadow_color")
@@ -349,7 +352,7 @@ class EffectsPanelWidget(QWidget):
 
         group_style = f"""
             QGroupBox {{
-                font-size: 9px;
+                font-size: 11px;
                 color: {txt_col};
                 font-weight: normal;
                 margin-top: 10px;
@@ -368,11 +371,11 @@ class EffectsPanelWidget(QWidget):
         for g in (self.group_borde, self.group_glow, self.group_shadow):
             g.setStyleSheet(group_style)
 
-        chk_style = f"color: {txt_col}; font-size: 9px;"
+        chk_style = f"color: {txt_col}; font-size: 11px;"
         for chk in (self.chk_borde, self.chk_glow, self.chk_shadow):
             chk.setStyleSheet(chk_style)
 
-        spin_style = f"font-size: 9px;"
+        spin_style = f"font-size: 11px;"
         for spin in (self.spin_borde, self.spin_glow, self.spin_shadow):
             spin.setStyleSheet(spin_style)
 

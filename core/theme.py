@@ -278,6 +278,17 @@ class ThemeManager:
             border-radius: 3px;
             padding: 2px 4px;
         }}
+        QSpinBox::up-button, QSpinBox::down-button, QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {{
+            width: 0px;
+            height: 0px;
+            border: none;
+            background: transparent;
+        }}
+        QSpinBox::up-arrow, QSpinBox::down-arrow, QDoubleSpinBox::up-arrow, QDoubleSpinBox::down-arrow {{
+            width: 0px;
+            height: 0px;
+            image: none;
+        }}
         QToolButton, QPushButton {{
             background-color: {btn_bg};
             color: {txt};

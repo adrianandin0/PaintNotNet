@@ -283,7 +283,7 @@ class ColorPanelWidget(QWidget):
         alpha_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.lbl_alpha = QLabel(t("Alfa:"))
-        self.lbl_alpha.setStyleSheet("font-size: 10px; font-weight: normal;")
+        self.lbl_alpha.setStyleSheet("font-size: 11px; font-weight: normal;")
         self.lbl_alpha.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.slider_alpha = QSlider(Qt.Orientation.Horizontal)
@@ -334,7 +334,7 @@ class ColorPanelWidget(QWidget):
 
         # 4. Slots de Usuario (Guardados - 1px de separación exacta)
         self.lbl_custom = QLabel("Guardadas:")
-        self.lbl_custom.setStyleSheet("font-size: 9px; font-weight: normal; margin-top: 2px;")
+        self.lbl_custom.setStyleSheet("font-size: 11px; font-weight: normal; margin-top: 2px;")
         layout.addWidget(self.lbl_custom, alignment=Qt.AlignmentFlag.AlignCenter)
 
         grid_custom = QGridLayout()

@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QToolBar, QWidget, QHBoxLayout, QLabel, QSpinBox, QSlider, QComboBox, QCheckBox, QStyle
+from PyQt6.QtWidgets import QToolBar, QWidget, QHBoxLayout, QLabel, QSpinBox, QSlider, QComboBox, QCheckBox, QStyle, QAbstractSpinBox
 from PyQt6.QtGui import QIcon, QAction
 from PyQt6.QtCore import Qt, QSize, pyqtSignal, QSettings
 
@@ -12,7 +12,7 @@ class TopToolBarWidget(QToolBar):
         self.main_window = main_window
         self.setMovable(False)
         self.setFloatable(False)
-        self.setIconSize(QSize(18, 18))
+        self.setIconSize(QSize(24, 24))
         self.setStyleSheet("QToolBar { spacing: 4px; padding: 2px; }")
 
         # 0. Nueva Pestaña (+)
@@ -65,6 +65,9 @@ class TopToolBarWidget(QToolBar):
         self.spin_grosor.setValue(3)
         self.spin_grosor.setSuffix(" px")
         self.spin_grosor.setFixedWidth(65)
+        self.spin_grosor.setFixedHeight(22)
+        self.spin_grosor.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        self.spin_grosor.setStyleSheet("font-size: 11px; padding: 1px 4px;")
         self.spin_grosor.valueChanged.connect(self._on_grosor_changed)
         self.addWidget(self.spin_grosor)
 
@@ -82,7 +85,7 @@ class TopToolBarWidget(QToolBar):
         self.slider_tol.valueChanged.connect(self._on_tolerancia_changed)
         self.addWidget(self.slider_tol)
 
-        self.lbl_tol_val = QLabel("32%")
+        self.lbl_tol_val = QLabel("50%")
         self.lbl_tol_val.setStyleSheet("font-size: 11px; font-weight: normal;")
         self.lbl_tol_val.setFixedWidth(36)
         self.lbl_tol_val.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
@@ -112,14 +115,15 @@ class TopToolBarWidget(QToolBar):
 
         # 9. Selector de Zoom
         self.lbl_zoom = QLabel()
-        self.lbl_zoom.setPixmap(QIcon("gui/iconos/zoom.png").pixmap(QSize(16, 16)))
+        self.lbl_zoom.setPixmap(QIcon("gui/iconos/zoom.png").pixmap(QSize(24, 24)))
         self.lbl_zoom.setToolTip("Zoom")
         self.lbl_zoom.setContentsMargins(4, 0, 2, 0)
         self.addWidget(self.lbl_zoom)
 
         self.combo_zoom = QComboBox()
         self.combo_zoom.setEditable(True)
-        self.combo_zoom.setFixedWidth(70)
+        self.combo_zoom.setFixedWidth(80)
+        self.combo_zoom.setFixedHeight(22)
         self.combo_zoom.addItems([
             "10%", "25%", "50%", "75%",
             "100%", "200%", "300%", "400%", "500%",
@@ -137,7 +141,7 @@ class TopToolBarWidget(QToolBar):
 
         # 10. Opciones de Línea
         self.lbl_linea = QLabel()
-        self.lbl_linea.setPixmap(QIcon("gui/iconos/line.png").pixmap(QSize(16, 16)))
+        self.lbl_linea.setPixmap(QIcon("gui/iconos/line.png").pixmap(QSize(24, 24)))
         self.lbl_linea.setToolTip("Línea")
         self.lbl_linea.setContentsMargins(4, 0, 2, 0)
         self.addWidget(self.lbl_linea)
@@ -197,7 +201,7 @@ class TopToolBarWidget(QToolBar):
 
         # 11. Opciones de Formas Geométrica
         self.lbl_formas = QLabel()
-        self.lbl_formas.setPixmap(QIcon("gui/iconos/shapes.png").pixmap(QSize(16, 16)))
+        self.lbl_formas.setPixmap(QIcon("gui/iconos/shapes.png").pixmap(QSize(24, 24)))
         self.lbl_formas.setToolTip("Formas")
         self.lbl_formas.setContentsMargins(4, 0, 2, 0)
         self.addWidget(self.lbl_formas)
@@ -231,20 +235,23 @@ class TopToolBarWidget(QToolBar):
 
         # 12. Opciones de Difuminar / Blur
         self.lbl_blur = QLabel()
-        self.lbl_blur.setPixmap(QIcon("gui/iconos/blur.png").pixmap(QSize(16, 16)))
+        self.lbl_blur.setPixmap(QIcon("gui/iconos/blur.png").pixmap(QSize(24, 24)))
         self.lbl_blur.setToolTip("Difuminar")
         self.lbl_blur.setContentsMargins(4, 0, 2, 0)
         self.addWidget(self.lbl_blur)
 
         settings = QSettings("PaintNotNet", "PaintNotNet")
         saved_mode = settings.value("blur_modo", "Pixelado")
+        if saved_mode == "Gausiano":
+            saved_mode = "Gaussiano"
         saved_val = int(settings.value("blur_val", 0))
 
         self.combo_blur_modo = QComboBox()
         self.combo_blur_modo.setStyleSheet("font-size: 11px; padding: 1px;")
-        self.combo_blur_modo.setFixedWidth(95)
+        self.combo_blur_modo.setFixedWidth(100)
+        self.combo_blur_modo.setFixedHeight(22)
         self.combo_blur_modo.addItem("Pixelado", "Pixelado")
-        self.combo_blur_modo.addItem("Gausiano", "Gausiano")
+        self.combo_blur_modo.addItem("Gaussiano", "Gaussiano")
         idx_mode = self.combo_blur_modo.findData(saved_mode)
         if idx_mode >= 0:
             self.combo_blur_modo.setCurrentIndex(idx_mode)
@@ -503,6 +510,6 @@ class TopToolBarWidget(QToolBar):
         if hasattr(self, 'combo_blur_modo'):
             self.combo_blur_modo.blockSignals(True)
             self.combo_blur_modo.setItemText(0, t("Pixelado"))
-            self.combo_blur_modo.setItemText(1, t("Gausiano"))
+            self.combo_blur_modo.setItemText(1, t("Gaussiano"))
             self.combo_blur_modo.blockSignals(False)
 

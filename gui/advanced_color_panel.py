@@ -1,7 +1,7 @@
 import math
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
-    QGridLayout, QLabel, QSpinBox, QLineEdit, QFrame, QScrollArea
+    QGridLayout, QLabel, QSpinBox, QLineEdit, QFrame, QScrollArea, QAbstractSpinBox
 )
 from PyQt6.QtGui import QColor, QPainter, QBrush, QPen, QLinearGradient
 from PyQt6.QtCore import Qt, QPointF, QRectF, pyqtSignal
@@ -132,9 +132,9 @@ class AdvancedColorPanelWidget(QWidget):
         self.modo_color = "primario"
         self._updating = False
 
-        lbl_style = "font-size: 9px;"
-        hdr_style = "font-size: 10px; font-weight: bold;"
-        input_style = "font-size: 9px; padding: 0px;"
+        lbl_style = "font-size: 11px;"
+        hdr_style = "font-size: 11px; font-weight: bold;"
+        input_style = "font-size: 11px; padding: 0px;"
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -166,7 +166,7 @@ class AdvancedColorPanelWidget(QWidget):
         btn_swap = QPushButton("⇄")
         btn_swap.setToolTip("Intercambiar Color Primario / Secundario (X)")
         btn_swap.setFixedSize(16, 16)
-        btn_swap.setStyleSheet("font-size: 10px; font-weight: bold; padding: 0px;")
+        btn_swap.setStyleSheet("font-size: 11px; font-weight: bold; padding: 0px;")
         btn_swap.clicked.connect(self.intercambiar_colores)
         row_top.addWidget(btn_swap)
 
@@ -195,6 +195,7 @@ class AdvancedColorPanelWidget(QWidget):
         self.spin_r.setRange(0, 255)
         self.spin_r.setFixedWidth(36)
         self.spin_r.setFixedHeight(16)
+        self.spin_r.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         self.spin_r.setStyleSheet(input_style)
         grid_rgb.addWidget(self.slider_r, 0, 1)
         grid_rgb.addWidget(self.spin_r, 0, 2)
@@ -208,6 +209,7 @@ class AdvancedColorPanelWidget(QWidget):
         self.spin_g.setRange(0, 255)
         self.spin_g.setFixedWidth(36)
         self.spin_g.setFixedHeight(16)
+        self.spin_g.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         self.spin_g.setStyleSheet(input_style)
         grid_rgb.addWidget(self.slider_g, 1, 1)
         grid_rgb.addWidget(self.spin_g, 1, 2)
@@ -221,6 +223,7 @@ class AdvancedColorPanelWidget(QWidget):
         self.spin_b.setRange(0, 255)
         self.spin_b.setFixedWidth(36)
         self.spin_b.setFixedHeight(16)
+        self.spin_b.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         self.spin_b.setStyleSheet(input_style)
         grid_rgb.addWidget(self.slider_b, 2, 1)
         grid_rgb.addWidget(self.spin_b, 2, 2)
@@ -260,6 +263,7 @@ class AdvancedColorPanelWidget(QWidget):
         self.spin_h.setRange(0, 360)
         self.spin_h.setFixedWidth(36)
         self.spin_h.setFixedHeight(16)
+        self.spin_h.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         self.spin_h.setStyleSheet(input_style)
         grid_msv.addWidget(self.slider_h, 0, 1)
         grid_msv.addWidget(self.spin_h, 0, 2)
@@ -273,6 +277,7 @@ class AdvancedColorPanelWidget(QWidget):
         self.spin_s.setRange(0, 100)
         self.spin_s.setFixedWidth(36)
         self.spin_s.setFixedHeight(16)
+        self.spin_s.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         self.spin_s.setStyleSheet(input_style)
         grid_msv.addWidget(self.slider_s, 1, 1)
         grid_msv.addWidget(self.spin_s, 1, 2)
@@ -286,6 +291,7 @@ class AdvancedColorPanelWidget(QWidget):
         self.spin_v.setRange(0, 100)
         self.spin_v.setFixedWidth(36)
         self.spin_v.setFixedHeight(16)
+        self.spin_v.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         self.spin_v.setStyleSheet(input_style)
         grid_msv.addWidget(self.slider_v, 2, 1)
         grid_msv.addWidget(self.spin_v, 2, 2)
