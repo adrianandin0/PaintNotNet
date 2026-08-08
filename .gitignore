@@ -28,6 +28,7 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+PaintNotNet/
 
 # PyInstaller / Nuitka / Py2exe build outputs
 *.manifest
