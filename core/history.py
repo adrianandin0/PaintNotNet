@@ -1,6 +1,6 @@
 class HistoryManager:
     """Maneja el historial lineal no destructivo de modificaciones con rama activa."""
-    def __init__(self, max_states=20):
+    def __init__(self, max_states=50):
         self.max_states = max_states
         self.history_stack = []
         self.current_index = -1

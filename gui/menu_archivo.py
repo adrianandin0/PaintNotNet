@@ -472,15 +472,27 @@ class MenuArchivo:
         from PyQt6.QtPrintSupport import QPrinter
         from PyQt6.QtGui import QPainter
         from PyQt6.QtCore import QRectF
-        from PyQt6.QtWidgets import QFileDialog, QMessageBox
+        from PyQt6.QtWidgets import QDialog, QMessageBox
+        from gui.dialogo_archivo import DialogoArchivo
         import os
 
-        ruta, _ = QFileDialog.getSaveFileName(
+        sug_nombre = "Documento.pdf"
+        canvas = getattr(self.ventana, 'lienzo', getattr(self.ventana, 'canvas', None))
+        if canvas and getattr(canvas, 'archivo_actual', None):
+            base = os.path.splitext(os.path.basename(canvas.archivo_actual))[0]
+            sug_nombre = f"{base}.pdf"
+
+        dialogo = DialogoArchivo(
             self.ventana,
-            t("Guardar PDF"),
-            os.path.expanduser("~"),
-            t("Archivos PDF (*.pdf)")
+            modo="guardar",
+            directorio=os.path.expanduser("~"),
+            filtros=[(t("Archivos PDF (*.pdf)"), "*.pdf")],
+            nombre_sugerido=sug_nombre,
+            titulo=t("Exportar a PDF")
         )
+        if dialogo.exec() != QDialog.DialogCode.Accepted:
+            return
+        ruta = dialogo.ruta_seleccionada()
         if not ruta:
             return
         if not ruta.lower().endswith(".pdf"):

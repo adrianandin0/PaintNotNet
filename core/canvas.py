@@ -801,13 +801,60 @@ class CanvasWidget(QWidget):
                 'visible': c.visible,
                 'image': c.image.copy()
             })
+        path = QPainterPath(self.selection_engine.active_path) if (hasattr(self.selection_engine, 'active_path') and self.selection_engine.has_selection()) else None
         return {
             'width': self.layer_mgr.width,
             'height': self.layer_mgr.height,
             'layers': capas_copy,
             'active_index': self.layer_mgr.indice_activo,
-            'floating_pkg': self.empaquetar_paquete_flotante() if (self.selection_engine.floating_image and not self.selection_engine.floating_image.isNull()) else None
+            'floating_pkg': self.empaquetar_paquete_flotante() if (self.selection_engine.floating_image and not self.selection_engine.floating_image.isNull()) else None,
+            'selection_path': path
         }
+
+    def _snapshots_son_iguales(self, s1, s2):
+        """Compara si dos snapshots del documento representan exactamente el mismo estado."""
+        if not isinstance(s1, dict) or not isinstance(s2, dict):
+            return False
+
+        if s1.get('width') != s2.get('width') or s1.get('height') != s2.get('height'):
+            return False
+        if s1.get('active_index') != s2.get('active_index'):
+            return False
+
+        # Comparar ruta de selección
+        p1 = s1.get('selection_path')
+        p2 = s2.get('selection_path')
+        p1_empty = (p1 is None or p1.isEmpty())
+        p2_empty = (p2 is None or p2.isEmpty())
+        if p1_empty != p2_empty:
+            return False
+        if not p1_empty and not p2_empty and p1 != p2:
+            return False
+
+        # Comparar paquete flotante (imagen flotante en movimiento/rotación)
+        pkg1 = s1.get('floating_pkg')
+        pkg2 = s2.get('floating_pkg')
+        if (pkg1 is None) != (pkg2 is None):
+            return False
+        if pkg1 and pkg2:
+            if pkg1.get('sub_index') != pkg2.get('sub_index'):
+                return False
+
+        # Comparar capas (visibilidad, nombre e imagen)
+        l1 = s1.get('layers', [])
+        l2 = s2.get('layers', [])
+        if len(l1) != len(l2):
+            return False
+
+        for lay1, lay2 in zip(l1, l2):
+            if lay1.get('name') != lay2.get('name') or lay1.get('visible') != lay2.get('visible'):
+                return False
+            img1 = lay1.get('image')
+            img2 = lay2.get('image')
+            if img1 != img2:
+                return False
+
+        return True
 
     def marcar_modificado(self, val=True):
         self.lienzo_modificado = val
@@ -817,8 +864,14 @@ class CanvasWidget(QWidget):
             self.main_window.actualizar_titulo_ventana()
 
     def push_document_state(self, action_name="Acción"):
-        """Guarda un estado completo del documento en el historial."""
+        """Guarda un estado completo del documento en el historial únicamente si se generaron cambios reales."""
         snap = self.obtener_snapshot_documento()
+
+        if self.history_mgr.history_stack and self.history_mgr.current_index >= 0:
+            last_snap, _ = self.history_mgr.history_stack[self.history_mgr.current_index]
+            if self._snapshots_son_iguales(last_snap, snap):
+                return
+
         self.history_mgr.push_state(snap, action_name=action_name)
         self.actualizar_historial_gui()
         if action_name != "Lienzo inicial":
@@ -874,6 +927,12 @@ class CanvasWidget(QWidget):
                     self.selection_engine.unscaled_floating_image = None
                     self.floating_sub_history = []
                     self.floating_sub_index = -1
+
+            selection_path = snap.get('selection_path')
+            if selection_path and not selection_path.isEmpty():
+                self.selection_engine.set_path(QPainterPath(selection_path))
+            elif not floating_pkg:
+                self.selection_engine.clear_selection()
 
             if hasattr(self, 'main_window') and self.main_window and hasattr(self.main_window, 'layers_panel'):
                 self.main_window.layers_panel.reconstruir_lista_capas()

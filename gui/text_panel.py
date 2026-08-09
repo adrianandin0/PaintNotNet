@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import (
     QSpinBox, QFontComboBox, QToolButton, QButtonGroup, QSizePolicy, QAbstractSpinBox
 )
 from PyQt6.QtGui import QFont, QColor, QIcon
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, QSize, pyqtSignal
 from core.i18n import t
 
 
@@ -61,33 +61,41 @@ class TextPanelWidget(QWidget):
         tam_layout.addWidget(self.spin_size)
         layout.addLayout(tam_layout)
 
-        # --- Estilos (B / I / U / S) ---
+        # --- Estilos (B / I / U / S con iconos) ---
         styles_layout = QHBoxLayout()
         styles_layout.setSpacing(2)
         styles_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.btn_bold = QPushButton("B")
+        self.btn_bold = QPushButton()
+        self.btn_bold.setIcon(QIcon("gui/iconos/bold.png"))
+        self.btn_bold.setIconSize(QSize(14, 14))
         self.btn_bold.setCheckable(True)
         self.btn_bold.setFixedSize(25, 21)
-        self.btn_bold.setStyleSheet("font-weight: bold; font-size: 11px; color: #EDEDED;")
+        self.btn_bold.setToolTip(t("Negrita"))
         self.btn_bold.toggled.connect(lambda c: self._emitir_cambio_parcial({"bold": c}))
 
-        self.btn_italic = QPushButton("I")
+        self.btn_italic = QPushButton()
+        self.btn_italic.setIcon(QIcon("gui/iconos/italics.png"))
+        self.btn_italic.setIconSize(QSize(14, 14))
         self.btn_italic.setCheckable(True)
         self.btn_italic.setFixedSize(25, 21)
-        self.btn_italic.setStyleSheet("font-style: italic; font-size: 11px; color: #EDEDED;")
+        self.btn_italic.setToolTip(t("Cursiva"))
         self.btn_italic.toggled.connect(lambda c: self._emitir_cambio_parcial({"italic": c}))
 
-        self.btn_underline = QPushButton("U")
+        self.btn_underline = QPushButton()
+        self.btn_underline.setIcon(QIcon("gui/iconos/underline.png"))
+        self.btn_underline.setIconSize(QSize(14, 14))
         self.btn_underline.setCheckable(True)
         self.btn_underline.setFixedSize(25, 21)
-        self.btn_underline.setStyleSheet("text-decoration: underline; font-size: 11px; color: #EDEDED;")
+        self.btn_underline.setToolTip(t("Subrayado"))
         self.btn_underline.toggled.connect(lambda c: self._emitir_cambio_parcial({"underline": c}))
 
-        self.btn_strike = QPushButton("S")
+        self.btn_strike = QPushButton()
+        self.btn_strike.setIcon(QIcon("gui/iconos/strikethrough.png"))
+        self.btn_strike.setIconSize(QSize(14, 14))
         self.btn_strike.setCheckable(True)
         self.btn_strike.setFixedSize(25, 21)
-        self.btn_strike.setStyleSheet("text-decoration: line-through; font-size: 11px; color: #EDEDED;")
+        self.btn_strike.setToolTip(t("Tachado"))
         self.btn_strike.toggled.connect(lambda c: self._emitir_cambio_parcial({"strike": c}))
 
         styles_layout.addWidget(self.btn_bold)
@@ -287,6 +295,14 @@ class TextPanelWidget(QWidget):
             self.lbl_fuente.setText(t("Fuente:"))
         if hasattr(self, 'lbl_tam'):
             self.lbl_tam.setText(t("Tamaño:"))
+        if hasattr(self, 'btn_bold'):
+            self.btn_bold.setToolTip(t("Negrita"))
+        if hasattr(self, 'btn_italic'):
+            self.btn_italic.setToolTip(t("Cursiva"))
+        if hasattr(self, 'btn_underline'):
+            self.btn_underline.setToolTip(t("Subrayado"))
+        if hasattr(self, 'btn_strike'):
+            self.btn_strike.setToolTip(t("Tachado"))
         if hasattr(self, 'btn_align_left'):
             self.btn_align_left.setToolTip(t("Alinear izquierda"))
         if hasattr(self, 'btn_align_center'):

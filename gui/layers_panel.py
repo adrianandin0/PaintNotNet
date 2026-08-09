@@ -54,12 +54,26 @@ class LayerRowWidget(QWidget):
             canvas.update()
 
     def actualizar_estado_visibilidad(self):
-        if self.capa.visible:
-            self.btn_eye.setStyleSheet("QToolButton { opacity: 1.0; border: none; }")
-            self.lbl_name.setStyleSheet("font-size: 11px;")
+        is_selected = False
+        if hasattr(self.panel, 'lista_capas'):
+            for i in range(self.panel.lista_capas.count()):
+                item = self.panel.lista_capas.item(i)
+                if self.panel.lista_capas.itemWidget(item) == self:
+                    is_selected = item.isSelected()
+                    break
+        self.actualizar_estilo(is_selected)
+
+    def actualizar_estilo(self, is_selected=False):
+        if not self.capa.visible:
+            color_str = "#D0D0D0" if is_selected else "#777777"
+            self.lbl_name.setStyleSheet(f"font-size: 11px; color: {color_str}; text-decoration: line-through; background: transparent;")
+            self.btn_eye.setStyleSheet("QToolButton { opacity: 0.3; background: transparent; border: none; }")
         else:
-            self.btn_eye.setStyleSheet("QToolButton { opacity: 0.2; background: transparent; border: none; }")
-            self.lbl_name.setStyleSheet("font-size: 11px; color: #777777; text-decoration: line-through;")
+            if is_selected:
+                self.lbl_name.setStyleSheet("font-size: 11px; color: #FFFFFF; background: transparent;")
+            else:
+                self.lbl_name.setStyleSheet("font-size: 11px; color: inherit; background: transparent;")
+            self.btn_eye.setStyleSheet("QToolButton { opacity: 1.0; background: transparent; border: none; }")
 
 
 class LayersPanelWidget(QWidget):
@@ -75,7 +89,6 @@ class LayersPanelWidget(QWidget):
         self.lista_capas = QListWidget()
         self.lista_capas.setStyleSheet("""
             QListWidget { font-size: 11px; }
-            QListWidget::item:selected QLabel { color: #FFFFFF !important; }
         """)
         self.lista_capas.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.lista_capas.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
@@ -85,6 +98,7 @@ class LayersPanelWidget(QWidget):
         self.lista_capas.customContextMenuRequested.connect(self._mostrar_menu_contextual)
         self.lista_capas.itemDoubleClicked.connect(self._renombrar_capa_dialogo)
         self.lista_capas.model().rowsMoved.connect(self._on_rows_moved)
+        self.lista_capas.itemSelectionChanged.connect(self.actualizar_estilo_filas)
         layout.addWidget(self.lista_capas)
 
         btn_layout = QHBoxLayout()
@@ -184,7 +198,15 @@ class LayersPanelWidget(QWidget):
         idx_activo = max(0, min(mgr.indice_activo, len(mgr.capas) - 1))
         mgr.indice_activo = idx_activo
         self.lista_capas.setCurrentRow(idx_activo)
+        self.actualizar_estilo_filas()
         self.lista_capas.blockSignals(False)
+
+    def actualizar_estilo_filas(self):
+        for i in range(self.lista_capas.count()):
+            item = self.lista_capas.item(i)
+            row_widget = self.lista_capas.itemWidget(item)
+            if row_widget and hasattr(row_widget, 'actualizar_estilo'):
+                row_widget.actualizar_estilo(item.isSelected())
 
     def agregar_capa(self):
         canvas = self.obtener_canvas()

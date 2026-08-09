@@ -3,8 +3,8 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
     QGridLayout, QLabel, QSpinBox, QSlider, QLineEdit
 )
-from PyQt6.QtGui import QColor, QPainter, QBrush, QPen, QConicalGradient
-from PyQt6.QtCore import Qt, QPointF, QRectF, pyqtSignal
+from PyQt6.QtGui import QColor, QPainter, QBrush, QPen, QConicalGradient, QIcon
+from PyQt6.QtCore import Qt, QPointF, QRectF, QSize, pyqtSignal
 from core.i18n import t
 
 
@@ -277,9 +277,11 @@ class ColorPanelWidget(QWidget):
         self.muestra_container.primario_clicked.connect(lambda: self.set_modo("primario"))
         self.muestra_container.secundario_clicked.connect(lambda: self.set_modo("secundario"))
 
-        btn_swap = QPushButton("⇆")
+        btn_swap = QPushButton()
+        btn_swap.setIcon(QIcon("gui/iconos/switch.png"))
+        btn_swap.setIconSize(QSize(14, 14))
         btn_swap.setFixedSize(20, 20)
-        btn_swap.setStyleSheet("font-size: 11px; padding: 0;")
+        btn_swap.setStyleSheet("padding: 0;")
         btn_swap.setToolTip(t("Intercambiar colores"))
         btn_swap.clicked.connect(self.intercambiar_colores)
 

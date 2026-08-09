@@ -1,5 +1,5 @@
 from PyQt6.QtCore import Qt, QPointF, QRectF, QRect
-from PyQt6.QtGui import QImage, QPainter, QTransform, QColor
+from PyQt6.QtGui import QImage, QPainter, QTransform, QColor, QPainterPath
 from PyQt6.QtWidgets import QApplication
 from tools.base_tool import BaseTool
 
@@ -26,6 +26,18 @@ class MoveSelectPixelsTool(BaseTool):
                 canvas.floating_initial_canvas = buffer.copy()
 
                 engine.floating_image = buffer.copy(rect)
+
+                if not engine.active_path.isEmpty():
+                    masked = QImage(rect.size(), QImage.Format.Format_ARGB32_Premultiplied)
+                    masked.fill(Qt.GlobalColor.transparent)
+                    mpainter = QPainter(masked)
+                    local_path = QPainterPath(engine.active_path)
+                    local_path.translate(-QPointF(rect.topLeft()))
+                    mpainter.setClipPath(local_path)
+                    mpainter.drawImage(0, 0, engine.floating_image)
+                    mpainter.end()
+                    engine.floating_image = masked
+
                 engine.unscaled_floating_image = engine.floating_image.copy()
                 engine.original_image_pos = QPointF(rect.topLeft())
                 engine.is_new_content = False
@@ -65,11 +77,7 @@ class MoveSelectPixelsTool(BaseTool):
         if engine.floating_image and not engine.floating_image.isNull():
             buffer = canvas.layer_mgr.buffer
             painter = QPainter(buffer)
-            es_contenido_nuevo = getattr(engine, 'is_new_content', False)
-            if not engine.active_path.isEmpty() and not es_contenido_nuevo:
-                painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
-                painter.fillPath(engine.active_path, Qt.GlobalColor.transparent)
-                painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
             painter.drawImage(engine.original_image_pos, engine.floating_image)
             painter.end()
             engine.floating_image = None

@@ -3,10 +3,11 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
     QGridLayout, QLabel, QSpinBox, QLineEdit, QFrame, QScrollArea, QAbstractSpinBox
 )
-from PyQt6.QtGui import QColor, QPainter, QBrush, QPen, QLinearGradient
-from PyQt6.QtCore import Qt, QPointF, QRectF, pyqtSignal
+from PyQt6.QtGui import QColor, QPainter, QBrush, QPen, QLinearGradient, QIcon
+from PyQt6.QtCore import Qt, QPointF, QRectF, QSize, pyqtSignal
 
 from gui.color_panel import ColorButton, CustomSlotButton, ColorMuestraWidget, ColorWheel
+from core.i18n import t
 
 
 class GradientSliderWidget(QWidget):
@@ -155,18 +156,20 @@ class AdvancedColorPanelWidget(QWidget):
         # 1. Muestras Superpuestas + Botón Swap + Rueda de Color Centrada
         row_top = QHBoxLayout()
         row_top.setContentsMargins(0, 0, 0, 0)
-        row_top.setSpacing(2)
+        row_top.setSpacing(6)
 
         self.muestras = ColorMuestraWidget()
-        self.muestras.setFixedSize(34, 24)
+        self.muestras.setFixedSize(42, 30)
         self.muestras.primario_clicked.connect(lambda: self.set_modo_color("primario"))
         self.muestras.secundario_clicked.connect(lambda: self.set_modo_color("secundario"))
         row_top.addWidget(self.muestras)
 
-        btn_swap = QPushButton("⇄")
-        btn_swap.setToolTip("Intercambiar Color Primario / Secundario (X)")
-        btn_swap.setFixedSize(16, 16)
-        btn_swap.setStyleSheet("font-size: 11px; font-weight: bold; padding: 0px;")
+        btn_swap = QPushButton()
+        btn_swap.setIcon(QIcon("gui/iconos/switch.png"))
+        btn_swap.setIconSize(QSize(14, 14))
+        btn_swap.setToolTip(t("Intercambiar Color Primario / Secundario (X)"))
+        btn_swap.setFixedSize(20, 20)
+        btn_swap.setStyleSheet("padding: 0;")
         btn_swap.clicked.connect(self.intercambiar_colores)
         row_top.addWidget(btn_swap)
 

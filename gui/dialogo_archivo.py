@@ -95,7 +95,7 @@ def _lugares_rapidos():
     return lugares
 
 
-def _icono_archivo(ruta, thumb_size=48):
+def _icono_archivo(ruta, thumb_size=24):
     """Devuelve QIcon: miniatura para imágenes, pnn.png para .pnn, folder para dirs, picture para el resto."""
     if os.path.isdir(ruta):
         return _ico('folder.png')
@@ -276,9 +276,9 @@ class DialogoArchivo(QDialog):
         # Panel derecho – Contenido
         self.lista_archivos = QListWidget()
         self.lista_archivos.setViewMode(QListWidget.ViewMode.ListMode)
-        self.lista_archivos.setIconSize(QSize(48, 48))
-        self.lista_archivos.setSpacing(2)
-        self.lista_archivos.setUniformItemSizes(False)
+        self.lista_archivos.setIconSize(QSize(24, 24))
+        self.lista_archivos.setSpacing(1)
+        self.lista_archivos.setUniformItemSizes(True)
         self.lista_archivos.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.lista_archivos.itemDoubleClicked.connect(self._item_doble_clic)
         self.lista_archivos.itemClicked.connect(self._item_clic)
@@ -651,17 +651,18 @@ class DialogoArchivo(QDialog):
             item = QListWidgetItem(_ico('folder.png'), nombre)
             item.setData(Qt.ItemDataRole.UserRole, ruta)
             item.setData(Qt.ItemDataRole.UserRole + 1, 'dir')
-            item.setSizeHint(QSize(0, 58))
+            item.setSizeHint(QSize(0, 28))
             self.lista_archivos.addItem(item)
 
         for nombre in archivos:
             ruta = os.path.join(directorio, nombre)
-            icono = _icono_archivo(ruta, 48)
+            icono = _icono_archivo(ruta, 24)
             tam_str = _formato_tamano(os.path.getsize(ruta))
-            item = QListWidgetItem(icono, f"{nombre}\n{tam_str}")
+            item = QListWidgetItem(icono, f"{nombre}  ({tam_str})")
             item.setData(Qt.ItemDataRole.UserRole, ruta)
             item.setData(Qt.ItemDataRole.UserRole + 1, 'file')
-            item.setSizeHint(QSize(0, 58))
+            item.setToolTip(f"{nombre}\n{tam_str}")
+            item.setSizeHint(QSize(0, 28))
             self.lista_archivos.addItem(item)
 
     def _cambiar_filtro(self, idx):
