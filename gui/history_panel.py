@@ -15,7 +15,7 @@ class HistoryPanelWidget(QWidget):
         layout.setSpacing(4)
 
         self.list_widget = QListWidget()
-        self.list_widget.setStyleSheet("QListWidget { font-size: 10px; }")
+        self.list_widget.setStyleSheet("QListWidget { font-size: 11px; }")
         self.list_widget.itemClicked.connect(self._on_item_clicked)
         layout.addWidget(self.list_widget)
 
