@@ -421,3 +421,25 @@ class EffectsPanelWidget(QWidget):
             chk.setText(t("Ancho:"))
         for slot in (self.slot_borde, self.slot_glow, self.slot_shadow):
             slot._refresh_ui()
+
+    def reset_to_defaults(self):
+        settings = QSettings("PaintNotNet", "EffectsPanel")
+        settings.clear()
+
+        self.slot_borde.set_color_external(None)
+        self.slot_glow.set_color_external(None)
+        self.slot_shadow.set_color_external(None)
+
+        self.chk_borde.setChecked(False)
+        self.chk_glow.setChecked(False)
+        self.chk_shadow.setChecked(False)
+
+        self.spin_borde.setValue(4)
+        self.spin_glow.setValue(10)
+        self.spin_shadow.setValue(10)
+
+        self.light_widget.light_x = 0.5
+        self.light_widget.light_y = 0.5
+        self.light_widget.update()
+
+        self._emit()

@@ -64,15 +64,20 @@ class LayerRowWidget(QWidget):
         self.actualizar_estilo(is_selected)
 
     def actualizar_estilo(self, is_selected=False):
+        from core.theme import ThemeManager
+        tm = ThemeManager()
+        is_light = (tm.resolver_nombre_tema(tm.current_theme) == "Claro")
+
         if not self.capa.visible:
-            color_str = "#D0D0D0" if is_selected else "#777777"
+            color_str = "#D0D0D0" if is_selected else ("#777777" if is_light else "#AAAAAA")
             self.lbl_name.setStyleSheet(f"font-size: 11px; color: {color_str}; text-decoration: line-through; background: transparent;")
             self.btn_eye.setStyleSheet("QToolButton { opacity: 0.3; background: transparent; border: none; }")
         else:
             if is_selected:
-                self.lbl_name.setStyleSheet("font-size: 11px; color: #FFFFFF; background: transparent;")
+                color_str = "#FFFFFF"
             else:
-                self.lbl_name.setStyleSheet("font-size: 11px; color: inherit; background: transparent;")
+                color_str = "#000000" if is_light else "#FFFFFF"
+            self.lbl_name.setStyleSheet(f"font-size: 11px; color: {color_str}; background: transparent;")
             self.btn_eye.setStyleSheet("QToolButton { opacity: 1.0; background: transparent; border: none; }")
 
 

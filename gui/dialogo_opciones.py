@@ -13,7 +13,7 @@ class DialogoOpciones(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle(t("Preferencias de usuario"))
-        self.setFixedSize(370, 330)
+        self.setFixedSize(460, 335)
 
         self.setStyleSheet("""
             QDialog {
@@ -154,11 +154,25 @@ class DialogoOpciones(QDialog):
         group_format.setLayout(layout_format)
         layout.addWidget(group_format)
 
-        # 5. Guardar cambios al cerrar
+        # 5. Guardar cambios al cerrar y Eliminar preferencias
+        layout_chk = QHBoxLayout()
+        layout_chk.setContentsMargins(0, 0, 0, 0)
+
         self.chk_save_on_close = QCheckBox(t("Guardar cambios al cerrar"))
         save_on_close = self.settings.value("save_on_close", True, type=bool)
         self.chk_save_on_close.setChecked(save_on_close)
-        layout.addWidget(self.chk_save_on_close)
+        layout_chk.addWidget(self.chk_save_on_close)
+
+        layout_chk.addStretch()
+
+        self.btn_reset_prefs = QPushButton(t("Eliminar preferencias de usuario"))
+        self.btn_reset_prefs.setIcon(QIcon("gui/iconos/bin.png"))
+        self.btn_reset_prefs.setIconSize(QSize(14, 14))
+        self.btn_reset_prefs.setToolTip(t("Eliminar todas las preferencias y restablecer a valores de fábrica"))
+        self.btn_reset_prefs.clicked.connect(self._on_reset_preferences)
+        layout_chk.addWidget(self.btn_reset_prefs)
+
+        layout.addLayout(layout_chk)
 
         # Botones Aceptar / Cancelar
         layout_buttons = QHBoxLayout()
@@ -189,6 +203,32 @@ class DialogoOpciones(QDialog):
         )
         if dialogo.exec() and dialogo.ruta_seleccionada():
             self.input_dir.setText(dialogo.ruta_seleccionada())
+
+    def _on_reset_preferences(self):
+        from PyQt6.QtWidgets import QMessageBox
+
+        confirm = QMessageBox.question(
+            self,
+            t("Eliminar preferencias"),
+            t("¿Estás seguro de que deseas eliminar todas las preferencias de usuario y restablecer el programa a los valores predeterminados de fábrica?"),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        if confirm == QMessageBox.StandardButton.Yes:
+            parent = self.parent()
+            if parent and hasattr(parent, 'reset_panel_layout_and_preferences'):
+                parent.reset_panel_layout_and_preferences()
+            else:
+                QSettings("PaintNotNet", "PaintNotNet").clear()
+                QSettings("PaintNotNet", "EffectsPanel").clear()
+                QSettings("PaintNotNet", "RecentFiles").clear()
+
+            QMessageBox.information(
+                self,
+                t("Preferencias eliminadas"),
+                t("Las preferencias se han eliminado. El programa se restablecerá completamente al reiniciar la aplicación.")
+            )
+            self.accept()
 
     def _on_accept(self):
         from core.i18n import I18nManager

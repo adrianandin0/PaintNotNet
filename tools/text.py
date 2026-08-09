@@ -1007,9 +1007,12 @@ class TextTool(BaseTool, QObject):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         oy = self._origin().y()
 
-        # Clipear al text_rect en modo rect (texto no desborda los límites)
-        if self.text_rect:
+        # Clipear al text_rect solo si NO hay efectos activos (borde, resplandor, sombra)
+        has_effects = (borde_en or glow_en or shadow_en)
+        clip_applied = False
+        if self.text_rect and not has_effects:
             painter.setClipRect(self.text_rect)
+            clip_applied = True
 
         # ── Selección ────────────────────────────────────────────────────
         if not is_commit and self._has_selection():
@@ -1107,7 +1110,7 @@ class TextTool(BaseTool, QObject):
                 y += lh
 
         # Restaurar clip
-        if self.text_rect:
+        if clip_applied:
             painter.setClipping(False)
 
     def _draw_path(self, painter, path, color,

@@ -197,8 +197,15 @@ class PaintNotNet(QMainWindow):
         return widget
 
     def _cargar_perfil_usuario(self):
-
         settings = QSettings("PaintNotNet", "PaintNotNet")
+        saved_vis = settings.value("docks_visible", None)
+        if isinstance(saved_vis, dict):
+            for attr, is_vis in saved_vis.items():
+                if hasattr(self, attr):
+                    getattr(self, attr).setVisible(bool(is_vis))
+        else:
+            self.effects_dock.setVisible(False)
+
         if settings.value("save_on_close", True, type=bool):
             custom_hexs = settings.value("custom_colors", None)
             if custom_hexs and isinstance(custom_hexs, list):
@@ -208,6 +215,52 @@ class PaintNotNet(QMainWindow):
                         if c.isValid():
                             self.color_panel.custom_colors[idx] = c
                             self.color_panel.botones_custom[idx].set_color(c)
+                        else:
+                            self.color_panel.custom_colors[idx] = None
+                            self.color_panel.botones_custom[idx].set_color(None)
+                    else:
+                        self.color_panel.custom_colors[idx] = None
+                        self.color_panel.botones_custom[idx].set_color(None)
+            else:
+                if hasattr(self, 'color_panel') and self.color_panel:
+                    self.color_panel.custom_colors = [None] * 12
+                    for btn in self.color_panel.botones_custom:
+                        btn.set_color(None)
+
+    def reset_panel_layout_and_preferences(self):
+        """Restablece la aplicación a 0 (valores de fábrica)."""
+        QSettings("PaintNotNet", "PaintNotNet").clear()
+        QSettings("PaintNotNet", "EffectsPanel").clear()
+        QSettings("PaintNotNet", "RecentFiles").clear()
+
+        docks_visibles = {
+            'tools_dock': True,
+            'brushes_dock': True,
+            'color_dock': True,
+            'text_dock': True,
+            'advanced_color_dock': True,
+            'effects_dock': False,
+            'history_dock': True,
+            'layers_dock': True,
+        }
+        for attr, vis in docks_visibles.items():
+            if hasattr(self, attr):
+                getattr(self, attr).setVisible(vis)
+
+        if hasattr(self, 'color_panel') and self.color_panel:
+            self.color_panel.custom_colors = [None] * 12
+            if hasattr(self.color_panel, 'botones_custom'):
+                for btn in self.color_panel.botones_custom:
+                    btn.set_color(None)
+
+        if hasattr(self, 'effects_panel') and self.effects_panel:
+            self.effects_panel.reset_to_defaults()
+
+        from core.theme import ThemeManager
+        from core.i18n import I18nManager
+        ThemeManager().establecer_tema("Definido por el sistema", self)
+        I18nManager().establecer_idioma("Español")
+        self.retraducir_ui()
 
     def _on_color_primario_changed(self, color):
         if hasattr(self, 'canvas') and self.canvas:
@@ -651,7 +704,13 @@ class PaintNotNet(QMainWindow):
 
         settings = QSettings("PaintNotNet", "PaintNotNet")
         settings.setValue("geometry", self.saveGeometry())
-        settings.setValue("windowState", self.saveState())
+
+        docks_attr = [
+            'tools_dock', 'color_dock', 'brushes_dock', 'text_dock',
+            'effects_dock', 'layers_dock', 'history_dock', 'advanced_color_dock'
+        ]
+        docks_visibles = {attr: getattr(self, attr).isVisible() for attr in docks_attr if hasattr(self, attr)}
+        settings.setValue("docks_visible", docks_visibles)
 
         if settings.value("save_on_close", True, type=bool):
             if hasattr(self, 'color_panel'):

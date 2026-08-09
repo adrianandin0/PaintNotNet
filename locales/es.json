@@ -210,5 +210,11 @@
   "Color de borde": "Color de borde",
   "Color de resplandor": "Color de resplandor",
   "Color de sombra": "Color de sombra",
-  "Dirección de luz": "Dirección de luz"
+  "Dirección de luz": "Dirección de luz",
+  "Eliminar preferencias de usuario": "Eliminar preferencias de usuario",
+  "Eliminar todas las preferencias y restablecer a valores de fábrica": "Eliminar todas las preferencias y restablecer a valores de fábrica",
+  "Eliminar preferencias": "Eliminar preferencias",
+  "¿Estás seguro de que deseas eliminar todas las preferencias de usuario y restablecer el programa a los valores predeterminados de fábrica?": "¿Estás seguro de que deseas eliminar todas las preferencias de usuario y restablecer el programa a los valores predeterminados de fábrica?",
+  "Preferencias eliminadas": "Preferencias eliminadas",
+  "Las preferencias se han eliminado. El programa se restablecerá completamente al reiniciar la aplicación.": "Las preferencias se han eliminado. El programa se restablecerá completamente al reiniciar la aplicación."
 }
