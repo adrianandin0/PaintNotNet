@@ -550,6 +550,15 @@ class MenuArchivo:
         btn_no = msg_box.addButton(t("No"), QMessageBox.ButtonRole.NoRole)
         btn_cancelar = msg_box.addButton(t("Cancelar"), QMessageBox.ButtonRole.RejectRole)
 
+        # Aplicar margen y tamaño mínimo pura y exclusivamente a este cuadro emergente
+        msg_box.setStyleSheet("""
+            QPushButton {
+                min-width: 65px;
+                min-height: 24px;
+                padding: 4px 14px;
+            }
+        """)
+
         msg_box.exec()
         btn = msg_box.clickedButton()
 
