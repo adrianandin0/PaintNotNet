@@ -161,6 +161,9 @@ class TopToolBarWidget(QToolBar):
                 width: 0px;
                 height: 0px;
             }
+            QComboBox QAbstractItemView {
+                min-width: 34px;
+            }
         """
 
         self.combo_linea_inicio = QComboBox()
