@@ -150,6 +150,10 @@ class TopToolBarWidget(QToolBar):
             QComboBox {
                 padding: 1px 2px;
                 font-size: 11px;
+                outline: 0;
+            }
+            QComboBox:focus {
+                outline: 0;
             }
             QComboBox::drop-down {
                 width: 0px;
@@ -163,11 +167,25 @@ class TopToolBarWidget(QToolBar):
             }
             QComboBox QAbstractItemView {
                 min-width: 34px;
+                outline: 0;
+                border: 1px solid #555555;
+            }
+            QComboBox QAbstractItemView::item {
+                border: none;
+                outline: 0;
+                padding: 3px 4px;
+            }
+            QComboBox QAbstractItemView::item:selected, QComboBox QAbstractItemView::item:hover {
+                border: none;
+                outline: 0;
+                background-color: #0066CC;
+                color: #FFFFFF;
             }
         """
 
         self.combo_linea_inicio = QComboBox()
         self.combo_linea_inicio.setStyleSheet(combo_style)
+        self.combo_linea_inicio.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.combo_linea_inicio.setIconSize(QSize(18, 18))
         self.combo_linea_inicio.setFixedWidth(24)
         self.combo_linea_inicio.addItem(QIcon("gui/iconos/plain_point_left.png"), "", "Plana")
@@ -180,6 +198,7 @@ class TopToolBarWidget(QToolBar):
 
         self.combo_linea_estilo = QComboBox()
         self.combo_linea_estilo.setStyleSheet(combo_style)
+        self.combo_linea_estilo.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.combo_linea_estilo.setIconSize(QSize(18, 18))
         self.combo_linea_estilo.setFixedWidth(24)
         self.combo_linea_estilo.addItem(QIcon("gui/iconos/flat.png"), "", "Recta")
@@ -190,6 +209,7 @@ class TopToolBarWidget(QToolBar):
 
         self.combo_linea_fin = QComboBox()
         self.combo_linea_fin.setStyleSheet(combo_style)
+        self.combo_linea_fin.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.combo_linea_fin.setIconSize(QSize(18, 18))
         self.combo_linea_fin.setFixedWidth(24)
         self.combo_linea_fin.addItem(QIcon("gui/iconos/plain_point_right.png"), "", "Plana")
@@ -216,6 +236,7 @@ class TopToolBarWidget(QToolBar):
 
         self.combo_forma_estilo = QComboBox()
         self.combo_forma_estilo.setStyleSheet(combo_style)
+        self.combo_forma_estilo.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.combo_forma_estilo.setIconSize(QSize(18, 18))
         self.combo_forma_estilo.setFixedWidth(24)
         self.combo_forma_estilo.addItem(QIcon("gui/iconos/shape.png"), "", "Solo Borde")
@@ -227,6 +248,7 @@ class TopToolBarWidget(QToolBar):
 
         self.combo_forma_tipo = QComboBox()
         self.combo_forma_tipo.setStyleSheet(combo_style)
+        self.combo_forma_tipo.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.combo_forma_tipo.setIconSize(QSize(18, 18))
         self.combo_forma_tipo.setFixedWidth(24)
         self.combo_forma_tipo.addItem(QIcon("gui/iconos/shape_rectangle.png"), "", "Rectángulo")

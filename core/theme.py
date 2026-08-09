@@ -277,6 +277,29 @@ class ThemeManager:
             border: 1px solid {brd};
             border-radius: 3px;
             padding: 2px 4px;
+            outline: 0;
+        }}
+        QComboBox:focus {{
+            outline: 0;
+        }}
+        QComboBox QAbstractItemView {{
+            background-color: {inp_bg};
+            color: {txt};
+            border: 1px solid {brd};
+            outline: 0;
+            selection-background-color: {acc};
+            selection-color: #FFFFFF;
+        }}
+        QComboBox QAbstractItemView::item {{
+            border: none;
+            outline: 0;
+            padding: 3px 5px;
+        }}
+        QComboBox QAbstractItemView::item:selected, QComboBox QAbstractItemView::item:hover {{
+            background-color: {acc};
+            color: #FFFFFF;
+            border: none;
+            outline: 0;
         }}
         QSpinBox::up-button, QSpinBox::down-button, QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {{
             width: 0px;
