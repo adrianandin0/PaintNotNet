@@ -185,6 +185,17 @@ class ColorWheel(QWidget):
         self.sat = 255
         self.val = 255
 
+    def set_color(self, color):
+        qcol = QColor(color)
+        if not qcol.isValid():
+            return
+        h, s, v, _ = qcol.getHsv()
+        if h >= 0:
+            self.hue = h
+        self.sat = s
+        self.val = v
+        self.update()
+
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)

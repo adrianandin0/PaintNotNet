@@ -219,6 +219,7 @@ class TopToolBarWidget(QToolBar):
         self.combo_forma_estilo.addItem(QIcon("gui/iconos/shapes_solid.png"), "", "Forma Sólida")
         self.combo_forma_estilo.addItem(QIcon("gui/iconos/shapes_colored.png"), "", "Borde y Relleno")
         self.combo_forma_estilo.setToolTip("Estilo de Forma: Solo Borde")
+        self.combo_forma_estilo.currentIndexChanged.connect(self._on_forma_estilo_changed)
         self.addWidget(self.combo_forma_estilo)
 
         self.combo_forma_tipo = QComboBox()
@@ -228,7 +229,13 @@ class TopToolBarWidget(QToolBar):
         self.combo_forma_tipo.addItem(QIcon("gui/iconos/shape_rectangle.png"), "", "Rectángulo")
         self.combo_forma_tipo.addItem(QIcon("gui/iconos/shape_triangle.png"), "", "Triángulo")
         self.combo_forma_tipo.addItem(QIcon("gui/iconos/shape_circle.png"), "", "Elipse")
+        self.combo_forma_tipo.addItem(QIcon("gui/iconos/shape_cloud.png"), "", "Nube")
+        self.combo_forma_tipo.addItem(QIcon("gui/iconos/shape_heart.png"), "", "Corazón")
+        self.combo_forma_tipo.addItem(QIcon("gui/iconos/shape_chat.png"), "", "Chat")
+        self.combo_forma_tipo.addItem(QIcon("gui/iconos/shape_star.png"), "", "Estrella")
+        self.combo_forma_tipo.addItem(QIcon("gui/iconos/shape_flower.png"), "", "Flor")
         self.combo_forma_tipo.setToolTip("Tipo de Forma: Rectángulo")
+        self.combo_forma_tipo.currentIndexChanged.connect(self._on_forma_tipo_changed)
         self.addWidget(self.combo_forma_tipo)
 
         self.addSeparator()
@@ -466,6 +473,16 @@ class TopToolBarWidget(QToolBar):
         if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
             self.main_window.lienzo.linea_cap_fin = val
             self.main_window.lienzo.update()
+
+    def _on_forma_tipo_changed(self, idx):
+        from core.i18n import t
+        val = self.combo_forma_tipo.itemData(idx) or "Rectángulo"
+        self.combo_forma_tipo.setToolTip(f"{t('Tipo de Forma:')} {t(val)}")
+
+    def _on_forma_estilo_changed(self, idx):
+        from core.i18n import t
+        val = self.combo_forma_estilo.itemData(idx) or "Solo Borde"
+        self.combo_forma_estilo.setToolTip(f"{t('Estilo de Forma:')} {t(val)}")
 
     def retraducir_toolbar(self):
         from core.i18n import t

@@ -697,6 +697,8 @@ class CanvasWidget(QWidget):
         }
 
     def restaurar_paquete_flotante(self, pkg):
+        if not pkg or 'initial_canvas' not in pkg:
+            return
         self.floating_initial_canvas = pkg['initial_canvas'].copy()
         self.floating_sub_history = [
             {
@@ -707,10 +709,13 @@ class CanvasWidget(QWidget):
                 'rotation_angle': float(snap['rotation_angle']),
                 'original_image_pos': QPointF(snap['original_image_pos']),
                 'label': snap['label']
-            } for snap in pkg['sub_history']
+            } for snap in pkg.get('sub_history', [])
         ]
-        self.floating_sub_index = pkg['sub_index']
-        self.restaurar_sub_estado_flotante(self.floating_sub_history[self.floating_sub_index])
+        self.floating_sub_index = pkg.get('sub_index', -1)
+        if self.floating_sub_history:
+            idx = max(0, min(self.floating_sub_index, len(self.floating_sub_history) - 1))
+            self.floating_sub_index = idx
+            self.restaurar_sub_estado_flotante(self.floating_sub_history[idx])
         if hasattr(self, 'main_window') and self.main_window:
             self.main_window.activar_herramienta_mover()
 

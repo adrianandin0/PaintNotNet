@@ -413,6 +413,9 @@ class AdvancedColorPanelWidget(QWidget):
         self.slider_v.set_value(v_pct)
         self.spin_v.setValue(v_pct)
 
+        if hasattr(self, 'color_wheel') and self.color_wheel:
+            self.color_wheel.set_color(color)
+
         self.muestras.set_colores(self.color_primario, self.color_secundario, self.modo_color)
         self._updating = False
 
