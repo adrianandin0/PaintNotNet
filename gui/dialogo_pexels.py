@@ -1,5 +1,5 @@
 """
-gui/dialogo_pexels.py — Diálogo de búsqueda e inserción de imágenes desde Internet (DuckDuckGo Search sin API key).
+gui/dialogo_pexels.py — Diálogo de búsqueda e inserción de imágenes desde Internet con paginación (40 por página).
 """
 import os
 from PyQt6.QtWidgets import (
@@ -20,14 +20,15 @@ from core.pexels import PexelsAPIClient
 class _SearchWorker(QThread):
     results_ready = pyqtSignal(list, str)
 
-    def __init__(self, query: str, is_transparent: bool):
+    def __init__(self, query: str, is_transparent: bool, page: int = 1):
         super().__init__()
         self.query = query
         self.is_transparent = is_transparent
+        self.page = page
 
     def run(self):
         try:
-            photos = PexelsAPIClient.search_photos(self.query, "DuckDuckGo", self.is_transparent)
+            photos = PexelsAPIClient.search_photos(self.query, "DuckDuckGo", self.is_transparent, page=self.page, per_page=40)
             self.results_ready.emit(photos, "")
         except Exception as e:
             self.results_ready.emit([], str(e))
@@ -83,29 +84,8 @@ class _ImageCardWidget(QPushButton):
         if data:
             qimg = QImage.fromData(data)
             if not qimg.isNull():
-                if self.parent_dialog and hasattr(self.parent_dialog, 'chk_transparent'):
-                    if self.parent_dialog.chk_transparent.isChecked():
-                        qimg = self._hacer_fondo_blanco_transparente(qimg)
                 self.pixmap = QPixmap.fromImage(qimg)
                 self.update()
-
-    def _hacer_fondo_blanco_transparente(self, qimg: QImage) -> QImage:
-        try:
-            import numpy as np
-            img = qimg.convertToFormat(QImage.Format.Format_ARGB32)
-            w, h = img.width(), img.height()
-            ptr = img.bits()
-            ptr.setsize(w * h * 4)
-            arr = np.frombuffer(ptr, np.uint8).reshape((h, w, 4))
-
-            b = arr[:, :, 0]
-            g = arr[:, :, 1]
-            r = arr[:, :, 2]
-            white_mask = (r >= 240) & (g >= 240) & (b >= 240)
-            arr[white_mask, 3] = 0
-            return img
-        except Exception:
-            return qimg
 
     def set_selected(self, selected: bool):
         self.is_selected = selected
@@ -182,11 +162,12 @@ class DialogoBusquedaPexels(QDialog):
         self.main_window = main_window
         self.selected_card: _ImageCardWidget | None = None
         self.cards = []
+        self.current_page = 1
         self.search_worker: _SearchWorker | None = None
         self.download_worker: _DownloadWorker | None = None
 
         self.setWindowTitle(t("Insertar desde Internet"))
-        self.resize(720, 520)
+        self.resize(720, 560)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)
@@ -202,16 +183,17 @@ class DialogoBusquedaPexels(QDialog):
 
         self.input_search = QLineEdit()
         self.input_search.setPlaceholderText(t("Buscar fotos en HD..."))
-        self.input_search.returnPressed.connect(self._on_search)
+        self.input_search.returnPressed.connect(self._on_new_search)
         top_layout.addWidget(self.input_search)
 
         self.chk_transparent = QCheckBox(t("Transparente (PNG)"))
+        self.chk_transparent.stateChanged.connect(self._on_new_search)
         top_layout.addWidget(self.chk_transparent)
 
         self.btn_search = QPushButton(t("Buscar"))
         self.btn_search.setIcon(QIcon("gui/iconos/zoom.png"))
         self.btn_search.setIconSize(QSize(16, 16))
-        self.btn_search.clicked.connect(self._on_search)
+        self.btn_search.clicked.connect(self._on_new_search)
         top_layout.addWidget(self.btn_search)
 
         layout.addLayout(top_layout)
@@ -235,21 +217,40 @@ class DialogoBusquedaPexels(QDialog):
         self.scroll_area.setWidget(self.grid_container)
         layout.addWidget(self.scroll_area)
 
-        # ── Barra de Estado e Indicador ──────────────────────────────────
-        status_layout = QHBoxLayout()
+        # ── Barra de Paginación y Estado ─────────────────────────────────
+        page_layout = QHBoxLayout()
+        page_layout.setSpacing(8)
+
         self.lbl_status = QLabel(t("Realiza una búsqueda para ver imágenes."))
         self.lbl_status.setStyleSheet("color: #AAAAAA; font-size: 11px;")
-        status_layout.addWidget(self.lbl_status)
-        status_layout.addStretch()
+        page_layout.addWidget(self.lbl_status)
+        page_layout.addStretch()
 
         self.progress_bar = QProgressBar()
         self.progress_bar.setRange(0, 0)
-        self.progress_bar.setFixedWidth(120)
+        self.progress_bar.setFixedWidth(100)
         self.progress_bar.setFixedHeight(12)
         self.progress_bar.setVisible(False)
-        status_layout.addWidget(self.progress_bar)
+        page_layout.addWidget(self.progress_bar)
 
-        layout.addLayout(status_layout)
+        # Botones de Paginación (< Anterior | Página X | Siguiente >)
+        self.btn_prev = QPushButton(t("< Anterior"))
+        self.btn_prev.setMinimumWidth(80)
+        self.btn_prev.setEnabled(False)
+        self.btn_prev.clicked.connect(self._on_prev_page)
+        page_layout.addWidget(self.btn_prev)
+
+        self.lbl_page = QLabel(t("Página 1"))
+        self.lbl_page.setStyleSheet("font-weight: bold; font-size: 11px; padding: 0 4px;")
+        page_layout.addWidget(self.lbl_page)
+
+        self.btn_next = QPushButton(t("Siguiente >"))
+        self.btn_next.setMinimumWidth(80)
+        self.btn_next.setEnabled(False)
+        self.btn_next.clicked.connect(self._on_next_page)
+        page_layout.addWidget(self.btn_next)
+
+        layout.addLayout(page_layout)
 
         # ── Botones Aceptar / Cancelar ───────────────────────────────────
         btn_layout = QHBoxLayout()
@@ -276,21 +277,39 @@ class DialogoBusquedaPexels(QDialog):
 
         # Cargar búsqueda predeterminada
         self.input_search.setText("paisaje")
-        self._on_search()
+        self._on_new_search()
 
-    def _on_search(self):
+    def _on_new_search(self):
+        self.current_page = 1
+        self._fetch_page()
+
+    def _on_prev_page(self):
+        if self.current_page > 1:
+            self.current_page -= 1
+            self._fetch_page()
+
+    def _on_next_page(self):
+        self.current_page += 1
+        self._fetch_page()
+
+    def _fetch_page(self):
         query = self.input_search.text().strip()
         if not query:
             return
 
         self._clear_grid()
-        self.lbl_status.setText(t("Cargando imágenes..."))
+        msg_loading = t("Cargando página %1...").replace("%1", str(self.current_page))
+        self.lbl_status.setText(msg_loading)
+        self.lbl_page.setText(t("Página %1").replace("%1", str(self.current_page)))
+
         self.progress_bar.setVisible(True)
         self.btn_search.setEnabled(False)
         self.btn_insert.setEnabled(False)
+        self.btn_prev.setEnabled(False)
+        self.btn_next.setEnabled(False)
 
         is_trans = self.chk_transparent.isChecked()
-        self.search_worker = _SearchWorker(query, is_trans)
+        self.search_worker = _SearchWorker(query, is_trans, page=self.current_page)
         self.search_worker.results_ready.connect(self._on_results_ready)
         self.search_worker.start()
 
@@ -304,11 +323,14 @@ class DialogoBusquedaPexels(QDialog):
     def _on_results_ready(self, photos: list, err_msg: str):
         self.progress_bar.setVisible(False)
         self.btn_search.setEnabled(True)
+        self.btn_prev.setEnabled(self.current_page > 1)
 
         if err_msg or not photos:
             self.lbl_status.setText(t("No se encontraron imágenes para la búsqueda."))
+            self.btn_next.setEnabled(False)
             return
 
+        # 4 columnas (entran de a 4 por fila)
         cols = 4
         for idx, photo in enumerate(photos):
             card = _ImageCardWidget(photo, self)
@@ -319,7 +341,8 @@ class DialogoBusquedaPexels(QDialog):
             self.grid_layout.addWidget(card, r, c)
             self.cards.append(card)
 
-        msg = t("Cargadas %1 imágenes de resultados.").replace("%1", str(len(photos)))
+        self.btn_next.setEnabled(len(photos) >= 10)
+        msg = t("Cargadas %1 imágenes (Página %2).").replace("%1", str(len(photos))).replace("%2", str(self.current_page))
         self.lbl_status.setText(msg)
 
     def _on_card_selected(self, card: _ImageCardWidget):

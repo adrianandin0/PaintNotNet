@@ -1,5 +1,5 @@
 """
-core/pexels.py — Búsqueda de imágenes en Internet usando duckduckgo_search (DDGS) con parámetro exacto type:transparent.
+core/pexels.py — Búsqueda de imágenes en Internet basada en DuckDuckGo (DDGS) con soporte de paginación (40 por página).
 """
 import json
 import re
@@ -32,10 +32,10 @@ def _get_ssl_context():
 
 
 class PexelsAPIClient:
-    """Cliente de búsqueda de imágenes desde Internet usando pura y exclusivamente DuckDuckGo."""
+    """Cliente de búsqueda de imágenes desde Internet basado en DuckDuckGo con paginación."""
 
     @staticmethod
-    def search_photos(query: str, source: str = "DuckDuckGo", is_transparent: bool = False, per_page: int = 30) -> list:
+    def search_photos(query: str, source: str = "DuckDuckGo", is_transparent: bool = False, page: int = 1, per_page: int = 40) -> list:
         if not query or not query.strip():
             return []
 
@@ -52,6 +52,7 @@ class PexelsAPIClient:
                             query=search_q,
                             region="wt-wt",
                             safesearch="moderate",
+                            page=page,
                             max_results=per_page,
                             type_image=type_filter
                         ))
@@ -60,6 +61,7 @@ class PexelsAPIClient:
                             keywords=search_q,
                             region="wt-wt",
                             safesearch="moderate",
+                            page=page,
                             max_results=per_page,
                             type_image=type_filter
                         ))
@@ -78,18 +80,18 @@ class PexelsAPIClient:
             except Exception as e:
                 print(f"[DDGS Package Error]: {e}")
 
-        # 2. Fallback de DuckDuckGo embebido con parámetro exacto f=type:transparent
+        # 2. Fallback de DuckDuckGo embebido con soporte de página
         if not photos:
-            photos = PexelsAPIClient._search_ddg_embedded(search_q, is_transparent, per_page)
+            photos = PexelsAPIClient._search_ddg_embedded(search_q, is_transparent, page, per_page)
 
-        # 3. Fallback adicional a Wikimedia Commons (filtro png)
+        # 3. Fallback adicional a Wikimedia Commons
         if not photos:
-            photos = PexelsAPIClient._search_wikimedia(search_q, is_transparent, per_page)
+            photos = PexelsAPIClient._search_wikimedia(search_q, is_transparent, page, per_page)
 
         return photos
 
     @staticmethod
-    def _search_ddg_embedded(query: str, is_transparent: bool, per_page: int) -> list:
+    def _search_ddg_embedded(query: str, is_transparent: bool, page: int, per_page: int) -> list:
         cj = http.cookiejar.CookieJar()
         opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
 
@@ -131,9 +133,8 @@ class PexelsAPIClient:
 
         photos = []
         if vqd:
-            # Parámetro exacto de la web oficial de DuckDuckGo para transparentes
             f_param = "type:transparent" if is_transparent else ""
-            img_url = f"https://duckduckgo.com/i.js?l=wt-wt&o=json&q={urllib.parse.quote(query)}&vqd={vqd}&f={f_param}&p=1"
+            img_url = f"https://duckduckgo.com/i.js?l=wt-wt&o=json&q={urllib.parse.quote(query)}&vqd={vqd}&f={f_param}&p={page}"
 
             img_headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
@@ -168,12 +169,13 @@ class PexelsAPIClient:
         return photos
 
     @staticmethod
-    def _search_wikimedia(query: str, is_transparent: bool, per_page: int) -> list:
+    def _search_wikimedia(query: str, is_transparent: bool, page: int, per_page: int) -> list:
         search_term = f"{query} png" if is_transparent else query
         encoded_q = urllib.parse.quote(search_term)
+        offset = (page - 1) * per_page
         url = (
             "https://commons.wikimedia.org/w/api.php?"
-            f"action=query&generator=search&gsrsearch={encoded_q}&gsrlimit={per_page}"
+            f"action=query&generator=search&gsrsearch={encoded_q}&gsrlimit={per_page}&gsroffset={offset}"
             "&prop=imageinfo&iiprop=url|size&format=json"
         )
         headers = {"User-Agent": "PaintNotNet/1.0 (https://paintnotnet.org)"}

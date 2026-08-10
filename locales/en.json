@@ -267,6 +267,11 @@
   "Descargando imagen...": "Downloading image...",
   "No se pudo descargar la imagen seleccionada.": "Could not download selected image.",
   "Cargadas %1 imágenes de resultados.": "Loaded %1 result images.",
+  "< Anterior": "< Previous",
+  "Siguiente >": "Next >",
+  "Página %1": "Page %1",
+  "Cargando página %1...": "Loading page %1...",
+  "Cargadas %1 imágenes (Página %2).": "Loaded %1 images (Page %2).",
   "Adaptar tamaño de lienzo": "Resize Canvas",
   "La imagen que intentas insertar es más grande que el lienzo actual.": "The image you are inserting is larger than the current canvas.",
   "¿Deseas adaptar el tamaño del lienzo a la imagen?": "Do you want to expand the canvas to fit the image?"

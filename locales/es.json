@@ -232,6 +232,11 @@
   "Descargando imagen...": "Descargando imagen...",
   "No se pudo descargar la imagen seleccionada.": "No se pudo descargar la imagen seleccionada.",
   "Cargadas %1 imágenes de resultados.": "Cargadas %1 imágenes de resultados.",
+  "< Anterior": "< Anterior",
+  "Siguiente >": "Siguiente >",
+  "Página %1": "Página %1",
+  "Cargando página %1...": "Cargando página %1...",
+  "Cargadas %1 imágenes (Página %2).": "Cargadas %1 imágenes (Página %2).",
   "Adaptar tamaño de lienzo": "Adaptar tamaño de lienzo",
   "La imagen que intentas insertar es más grande que el lienzo actual.": "La imagen que intentas insertar es más grande que el lienzo actual.",
   "¿Deseas adaptar el tamaño del lienzo a la imagen?": "¿Deseas adaptar el tamaño del lienzo a la imagen?"
