@@ -1298,6 +1298,30 @@ class CanvasWidget(QWidget):
                 self.main_window.activar_herramienta_mover()
             self.update()
 
+    def _verificar_y_adaptar_lienzo(self, img_w, img_h):
+        """Verifica si la imagen a insertar es más grande que el lienzo y pregunta al usuario si desea adaptar el tamaño del lienzo."""
+        lienzo_w = self.layer_mgr.width
+        lienzo_h = self.layer_mgr.height
+
+        if img_w > lienzo_w or img_h > lienzo_h:
+            from PyQt6.QtWidgets import QMessageBox
+            from core.i18n import t
+
+            msg_box = QMessageBox(self)
+            msg_box.setIcon(QMessageBox.Icon.Question)
+            msg_box.setWindowTitle(t("Adaptar tamaño de lienzo"))
+            msg_box.setText(t("La imagen que intentas insertar es más grande que el lienzo actual."))
+            msg_box.setInformativeText(t("¿Deseas adaptar el tamaño del lienzo a la imagen?"))
+            msg_box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            msg_box.setDefaultButton(QMessageBox.StandardButton.Yes)
+
+            if msg_box.exec() == QMessageBox.StandardButton.Yes:
+                nuevo_w = max(lienzo_w, img_w)
+                nuevo_h = max(lienzo_h, img_h)
+                self.redimensionar_lienzo(nuevo_w, nuevo_h, anchor="top-left")
+                return True
+        return False
+
     def insertar_imagen(self, ruta):
         if not ruta or not os.path.exists(ruta):
             return False
@@ -1315,8 +1339,36 @@ class CanvasWidget(QWidget):
 
         img_w = img_format.width()
         img_h = img_format.height()
-        pos_x = (self.layer_mgr.width - img_w) / 2.0 if img_w > self.layer_mgr.width else 0.0
-        pos_y = (self.layer_mgr.height - img_h) / 2.0 if img_h > self.layer_mgr.height else 0.0
+        self._verificar_y_adaptar_lienzo(img_w, img_h)
+
+        pos_x = (self.layer_mgr.width - img_w) / 2.0 if img_w < self.layer_mgr.width else 0.0
+        pos_y = (self.layer_mgr.height - img_h) / 2.0 if img_h < self.layer_mgr.height else 0.0
+
+        self.selection_engine.original_image_pos = QPointF(pos_x, pos_y)
+        self.selection_engine.set_rectangle(QRectF(pos_x, pos_y, img_w, img_h))
+        if hasattr(self, 'main_window') and self.main_window:
+            self.main_window.activar_herramienta_mover()
+        self.update()
+        return True
+
+    def insertar_qimage(self, img: QImage):
+        if not img or img.isNull():
+            return False
+
+        from tools.move_select_pixels import MoveSelectPixelsTool
+        MoveSelectPixelsTool.commit_floating_image(self)
+
+        self.push_document_state("Insertar Imagen desde Internet")
+        img_format = img.convertToFormat(QImage.Format.Format_ARGB32_Premultiplied)
+        self.selection_engine.unscaled_floating_image = img_format.copy()
+        self.selection_engine.floating_image = img_format.copy()
+
+        img_w = img_format.width()
+        img_h = img_format.height()
+        self._verificar_y_adaptar_lienzo(img_w, img_h)
+
+        pos_x = (self.layer_mgr.width - img_w) / 2.0 if img_w < self.layer_mgr.width else 0.0
+        pos_y = (self.layer_mgr.height - img_h) / 2.0 if img_h < self.layer_mgr.height else 0.0
 
         self.selection_engine.original_image_pos = QPointF(pos_x, pos_y)
         self.selection_engine.set_rectangle(QRectF(pos_x, pos_y, img_w, img_h))

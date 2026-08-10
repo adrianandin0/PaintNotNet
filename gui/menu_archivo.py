@@ -125,6 +125,10 @@ class MenuArchivo:
         accion_insertar.setShortcut("Ctrl+I")
         accion_insertar.triggered.connect(self.insertar_imagen)
 
+        accion_insertar_internet = self.menu_archivo.addAction(QIcon("gui/iconos/internet.png"), t("Insertar desde Internet..."))
+        accion_insertar_internet.setShortcut("Ctrl+Shift+I")
+        accion_insertar_internet.triggered.connect(self.insertar_desde_internet)
+
         self.menu_archivo.addSeparator()
 
         accion_guardar = self.menu_archivo.addAction(QIcon("gui/iconos/save.png"), t("Guardar"))
@@ -305,7 +309,12 @@ class MenuArchivo:
                 if hasattr(self.ventana, 'panel_herramientas'):
                     self.ventana.panel_herramientas.seleccionar("seleccion")
 
-
+    def insertar_desde_internet(self):
+        from gui.dialogo_pexels import DialogoBusquedaPexels
+        dialogo = DialogoBusquedaPexels(main_window=self.ventana)
+        if dialogo.exec() == QDialog.DialogCode.Accepted:
+            if hasattr(self.ventana, 'panel_herramientas'):
+                self.ventana.panel_herramientas.seleccionar("seleccion")
 
     def guardar_como(self, target_canvas=None):
         dir_home = self.obtener_home_real()
