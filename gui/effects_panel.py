@@ -161,8 +161,14 @@ class _LightDirectionWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setFixedSize(32, 32)
-        self.light_x = 0.5
-        self.light_y = 0.5
+        self.light_x = 0.0
+        self.light_y = 0.0
+
+    def mouseDoubleClickEvent(self, event):
+        self.light_x = 0.0
+        self.light_y = 0.0
+        self.lightVectorChanged.emit(self.light_x, self.light_y)
+        self.update()
 
     def paintEvent(self, event):
         from core.theme import ThemeManager

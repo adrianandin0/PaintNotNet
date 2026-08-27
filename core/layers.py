@@ -8,6 +8,7 @@ class Layer:
     def __init__(self, name, width, height, transparent=True):
         self.name = name
         self.visible = True
+        self.locked = False
         self.image = QImage(width, height, QImage.Format.Format_ARGB32_Premultiplied)
         if transparent:
             self.image.fill(Qt.GlobalColor.transparent)
@@ -25,6 +26,11 @@ class LayerManager:
         capa_base = Layer(nombre_inicial, width, height, transparent=True)
         self.capas = [capa_base]
         self.indice_activo = 0
+
+    def get_active_layer(self):
+        if 0 <= self.indice_activo < len(self.capas):
+            return self.capas[self.indice_activo]
+        return None
 
     @property
     def buffer(self):

@@ -1,5 +1,5 @@
 import os
-from PyQt6.QtWidgets import QWidget
+from PyQt6.QtWidgets import QWidget, QDialog, QVBoxLayout, QLabel, QPushButton
 from PyQt6.QtGui import QPainter, QPen, QColor, QFont, QImage, QTransform, QPainterPath, QBrush, QCursor, QPixmap, QMouseEvent
 from PyQt6.QtCore import Qt, QPoint, QRect, QPointF, QRectF
 
@@ -8,6 +8,58 @@ from core.history import HistoryManager
 from core.selection import SelectionEngine
 from tools.pencil import PencilTool
 from tools.text import TextTool
+
+
+class DialogoOpcionesInsercion(QDialog):
+    """Diálogo personalizado para seleccionar cómo insertar una imagen más grande que el lienzo."""
+    def __init__(self, parent=None, img_w=0, img_h=0, canvas_w=0, canvas_h=0):
+        super().__init__(parent)
+        from core.i18n import t
+        self.setWindowTitle(t("Opciones de inserción"))
+        self.setFixedWidth(390)
+
+        self.opcion_elegida = "sin_cambios"
+
+        layout = QVBoxLayout(self)
+        layout.setSpacing(10)
+        layout.setContentsMargins(16, 16, 16, 16)
+
+        lbl_title = QLabel(t("La imagen que intentas insertar es más grande que el lienzo actual."))
+        lbl_title.setWordWrap(True)
+        lbl_title.setStyleSheet("font-weight: bold; font-size: 12px;")
+        layout.addWidget(lbl_title)
+
+        lbl_sub = QLabel(t("¿Cómo deseas insertar la imagen?"))
+        lbl_sub.setStyleSheet("font-size: 11px;")
+        layout.addWidget(lbl_sub)
+
+        layout_btns = QVBoxLayout()
+        layout_btns.setSpacing(8)
+
+        btn_ajustar_lienzo = QPushButton(t("Ajustar lienzo"))
+        btn_ajustar_lienzo.setToolTip(t("Cambia el tamaño del lienzo al tamaño exacto de la imagen."))
+        btn_ajustar_lienzo.setMinimumHeight(32)
+        btn_ajustar_lienzo.clicked.connect(lambda: self._elegir("ajustar_lienzo"))
+
+        btn_adaptar_imagen = QPushButton(t("Adaptar imagen"))
+        btn_adaptar_imagen.setToolTip(t("Escala la imagen manteniendo proporciones para que quepa completa en el lienzo."))
+        btn_adaptar_imagen.setMinimumHeight(32)
+        btn_adaptar_imagen.clicked.connect(lambda: self._elegir("adaptar_imagen"))
+
+        btn_sin_cambios = QPushButton(t("Insertar sin cambios"))
+        btn_sin_cambios.setToolTip(t("Inserta la imagen con su tamaño original para que la modifiques manualmente."))
+        btn_sin_cambios.setMinimumHeight(32)
+        btn_sin_cambios.clicked.connect(lambda: self._elegir("sin_cambios"))
+
+        layout_btns.addWidget(btn_ajustar_lienzo)
+        layout_btns.addWidget(btn_adaptar_imagen)
+        layout_btns.addWidget(btn_sin_cambios)
+
+        layout.addLayout(layout_btns)
+
+    def _elegir(self, opcion):
+        self.opcion_elegida = opcion
+        self.accept()
 
 
 class CanvasWidget(QWidget):
@@ -32,6 +84,7 @@ class CanvasWidget(QWidget):
         self.opacidad_pincel = 255
         self.suavizado_pincel = True
         self.forma_pincel = "Redondo"
+        self.modo_degradado = "Color"
         self.tolerancia_balde = 30
         self.config_texto = {}
 
@@ -43,6 +96,7 @@ class CanvasWidget(QWidget):
         self.drawing = False
         self.last_point = QPoint()
         self.cursor_pos = None
+        self.show_pixel_grid = False
         self.setMouseTracking(True)
 
         # --- CAPA TEMPORAL PARA TRAZOS TRANSPARENTES PERFECTOS ---
@@ -253,6 +307,22 @@ class CanvasWidget(QWidget):
         )
         painter.drawPixmap(0, 0, pixmap)
 
+        # 2. Dibujar cuadrícula de píxeles si está activada y el zoom es suficiente (>= 300%)
+        if getattr(self, 'show_pixel_grid', False) and self.scale_factor >= 3.0:
+            painter.save()
+            from core.theme import ThemeManager
+            tm = ThemeManager()
+            res_nombre = tm.resolver_nombre_tema(tm.current_theme)
+            is_dark = (res_nombre == "Oscuro")
+            grid_color = QColor(255, 255, 255, 120) if is_dark else QColor(0, 0, 0, 120)
+            pen_grid = QPen(grid_color, 1 / self.scale_factor, Qt.PenStyle.SolidLine)
+            painter.setPen(pen_grid)
+            for x in range(1, l_width):
+                painter.drawLine(QPointF(float(x), 0.0), QPointF(float(x), float(l_height)))
+            for y in range(1, l_height):
+                painter.drawLine(QPointF(0.0, float(y)), QPointF(float(l_width), float(y)))
+            painter.restore()
+
         # 3. Tiradores y controles interactivos de herramientas (visibles en primer plano)
         if hasattr(self.active_tool_obj, 'draw_handles'):
             self.active_tool_obj.draw_handles(painter, self)
@@ -300,84 +370,32 @@ class CanvasWidget(QWidget):
                 else:
                     painter.drawEllipse(rect)
 
-        # 6. DIBUJAR ESQUINAS, GUÍAS MEDIAS Y COORDENADAS DEL CURSOR (FUERA DEL LIENZO)
-        from core.theme import ThemeManager
-        tm = ThemeManager()
-        is_dark = (tm.resolver_nombre_tema(tm.current_theme) == "Oscuro")
-        col_guias = QColor(180, 180, 180) if is_dark else QColor(40, 40, 40)
-
-        pen_guias = QPen(col_guias, 1.5, Qt.PenStyle.SolidLine)
-        painter.setPen(pen_guias)
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-
-        gap = 3
-        arm = 8
-        tick = 6
-
-        # --- ESQUINAS (CORNER BRACKETS) ---
-        # Top-Left
-        painter.drawLine(int(-gap - arm), int(-gap), int(-gap), int(-gap))
-        painter.drawLine(int(-gap), int(-gap - arm), int(-gap), int(-gap))
-
-        # Top-Right
-        painter.drawLine(int(l_width + gap), int(-gap), int(l_width + gap + arm), int(-gap))
-        painter.drawLine(int(l_width + gap), int(-gap - arm), int(l_width + gap), int(-gap))
-
-        # Bottom-Left
-        painter.drawLine(int(-gap - arm), int(l_height + gap), int(-gap), int(l_height + gap))
-        painter.drawLine(int(-gap), int(l_height + gap), int(-gap), int(l_height + gap + arm))
-
-        # Bottom-Right
-        painter.drawLine(int(l_width + gap), int(l_height + gap), int(l_width + gap + arm), int(l_height + gap))
-        painter.drawLine(int(l_width + gap), int(l_height + gap), int(l_width + gap), int(l_height + gap + arm))
-
-        # --- MARCAS DE PUNTO MEDIO (MIDPOINT TICKS) ---
-        mid_x = l_width // 2
-        mid_y = l_height // 2
-
-        # Superior
-        painter.drawLine(mid_x, int(-gap - tick), mid_x, int(-gap))
-        # Inferior
-        painter.drawLine(mid_x, int(l_height + gap), mid_x, int(l_height + gap + tick))
-        # Izquierda
-        painter.drawLine(int(-gap - tick), mid_y, int(-gap), mid_y)
-        # Derecha
-        painter.drawLine(int(l_width + gap), mid_y, int(l_width + gap + tick), mid_y)
-
-        # --- TEXTO DE COORDENADAS DEL CURSOR (ABAJO A LA DERECHA) ---
-        font_coords = QFont("SansSerif", 9)
-        painter.setFont(font_coords)
-        painter.setPen(col_guias)
-
-        if hasattr(self, 'cursor_pos') and self.cursor_pos is not None:
-            cx, cy = int(self.cursor_pos.x()), int(self.cursor_pos.y())
-            if 0 <= cx <= l_width and 0 <= cy <= l_height:
-                texto_pos = f"({cx}, {cy})"
-            else:
-                texto_pos = f"({l_width}, {l_height})"
-        else:
-            texto_pos = f"({l_width}, {l_height})"
-
-        metrics = painter.fontMetrics()
-        txt_width = metrics.horizontalAdvance(texto_pos)
-        txt_x = l_width + gap + arm - txt_width
-        txt_y = l_height + gap + arm + 14
-        painter.drawText(int(txt_x), int(txt_y), texto_pos)
-
         painter.restore()
 
+    def _notificar_posicion_cursor(self):
+        if hasattr(self, 'main_window') and self.main_window and hasattr(self.main_window, 'bottom_bar') and self.main_window.bottom_bar:
+            if hasattr(self, 'cursor_pos') and self.cursor_pos is not None:
+                cx, cy = int(self.cursor_pos.x()), int(self.cursor_pos.y())
+                if 0 <= cx <= self.layer_mgr.width and 0 <= cy <= self.layer_mgr.height:
+                    self.main_window.bottom_bar.actualizar_posicion_cursor(cx, cy)
+                else:
+                    self.main_window.bottom_bar.actualizar_posicion_cursor(None, None)
+            else:
+                self.main_window.bottom_bar.actualizar_posicion_cursor(None, None)
 
     # ==========================================
     # MANEJO DE MOUSE Y DESPACHO A HERRAMIENTAS
     # ==========================================
     def leaveEvent(self, event):
         self.cursor_pos = None
+        self._notificar_posicion_cursor()
         self.update()
         super().leaveEvent(event)
 
     def mousePressEvent(self, event):
         ev = self._canvas_event(event)
         self.cursor_pos = ev.position()
+        self._notificar_posicion_cursor()
         from tools.placeholder import PlaceholderTool
         if isinstance(self.active_tool_obj, PlaceholderTool):
             return
@@ -399,6 +417,7 @@ class CanvasWidget(QWidget):
     def mouseMoveEvent(self, event):
         ev = self._canvas_event(event)
         self.cursor_pos = ev.position()
+        self._notificar_posicion_cursor()
         if self.drawing:
             color_activo = self.color_primario if (ev.buttons() & Qt.MouseButton.LeftButton) else self.color_secundario
 
@@ -415,6 +434,7 @@ class CanvasWidget(QWidget):
 
     def mouseReleaseEvent(self, event):
         ev = self._canvas_event(event)
+        self._notificar_posicion_cursor()
         if self.drawing:
             color_activo = self.color_primario if ev.button() == Qt.MouseButton.LeftButton else self.color_secundario
 
@@ -1298,31 +1318,76 @@ class CanvasWidget(QWidget):
                 self.main_window.activar_herramienta_mover()
             self.update()
 
+    def _procesar_insercion_imagen(self, img_format: QImage, action_title: str = "Insertar Imagen"):
+        from tools.move_select_pixels import MoveSelectPixelsTool
+        from PyQt6.QtCore import QSize
+        MoveSelectPixelsTool.commit_floating_image(self)
+
+        img_w = img_format.width()
+        img_h = img_format.height()
+        lienzo_w = self.layer_mgr.width
+        lienzo_h = self.layer_mgr.height
+
+        opcion = "sin_cambios"
+        if img_w > lienzo_w or img_h > lienzo_h:
+            dlg = DialogoOpcionesInsercion(self, img_w, img_h, lienzo_w, lienzo_h)
+            if dlg.exec() == QDialog.DialogCode.Accepted:
+                opcion = dlg.opcion_elegida
+            else:
+                return False
+
+        self.push_document_state(action_title)
+
+        if opcion == "ajustar_lienzo":
+            nuevo_w = max(lienzo_w, img_w)
+            nuevo_h = max(lienzo_h, img_h)
+            self.redimensionar_lienzo(nuevo_w, nuevo_h, anchor="top-left")
+            lienzo_w, lienzo_h = self.layer_mgr.width, self.layer_mgr.height
+            pos_x = (lienzo_w - img_w) / 2.0 if img_w < lienzo_w else 0.0
+            pos_y = (lienzo_h - img_h) / 2.0 if img_h < lienzo_h else 0.0
+            self.selection_engine.unscaled_floating_image = img_format.copy()
+            self.selection_engine.floating_image = img_format.copy()
+            self.selection_engine.original_image_pos = QPointF(pos_x, pos_y)
+            self.selection_engine.set_rectangle(QRectF(pos_x, pos_y, img_w, img_h))
+
+        elif opcion == "adaptar_imagen":
+            scaled_img = img_format.scaled(QSize(lienzo_w, lienzo_h), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            scaled_w = scaled_img.width()
+            scaled_h = scaled_img.height()
+            pos_x = (lienzo_w - scaled_w) / 2.0
+            pos_y = (lienzo_h - scaled_h) / 2.0
+            self.selection_engine.unscaled_floating_image = scaled_img.copy()
+            self.selection_engine.floating_image = scaled_img.copy()
+            self.selection_engine.original_image_pos = QPointF(pos_x, pos_y)
+            self.selection_engine.set_rectangle(QRectF(pos_x, pos_y, scaled_w, scaled_h))
+
+        else:  # "sin_cambios"
+            pos_x = (lienzo_w - img_w) / 2.0 if img_w < lienzo_w else 0.0
+            pos_y = (lienzo_h - img_h) / 2.0 if img_h < lienzo_h else 0.0
+            self.selection_engine.unscaled_floating_image = img_format.copy()
+            self.selection_engine.floating_image = img_format.copy()
+            self.selection_engine.original_image_pos = QPointF(pos_x, pos_y)
+            self.selection_engine.set_rectangle(QRectF(pos_x, pos_y, img_w, img_h))
+
+        if hasattr(self, 'main_window') and self.main_window:
+            self.main_window.activar_herramienta_mover()
+        self.update()
+        return True
+
     def insertar_imagen(self, ruta):
         if not ruta or not os.path.exists(ruta):
             return False
         img = QImage(ruta)
         if img.isNull():
             return False
-
-        from tools.move_select_pixels import MoveSelectPixelsTool
-        MoveSelectPixelsTool.commit_floating_image(self)
-
-        self.push_document_state("Insertar Imagen")
         img_format = img.convertToFormat(QImage.Format.Format_ARGB32_Premultiplied)
-        self.selection_engine.unscaled_floating_image = img_format.copy()
-        self.selection_engine.floating_image = img_format.copy()
+        return self._procesar_insercion_imagen(img_format, "Insertar Imagen")
 
-        img_w = img_format.width()
-        img_h = img_format.height()
-        pos_x = (self.layer_mgr.width - img_w) / 2.0 if img_w > self.layer_mgr.width else 0.0
-        pos_y = (self.layer_mgr.height - img_h) / 2.0 if img_h > self.layer_mgr.height else 0.0
-
-        self.selection_engine.original_image_pos = QPointF(pos_x, pos_y)
-        self.selection_engine.set_rectangle(QRectF(pos_x, pos_y, img_w, img_h))
-        if hasattr(self, 'main_window') and self.main_window:
-            self.main_window.activar_herramienta_mover()
-        self.update()
+    def insertar_qimage(self, img: QImage):
+        if not img or img.isNull():
+            return False
+        img_format = img.convertToFormat(QImage.Format.Format_ARGB32_Premultiplied)
+        return self._procesar_insercion_imagen(img_format, "Insertar Imagen desde Internet")
         return True
 
     def escalar_seleccion(self, nuevo_ancho, nuevo_alto):
@@ -1377,3 +1442,72 @@ class CanvasWidget(QWidget):
         self.push_floating_sub_state("Tamaño de la Selección")
         self.update()
         return True
+
+    def align_selection(self, alignment: str):
+        """
+        Alinea la selección activa, elemento flotante o cuadro de texto activo (Izquierda, Derecha, Arriba, Abajo, Centrar).
+        """
+        from tools.text import TextTool
+        if isinstance(self.active_tool_obj, TextTool) and getattr(self.active_tool_obj, 'is_editing', False):
+            self.active_tool_obj.align_text_box(self, alignment)
+            return
+
+        engine = self.selection_engine
+        if not engine.has_selection():
+            return
+
+        # Si hay selección pero la imagen no se ha extraído a flotante aún, extraerla si aplica
+        if engine.floating_image is None or engine.floating_image.isNull():
+            rect = engine.active_rect.toRect().intersected(
+                QRect(0, 0, self.layer_mgr.width, self.layer_mgr.height)
+            )
+            if rect.width() > 0 and rect.height() > 0:
+                buffer = self.layer_mgr.buffer
+                self.floating_initial_canvas = buffer.copy()
+                engine.floating_image = buffer.copy(rect)
+                engine.unscaled_floating_image = engine.floating_image.copy()
+                engine.original_image_pos = QPointF(rect.topLeft())
+
+                painter = QPainter(buffer)
+                painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
+                if not engine.active_path.isEmpty():
+                    painter.setClipPath(engine.active_path)
+                painter.fillRect(rect, Qt.GlobalColor.transparent)
+                painter.end()
+                self.push_document_state("Alinear Selección")
+
+        rect = engine.active_rect
+        w, h = rect.width(), rect.height()
+        cw, ch = float(self.layer_mgr.width), float(self.layer_mgr.height)
+
+        if alignment == "left":
+            new_x, new_y = 0.0, rect.top()
+        elif alignment == "right":
+            new_x, new_y = cw - w, rect.top()
+        elif alignment == "top":
+            new_x, new_y = rect.left(), 0.0
+        elif alignment == "bottom":
+            new_x, new_y = rect.left(), ch - h
+        elif alignment == "center":
+            new_x, new_y = (cw - w) / 2.0, (ch - h) / 2.0
+        else:
+            return
+
+        dx = new_x - rect.left()
+        dy = new_y - rect.top()
+
+        if abs(dx) < 1e-4 and abs(dy) < 1e-4:
+            return
+
+        engine.original_image_pos += QPointF(dx, dy)
+        engine.active_rect.translate(dx, dy)
+        if not engine.active_path.isEmpty():
+            t = QTransform().translate(dx, dy)
+            engine.active_path = t.map(engine.active_path)
+
+        if hasattr(self, 'main_window') and self.main_window:
+            self.main_window.activar_herramienta_mover()
+
+        self.update()
+        if self.callback_modificado:
+            self.callback_modificado()

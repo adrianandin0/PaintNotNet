@@ -258,7 +258,7 @@ class ColorPanelWidget(QWidget):
         self.color_secundario = QColor(255, 255, 255, 255)
         self.modo_color = "primario"
 
-        self.custom_colors = [None] * 12
+        self.custom_colors = [None] * 21
 
         layout = QVBoxLayout()
         layout.setContentsMargins(4, 4, 4, 4)
@@ -303,30 +303,30 @@ class ColorPanelWidget(QWidget):
         self.slider_alpha.setRange(0, 255)
         self.slider_alpha.setValue(255)
         self.slider_alpha.setFixedHeight(14)
-        self.slider_alpha.setFixedWidth(64)
+        self.slider_alpha.setFixedWidth(90)
         self.slider_alpha.valueChanged.connect(self.on_alpha_slider_changed)
 
         alpha_layout.addWidget(self.lbl_alpha)
         alpha_layout.addWidget(self.slider_alpha)
         layout.addLayout(alpha_layout)
 
-        # 3. Cuadrícula de Colores Predeterminados (1px de separación exacta)
+        # 3. Cuadrícula de Colores Predeterminados (7 por fila, 1px de separación exacta)
         grid_paleta = QGridLayout()
         grid_paleta.setSpacing(1)
         grid_paleta.setContentsMargins(0, 0, 0, 0)
         grid_paleta.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.paleta_fija = [
-            "#000000", "#555555", "#AAAAAA", "#FFFFFF",  # Fila 1 (Acromáticos)
-            "#800000", "#CC0000", "#FF0000", "#FF8080",  # Fila 2 (Rojos)
-            "#804000", "#CC6600", "#FF7F00", "#FFC080",  # Fila 3 (Naranjas)
-            "#3E2723", "#5D4037", "#8D6E63", "#D7CCC8",  # Fila 4 (Marrones)
-            "#808000", "#CCCC00", "#FFFF00", "#FFFF80",  # Fila 5 (Amarillos)
-            "#008000", "#00CC00", "#00FF00", "#80FF80",  # Fila 6 (Verdes)
-            "#008080", "#00CCCC", "#00FFFF", "#80FFFF",  # Fila 7 (Cianes / Turquesas)
-            "#000080", "#0000CC", "#0000FF", "#8080FF",  # Fila 8 (Azules)
-            "#4B0082", "#800080", "#A000FF", "#D8B4FE",  # Fila 9 (Púrpuras / Violetas)
-            "#800040", "#CC0066", "#FF007F", "#FFB3D9"   # Fila 10 (Rosas / Magentas)
+            "#000000", "#333333", "#555555", "#888888", "#AAAAAA", "#CCCCCC", "#FFFFFF",  # Fila 1 (Acromáticos)
+            "#4A0000", "#800000", "#CC0000", "#FF0000", "#FF4D4D", "#FF8080", "#FFB3B3",  # Fila 2 (Rojos)
+            "#662200", "#804000", "#CC6600", "#FF7F00", "#FFA040", "#FFC080", "#FFE0C0",  # Fila 3 (Naranjas)
+            "#2A1B17", "#3E2723", "#5D4037", "#795548", "#8D6E63", "#BCAAA4", "#D7CCC8",  # Fila 4 (Marrones)
+            "#4D4D00", "#808000", "#CCCC00", "#FFFF00", "#FFFF55", "#FFFF80", "#FFFFC0",  # Fila 5 (Amarillos)
+            "#004D00", "#008000", "#00CC00", "#00FF00", "#55FF55", "#80FF80", "#C0FFC0",  # Fila 6 (Verdes)
+            "#004D4D", "#008080", "#00CCCC", "#00FFFF", "#55FFFF", "#80FFFF", "#C0FFFF",  # Fila 7 (Cianes)
+            "#00004D", "#000080", "#0000CC", "#0000FF", "#4D4DFF", "#8080FF", "#B3B3FF",  # Fila 8 (Azules)
+            "#2A004D", "#4B0082", "#800080", "#A000FF", "#C055FF", "#D8B4FE", "#F0E0FF",  # Fila 9 (Púrpuras)
+            "#4D0026", "#800040", "#CC0066", "#FF007F", "#FF55A3", "#FFB3D9", "#FFE6F2"   # Fila 10 (Rosas)
         ]
 
         def _make_color_handler(hex_val, mode):
@@ -334,8 +334,8 @@ class ColorPanelWidget(QWidget):
 
         self.botones_paleta = []
         for idx, hex_color in enumerate(self.paleta_fija):
-            row = idx // 4
-            col = idx % 4
+            row = idx // 7
+            col = idx % 7
             btn_color = ColorButton(hex_color)
             btn_color.left_clicked.connect(_make_color_handler(hex_color, "primario"))
             btn_color.right_clicked.connect(_make_color_handler(hex_color, "secundario"))
@@ -345,7 +345,7 @@ class ColorPanelWidget(QWidget):
 
         layout.addLayout(grid_paleta)
 
-        # 4. Slots de Usuario (Guardados - 1px de separación exacta)
+        # 4. Slots de Usuario (Guardados - 7 por fila)
         self.lbl_custom = QLabel("Guardadas:")
         self.lbl_custom.setStyleSheet("font-size: 11px; font-weight: normal; margin-top: 2px;")
         layout.addWidget(self.lbl_custom, alignment=Qt.AlignmentFlag.AlignCenter)
@@ -356,9 +356,9 @@ class ColorPanelWidget(QWidget):
         grid_custom.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.botones_custom = []
-        for idx in range(12):
-            row = idx // 4
-            col = idx % 4
+        for idx in range(21):
+            row = idx // 7
+            col = idx % 7
             btn_slot = CustomSlotButton(idx)
             btn_slot.setToolTip(t("Slot vacío: Clic para Guardar | Slot lleno: Clic para Usar (Shift+Clic Reemplazar, Ctrl+Clic Eliminar)"))
             btn_slot.slot_interacted.connect(self.on_slot_custom_interacted)
@@ -369,7 +369,7 @@ class ColorPanelWidget(QWidget):
         layout.addLayout(grid_custom)
 
         self.setLayout(layout)
-        self.setFixedWidth(82)
+        self.setFixedWidth(118)
         self.actualizar_ui()
 
     def set_modo(self, modo):

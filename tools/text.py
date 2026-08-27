@@ -434,6 +434,54 @@ class TextTool(BaseTool, QObject):
         if self.current_canvas:
             self.current_canvas.update()
 
+    def on_format_changed(self, canvas, fmt_dict: dict):
+        self.current_canvas = canvas
+        if "alignment" in fmt_dict:
+            align_val = fmt_dict["alignment"]
+            for line in self.rich_lines:
+                for span in line:
+                    span.fmt.alignment = align_val
+            self._default_fmt.alignment = align_val
+
+        self.apply_format_to_selection(fmt_dict)
+        if canvas:
+            canvas.update()
+
+    def align_text_box(self, canvas, alignment: str):
+        if not self.is_editing or not canvas:
+            return
+
+        cw = canvas.layer_mgr.width
+        ch = canvas.layer_mgr.height
+        r = self._get_content_rect()
+        w, h = r.width(), r.height()
+
+        target_x = float(r.left())
+        target_y = float(r.top())
+
+        if alignment == "left":
+            target_x = 0.0
+        elif alignment == "right":
+            target_x = float(cw - w)
+        elif alignment == "top":
+            target_y = 0.0
+        elif alignment == "bottom":
+            target_y = float(ch - h)
+        elif alignment == "center":
+            target_x = float(cw - w) / 2.0
+            target_y = float(ch - h) / 2.0
+        else:
+            return
+
+        dx = int(round(target_x - r.left()))
+        dy = int(round(target_y - r.top()))
+
+        if self.text_rect:
+            self.text_rect.translate(dx, dy)
+        self.pos = QPoint(self.pos.x() + dx, self.pos.y() + dy)
+
+        canvas.update()
+
     def _update_panel_ui(self, canvas):
         if not canvas: return
         mw = getattr(canvas, 'main_window', None)

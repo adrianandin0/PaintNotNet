@@ -172,7 +172,7 @@ class ThemeManager:
         }}
         QRadioButton::indicator:checked {{
             background-color: {acc};
-            border: {radio_border};
+            border: 1px solid {acc};
         }}
         QMenuBar, QMenuBar::item {{
             background-color: {p_bg};
@@ -361,3 +361,5 @@ class ThemeManager:
                 main_window.top_toolbar.actualizar_estilo_tema()
             if hasattr(main_window, 'text_panel') and main_window.text_panel and hasattr(main_window.text_panel, 'actualizar_estilo_tema'):
                 main_window.text_panel.actualizar_estilo_tema()
+            if hasattr(main_window, 'bottom_bar') and main_window.bottom_bar and hasattr(main_window.bottom_bar, 'actualizar_estilo_tema'):
+                main_window.bottom_bar.actualizar_estilo_tema()

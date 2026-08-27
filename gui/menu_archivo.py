@@ -1,39 +1,54 @@
 import os
 from PyQt6.QtWidgets import (QMessageBox, QDialog, QVBoxLayout,
                              QHBoxLayout, QLabel, QSpinBox, QRadioButton,
-                             QPushButton, QButtonGroup, QApplication)
+                             QPushButton, QButtonGroup, QApplication, QComboBox, QCheckBox)
 from PyQt6.QtCore import Qt, QSettings
 from PyQt6.QtGui import QIcon
 from gui.dialogo_archivo import DialogoArchivo
 
 
+from core.i18n import t
+
+
 class DialogoNuevoArchivo(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Nuevo Lienzo")
-        self.setFixedWidth(240)
+        self.setWindowTitle(t("Nuevo Lienzo"))
+        self.setFixedWidth(290)
 
-        # Detectar tamaño de imagen en el portapapeles si existe
+        # Cargar valores guardados como predeterminados si existen
+        settings = QSettings("PaintNotNet", "PaintNotNet")
+        saved_w = settings.value("default_canvas_w", None, type=int)
+        saved_h = settings.value("default_canvas_h", None, type=int)
+        saved_trans = settings.value("default_canvas_transparent", False, type=bool)
+        saved_dpi = settings.value("default_canvas_dpi", 300, type=int)
+        saved_profile = settings.value("default_canvas_profile", "sRGB", type=str)
+
         cb = QApplication.clipboard()
         cb_img = cb.image() if cb else None
-        def_w = 800
-        def_h = 600
-        if cb_img and not cb_img.isNull() and cb_img.width() > 0 and cb_img.height() > 0:
+        if saved_w and saved_h and saved_w > 0 and saved_h > 0:
+            def_w = saved_w
+            def_h = saved_h
+        elif cb_img and not cb_img.isNull() and cb_img.width() > 0 and cb_img.height() > 0:
             def_w = cb_img.width()
             def_h = cb_img.height()
+        else:
+            def_w = 800
+            def_h = 600
 
         layout = QVBoxLayout(self)
         layout.setSpacing(8)
 
+        # 1. Ancho y Alto
         layout_ancho = QHBoxLayout()
-        layout_ancho.addWidget(QLabel("Ancho (px):"))
+        layout_ancho.addWidget(QLabel(t("Ancho (px):")))
         self.spin_ancho = QSpinBox()
         self.spin_ancho.setRange(1, 99999)
         self.spin_ancho.setValue(def_w)
         layout_ancho.addWidget(self.spin_ancho)
 
         layout_alto = QHBoxLayout()
-        layout_alto.addWidget(QLabel("Alto (px):"))
+        layout_alto.addWidget(QLabel(t("Alto (px):")))
         self.spin_alto = QSpinBox()
         self.spin_alto.setRange(1, 99999)
         self.spin_alto.setValue(def_h)
@@ -42,10 +57,61 @@ class DialogoNuevoArchivo(QDialog):
         layout.addLayout(layout_ancho)
         layout.addLayout(layout_alto)
 
-        layout.addWidget(QLabel("Color de Fondo:"))
-        self.rad_blanco = QRadioButton("Fondo Blanco")
-        self.rad_transparente = QRadioButton("Fondo Transparente")
-        self.rad_blanco.setChecked(True)
+        # 2. Resolución / Densidad (DPI)
+        layout_dpi = QHBoxLayout()
+        layout_dpi.addWidget(QLabel(t("Resolución (DPI):")))
+        self.spin_dpi = QSpinBox()
+        self.spin_dpi.setRange(1, 2400)
+        self.spin_dpi.setValue(saved_dpi)
+        layout_dpi.addWidget(self.spin_dpi)
+
+        self.combo_preset_dpi = QComboBox()
+        self.dpi_presets = [
+            (300, t("300 DPI (Imprenta / Alta Calidad)")),
+            (96, t("96 DPI (Pantalla / Escritorio)")),
+            (72, t("72 DPI (Web / Móvil)")),
+            (600, t("600 DPI (Ultra HD)")),
+        ]
+        matched_dpi_idx = -1
+        for idx, (val, text) in enumerate(self.dpi_presets):
+            self.combo_preset_dpi.addItem(text, val)
+            if val == saved_dpi:
+                matched_dpi_idx = idx
+
+        if matched_dpi_idx >= 0:
+            self.combo_preset_dpi.setCurrentIndex(matched_dpi_idx)
+
+        self.combo_preset_dpi.currentIndexChanged.connect(self._on_preset_dpi_changed)
+        self.spin_dpi.valueChanged.connect(self._on_spin_dpi_changed)
+
+        layout.addLayout(layout_dpi)
+        layout.addWidget(self.combo_preset_dpi)
+
+        # 3. Perfil de Color
+        layout.addWidget(QLabel(t("Perfil de Color:")))
+        self.combo_color_profile = QComboBox()
+        self.color_profiles = [
+            ("sRGB", t("sRGB (Estándar Web)")),
+            ("Adobe RGB", t("Adobe RGB (Fotografía)")),
+            ("Display P3", t("Display P3 (Pantallas Modernas)")),
+            ("CMYK", t("CMYK (Impresión Profesional)")),
+        ]
+        default_prof_idx = 0
+        for idx, (raw, label) in enumerate(self.color_profiles):
+            self.combo_color_profile.addItem(label, raw)
+            if raw == saved_profile:
+                default_prof_idx = idx
+        self.combo_color_profile.setCurrentIndex(default_prof_idx)
+        layout.addWidget(self.combo_color_profile)
+
+        # 4. Color de Fondo
+        layout.addWidget(QLabel(t("Color de Fondo:")))
+        self.rad_blanco = QRadioButton(t("Fondo Blanco"))
+        self.rad_transparente = QRadioButton(t("Fondo Transparente"))
+        if saved_trans:
+            self.rad_transparente.setChecked(True)
+        else:
+            self.rad_blanco.setChecked(True)
 
         self.grupo_fondo = QButtonGroup(self)
         self.grupo_fondo.addButton(self.rad_blanco)
@@ -54,11 +120,16 @@ class DialogoNuevoArchivo(QDialog):
         layout.addWidget(self.rad_blanco)
         layout.addWidget(self.rad_transparente)
 
+        # 5. Opción "Establecer como predeterminado"
+        self.chk_default = QCheckBox(t("Establecer como predeterminado"))
+        layout.addWidget(self.chk_default)
+
+        # Botones Aceptar / Cancelar
         layout_btns = QHBoxLayout()
-        btn_ok = QPushButton("Crear")
+        btn_ok = QPushButton(t("Crear"))
         btn_ok.setDefault(True)
         btn_ok.setAutoDefault(True)
-        btn_cancel = QPushButton("Cancelar")
+        btn_cancel = QPushButton(t("Cancelar"))
 
         btn_ok.clicked.connect(self.accept)
         btn_cancel.clicked.connect(self.reject)
@@ -67,6 +138,33 @@ class DialogoNuevoArchivo(QDialog):
         layout_btns.addWidget(btn_cancel)
         layout.addLayout(layout_btns)
 
+    def _on_preset_dpi_changed(self, index):
+        if 0 <= index < len(self.dpi_presets):
+            dpi_val = self.dpi_presets[index][0]
+            self.spin_dpi.blockSignals(True)
+            self.spin_dpi.setValue(dpi_val)
+            self.spin_dpi.blockSignals(False)
+
+    def _on_spin_dpi_changed(self, val):
+        self.combo_preset_dpi.blockSignals(True)
+        for idx, (dpi_val, _) in enumerate(self.dpi_presets):
+            if dpi_val == val:
+                self.combo_preset_dpi.setCurrentIndex(idx)
+                break
+        self.combo_preset_dpi.blockSignals(False)
+
+    def accept(self):
+        if hasattr(self, 'chk_default') and self.chk_default.isChecked():
+            settings = QSettings("PaintNotNet", "PaintNotNet")
+            settings.setValue("default_canvas_w", self.spin_ancho.value())
+            settings.setValue("default_canvas_h", self.spin_alto.value())
+            settings.setValue("default_canvas_transparent", self.rad_transparente.isChecked())
+            settings.setValue("default_canvas_dpi", self.spin_dpi.value())
+            profile_idx = self.combo_color_profile.currentIndex()
+            raw_profile = self.color_profiles[profile_idx][0] if 0 <= profile_idx < len(self.color_profiles) else "sRGB"
+            settings.setValue("default_canvas_profile", raw_profile)
+        super().accept()
+
     def keyPressEvent(self, event):
         if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
             self.accept()
@@ -74,10 +172,14 @@ class DialogoNuevoArchivo(QDialog):
         super().keyPressEvent(event)
 
     def obtener_configuracion(self):
+        profile_idx = self.combo_color_profile.currentIndex()
+        raw_profile = self.color_profiles[profile_idx][0] if 0 <= profile_idx < len(self.color_profiles) else "sRGB"
         return (
             self.spin_ancho.value(),
             self.spin_alto.value(),
-            self.rad_transparente.isChecked()
+            self.rad_transparente.isChecked(),
+            self.spin_dpi.value(),
+            raw_profile
         )
 
 
@@ -124,6 +226,10 @@ class MenuArchivo:
         accion_insertar = self.menu_archivo.addAction(QIcon("gui/iconos/picture.png"), t("Insertar..."))
         accion_insertar.setShortcut("Ctrl+I")
         accion_insertar.triggered.connect(self.insertar_imagen)
+
+        accion_insertar_internet = self.menu_archivo.addAction(QIcon("gui/iconos/internet.png"), t("Insertar desde Internet..."))
+        accion_insertar_internet.setShortcut("Ctrl+Shift+I")
+        accion_insertar_internet.triggered.connect(self.insertar_desde_internet)
 
         self.menu_archivo.addSeparator()
 
@@ -241,8 +347,8 @@ class MenuArchivo:
     def nuevo_archivo(self):
         dialogo = DialogoNuevoArchivo(self.ventana)
         if dialogo.exec() == QDialog.DialogCode.Accepted:
-            ancho, alto, es_transparente = dialogo.obtener_configuracion()
-            self.ventana.crear_nueva_pestana(ancho, alto, transparent=es_transparente)
+            ancho, alto, es_transparente, dpi, perfil_color = dialogo.obtener_configuracion()
+            self.ventana.crear_nueva_pestana(ancho, alto, transparent=es_transparente, dpi=dpi, perfil_color=perfil_color)
 
     def abrir_archivo(self):
         dir_home = self.obtener_home_real()
@@ -305,7 +411,12 @@ class MenuArchivo:
                 if hasattr(self.ventana, 'panel_herramientas'):
                     self.ventana.panel_herramientas.seleccionar("seleccion")
 
-
+    def insertar_desde_internet(self):
+        from gui.dialogo_pexels import DialogoBusquedaPexels
+        dialogo = DialogoBusquedaPexels(main_window=self.ventana)
+        if dialogo.exec() == QDialog.DialogCode.Accepted:
+            if hasattr(self.ventana, 'panel_herramientas'):
+                self.ventana.panel_herramientas.seleccionar("seleccion")
 
     def guardar_como(self, target_canvas=None):
         dir_home = self.obtener_home_real()
