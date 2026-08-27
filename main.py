@@ -1,6 +1,6 @@
 import sys
 import os
-from PyQt6.QtWidgets import QApplication, QMainWindow, QScrollArea, QDockWidget, QTabWidget, QWidget, QHBoxLayout, QLabel
+from PyQt6.QtWidgets import QApplication, QMainWindow, QScrollArea, QDockWidget, QTabWidget, QWidget, QHBoxLayout, QVBoxLayout, QLabel
 from PyQt6.QtGui import QColor, QCloseEvent, QShortcut, QKeySequence, QIcon
 from PyQt6.QtCore import Qt, QSettings, QTimer, QSize
 
@@ -17,7 +17,7 @@ from gui.effects_panel import EffectsPanelWidget
 from gui.layers_panel import LayersPanelWidget
 from gui.history_panel import HistoryPanelWidget
 from gui.top_toolbar import TopToolBarWidget
-from gui.brushes_panel import BrushesPanelWidget
+from gui.bottom_status_bar import BottomStatusBarWidget
 
 from gui.menu_archivo import MenuArchivo
 from gui.menu_editar import MenuEditar
@@ -50,18 +50,9 @@ class PaintNotNet(QMainWindow):
         self.tool_panel = ToolPanelWidget(main_window=self)
         self.tools_dock.setWidget(self.tool_panel)
         self.tools_dock.setTitleBarWidget(self._hacer_titulo_dock("gui/iconos/tools.png", "Herramientas"))
-        self.tools_dock.setFixedHeight(330)
-        self.tools_dock.setFixedWidth(82)
+        self.tools_dock.setFixedHeight(280)
+        self.tools_dock.setFixedWidth(120)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.tools_dock)
-
-        self.brushes_panel = BrushesPanelWidget(main_window=self)
-        self.brushes_dock = QDockWidget(self)
-        self.brushes_dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
-        self.brushes_dock.setWidget(self.brushes_panel)
-        self.brushes_dock.setTitleBarWidget(self._hacer_titulo_dock("gui/iconos/brush.png", "Pinceles"))
-        self.brushes_dock.setFixedHeight(60)
-        self.brushes_dock.setFixedWidth(82)
-        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.brushes_dock)
 
         self.color_dock = QDockWidget(self)
         self.color_dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
@@ -69,23 +60,13 @@ class PaintNotNet(QMainWindow):
         self.color_dock.setWidget(self.color_panel)
         self.color_dock.setTitleBarWidget(self._hacer_titulo_dock("gui/iconos/color.png", "Colores"))
         self.color_dock.setFixedHeight(300)
-        self.color_dock.setFixedWidth(82)
+        self.color_dock.setFixedWidth(120)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.color_dock)
 
         # ==========================================
         # DOCKS LATERALES DERECHOS: Texto / Colores / Efectos de Texto / Historial / Capas
         # ==========================================
-        # 1. Dock de Texto
-        self.text_dock = QDockWidget(self)
-        self.text_dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
-        self.text_panel = TextPanelWidget(main_window=self)
-        self.text_dock.setWidget(self.text_panel)
-        self.text_dock.setTitleBarWidget(self._hacer_titulo_dock("gui/iconos/text.png", "Texto"))
-        self.text_dock.setFixedWidth(160)
-        self.text_dock.setFixedHeight(140)
-        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.text_dock)
-
-        # 2. Dock de Color avanzado
+        # 1. Dock de Color avanzado
         self.advanced_color_dock = QDockWidget(self)
         self.advanced_color_dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
         self.advanced_color_panel = AdvancedColorPanelWidget(main_window=self)
@@ -94,16 +75,6 @@ class PaintNotNet(QMainWindow):
         self.advanced_color_dock.setFixedWidth(160)
         self.advanced_color_dock.setFixedHeight(210)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.advanced_color_dock)
-
-        # 3. Dock de Efectos de Texto
-        self.effects_panel = EffectsPanelWidget(main_window=self)
-        self.effects_dock = QDockWidget(self)
-        self.effects_dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
-        self.effects_dock.setWidget(self.effects_panel)
-        self.effects_dock.setTitleBarWidget(self._hacer_titulo_dock("gui/iconos/effects.png", "Efectos de Texto"))
-        self.effects_dock.setFixedWidth(160)
-        self.effects_dock.setFixedHeight(220)
-        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.effects_dock)
 
         # 4. Dock de Historial
         self.history_dock = QDockWidget(self)
@@ -141,7 +112,16 @@ class PaintNotNet(QMainWindow):
         self.tab_widget.tabCloseRequested.connect(self._on_tab_close_requested)
         self.tab_widget.tabBarDoubleClicked.connect(self._on_tab_double_clicked)
 
-        self.setCentralWidget(self.tab_widget)
+        central_container = QWidget()
+        layout_central = QVBoxLayout(central_container)
+        layout_central.setContentsMargins(0, 0, 0, 0)
+        layout_central.setSpacing(0)
+        layout_central.addWidget(self.tab_widget)
+
+        self.bottom_bar = BottomStatusBarWidget(main_window=self)
+        layout_central.addWidget(self.bottom_bar)
+
+        self.setCentralWidget(central_container)
 
         # --- CONEXIONES DIRECTAS: PANELES -> CANVAS ---
         self.color_panel.color_primario_cambiado.connect(self._on_color_primario_changed)
@@ -149,12 +129,28 @@ class PaintNotNet(QMainWindow):
 
         self.advanced_color_panel.color_primario_cambiado.connect(self._on_color_primario_changed)
         self.advanced_color_panel.color_secundario_cambiado.connect(self._on_color_secundario_changed)
-        self.text_panel.text_config_changed.connect(lambda cfg: self.canvas.actualizar_config_texto(cfg) if hasattr(self, 'canvas') and self.canvas else None)
-        self.effects_panel.effects_changed.connect(lambda _: self.canvas.update() if hasattr(self, 'canvas') and self.canvas else None)
+
+        # ==========================================
+        # MENÚS Y ATAJOS GLOBALES
+        # ==========================================
+        self.crear_menus()
+        self.text_panel = self.top_toolbar
+        self.effects_panel = self.top_toolbar
 
         from core.i18n import t
+        settings = QSettings("PaintNotNet", "PaintNotNet")
+        init_w = settings.value("default_canvas_w", 800, type=int)
+        init_h = settings.value("default_canvas_h", 600, type=int)
+        init_trans = settings.value("default_canvas_transparent", False, type=bool)
+        init_dpi = settings.value("default_canvas_dpi", 300, type=int)
+        init_profile = settings.value("default_canvas_profile", "sRGB", type=str)
+
         # Crear primera pestaña por defecto
-        self.crear_nueva_pestana(800, 600, transparent=False, titulo=t("Sin Título"))
+        self.crear_nueva_pestana(init_w, init_h, transparent=init_trans, dpi=init_dpi, perfil_color=init_profile, titulo=t("Sin Título"))
+
+        # Set active tool state on top toolbar
+        if hasattr(self, 'left_toolbar') and hasattr(self.left_toolbar, 'active_tool_obj'):
+            self.top_toolbar.update_tool_states(self.left_toolbar.active_tool_obj)
 
         # ==========================================
         # RESTAURAR PERFIL DE USUARIO SI EXISTE
@@ -167,12 +163,6 @@ class PaintNotNet(QMainWindow):
         from core.theme import ThemeManager
         ThemeManager().establecer_tema(ThemeManager().current_theme, self)
 
-        # ==========================================
-        # MENÚS Y ATAJOS GLOBALES
-        # ==========================================
-        self.crear_menus()
-        if hasattr(self, 'canvas') and self.canvas and hasattr(self.canvas, 'active_tool_obj'):
-            self.top_toolbar.update_tool_states(self.canvas.active_tool_obj)
         self.actualizar_titulo_ventana()
 
         self.shortcut_esc = QShortcut(QKeySequence(Qt.Key.Key_Escape), self)
@@ -209,8 +199,8 @@ class PaintNotNet(QMainWindow):
         if settings.value("save_on_close", True, type=bool):
             custom_hexs = settings.value("custom_colors", None)
             if custom_hexs and isinstance(custom_hexs, list):
-                for idx, hex_val in enumerate(custom_hexs[:12]):
-                    if hex_val:
+                for idx, hex_val in enumerate(custom_hexs[:21]):
+                    if hex_val and idx < len(self.color_panel.custom_colors):
                         c = QColor(hex_val)
                         if c.isValid():
                             self.color_panel.custom_colors[idx] = c
@@ -218,12 +208,12 @@ class PaintNotNet(QMainWindow):
                         else:
                             self.color_panel.custom_colors[idx] = None
                             self.color_panel.botones_custom[idx].set_color(None)
-                    else:
+                    elif idx < len(self.color_panel.custom_colors):
                         self.color_panel.custom_colors[idx] = None
                         self.color_panel.botones_custom[idx].set_color(None)
             else:
                 if hasattr(self, 'color_panel') and self.color_panel:
-                    self.color_panel.custom_colors = [None] * 12
+                    self.color_panel.custom_colors = [None] * 21
                     for btn in self.color_panel.botones_custom:
                         btn.set_color(None)
 
@@ -235,7 +225,6 @@ class PaintNotNet(QMainWindow):
 
         docks_visibles = {
             'tools_dock': True,
-            'brushes_dock': True,
             'color_dock': True,
             'text_dock': True,
             'advanced_color_dock': True,
@@ -296,7 +285,7 @@ class PaintNotNet(QMainWindow):
                 if hasattr(self.advanced_color_panel, 'muestras'):
                     self.advanced_color_panel.muestras.set_colores(self.advanced_color_panel.color_primario, color, self.advanced_color_panel.modo_color)
 
-    def crear_nueva_pestana(self, width=800, height=600, transparent=True, ruta=None, titulo=None):
+    def crear_nueva_pestana(self, width=800, height=600, transparent=True, ruta=None, titulo=None, dpi=300, perfil_color="sRGB"):
         from core.theme import ThemeManager
         tm = ThemeManager()
         res_nombre = tm.resolver_nombre_tema(tm.current_theme)
@@ -311,6 +300,23 @@ class PaintNotNet(QMainWindow):
         canvas = CanvasWidget(width, height)
         if not transparent:
             canvas.layer_mgr.buffer.fill(Qt.GlobalColor.white)
+
+        canvas.dpi = dpi
+        canvas.perfil_color = perfil_color
+
+        # Asignar densidad métrica (DPI -> dpm)
+        dpm = int(round(dpi * 39.3701))
+        canvas.layer_mgr.buffer.setDotsPerMeterX(dpm)
+        canvas.layer_mgr.buffer.setDotsPerMeterY(dpm)
+
+        # Configurar espacio de color
+        from PyQt6.QtGui import QColorSpace
+        if perfil_color == "Adobe RGB":
+            canvas.layer_mgr.buffer.setColorSpace(QColorSpace(QColorSpace.NamedColorSpace.AdobeRgb))
+        elif perfil_color == "Display P3":
+            canvas.layer_mgr.buffer.setColorSpace(QColorSpace(QColorSpace.NamedColorSpace.DisplayP3))
+        else:
+            canvas.layer_mgr.buffer.setColorSpace(QColorSpace(QColorSpace.NamedColorSpace.SRgb))
 
         canvas.main_window = self
         canvas.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
@@ -594,8 +600,8 @@ class PaintNotNet(QMainWindow):
             self.history_panel.retraducir_panel()
         if hasattr(self, 'color_panel') and hasattr(self.color_panel, 'retraducir_panel'):
             self.color_panel.retraducir_panel()
-        if hasattr(self, 'brushes_panel') and hasattr(self.brushes_panel, 'retraducir_panel'):
-            self.brushes_panel.retraducir_panel()
+        if hasattr(self, 'bottom_bar') and hasattr(self.bottom_bar, 'retraducir_bar'):
+            self.bottom_bar.retraducir_bar()
 
         if hasattr(self, 'text_dock'):
             self.text_dock.setWindowTitle(t("Texto"))
@@ -607,8 +613,6 @@ class PaintNotNet(QMainWindow):
             self.history_dock.setWindowTitle(t("Historial"))
         if hasattr(self, 'color_dock'):
             self.color_dock.setWindowTitle(t("Color"))
-        if hasattr(self, 'brushes_dock'):
-            self.brushes_dock.setWindowTitle(t("Pinceles"))
 
         for i in range(self.tab_widget.count()):
             self.actualizar_titulo_pestana(i)
@@ -706,7 +710,7 @@ class PaintNotNet(QMainWindow):
         settings.setValue("geometry", self.saveGeometry())
 
         docks_attr = [
-            'tools_dock', 'color_dock', 'brushes_dock', 'text_dock',
+            'tools_dock', 'color_dock', 'text_dock',
             'effects_dock', 'layers_dock', 'history_dock', 'advanced_color_dock'
         ]
         docks_visibles = {attr: getattr(self, attr).isVisible() for attr in docks_attr if hasattr(self, attr)}

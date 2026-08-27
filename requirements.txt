@@ -105,6 +105,16 @@ numpy>=1.24.0
 opencv-python>=4.8.0
 
 # ==============================================================================
+# OPCIONAL: GENERACIÓN DE IMÁGENES POR IA (DIFFUSERS) / AI IMAGE GENERATION
+# ==============================================================================
+# Requerido para utilizar la función "Generar imagen con IA..." en GPU o CPU
+# Required to use the "Generate AI image..." feature on GPU or CPU
+# torch>=2.0.0
+# diffusers>=0.21.0
+# transformers>=4.30.0
+# accelerate>=0.20.0
+
+# ==============================================================================
 # SOLO PARA GENERAR EJECUTABLE / ONLY TO BUILD EXECUTABLE (.bin / .exe)
 # ==============================================================================
 # No instalar en producción / Do not install in production

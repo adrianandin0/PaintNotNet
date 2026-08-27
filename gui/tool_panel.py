@@ -20,6 +20,9 @@ from tools.line import LineTool
 from tools.gradient import GradientTool
 from tools.shapes import ShapesTool
 from tools.blur import BlurTool
+from tools.spray import SprayTool
+from tools.smudge import SmudgeTool
+from tools.stamp import StampTool
 
 
 class ShortcutToolButton(QToolButton):
@@ -53,7 +56,7 @@ class ShortcutToolButton(QToolButton):
 
 
 class ToolPanelWidget(QWidget):
-    """Panel de herramientas centrado con 18 herramientas e insignias de atajos."""
+    """Panel de herramientas centrado con herramientas e insignias de atajos."""
     def __init__(self, main_window=None):
         super().__init__()
         self.main_window = main_window
@@ -68,15 +71,13 @@ class ToolPanelWidget(QWidget):
         grid.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.tools_grid = [
-            [SelectRectTool(), MoveSelectOnlyTool()],
-            [SelectFreeTool(), MoveSelectPixelsTool()],
-            [SelectEllipseTool(), InvertSelectionTool()],
-            [BucketTool(), GradientTool()],
-            [BrushTool(), EyedropperTool()],
-            [PencilTool(), EraserTool()],
-            [MagicWandTool(), LineTool()],
-            [TextTool(), ZoomTool()],
-            [ShapesTool(), BlurTool()],
+            [SelectRectTool(), MoveSelectOnlyTool(), SelectFreeTool()],
+            [MoveSelectPixelsTool(), SelectEllipseTool(), InvertSelectionTool()],
+            [BucketTool(), GradientTool(), BrushTool()],
+            [EyedropperTool(), PencilTool(), EraserTool()],
+            [SprayTool(), SmudgeTool(), StampTool()],
+            [MagicWandTool(), LineTool(), TextTool()],
+            [ZoomTool(), ShapesTool(), BlurTool()],
         ]
 
         def _make_tool_handler(tool_obj):
@@ -104,7 +105,7 @@ class ToolPanelWidget(QWidget):
         layout.addLayout(grid)
         layout.addStretch()
         self.setLayout(layout)
-        self.setFixedWidth(82)
+        self.setFixedWidth(118)
 
         self.actualizar_insignias_atajos()
         self.retraducir_tooltips()
@@ -127,6 +128,13 @@ class ToolPanelWidget(QWidget):
                 char = atajos.get(nombre, "")
                 if isinstance(btn, ShortcutToolButton):
                     btn.set_shortcut_char(char)
+
+    @property
+    def active_tool_obj(self):
+        btn = self.button_group.checkedButton()
+        if btn:
+            return btn.property("tool_obj")
+        return PencilTool()
 
     def select_tool(self, tool):
         for btn in self.button_group.buttons():

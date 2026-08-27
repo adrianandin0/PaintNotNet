@@ -15,12 +15,15 @@ DEFAULT_SHORTCUTS = {
     "Cuentagotas": "K",
     "Lápiz": "P",
     "Goma de Borrar": "E",
+    "Aerosol": "A",
+    "Difuminar (Dedo)": "U",
     "Varita Mágica": "W",
     "Línea": "O",
     "Texto": "T",
     "Zoom": "Z",
     "Insertar Formas": "H",
     "Difuminar": "D",
+    "Estampa": "X",
 }
 
 TOOL_ICONS = {
@@ -36,12 +39,15 @@ TOOL_ICONS = {
     "Cuentagotas":           "gui/iconos/eyedropper.png",
     "Lápiz":                 "gui/iconos/pencil.png",
     "Goma de Borrar":        "gui/iconos/eraser.png",
+    "Aerosol":               "gui/iconos/spray.png",
+    "Difuminar (Dedo)":      "gui/iconos/finger.png",
     "Varita Mágica":         "gui/iconos/magic.png",
     "Línea":                 "gui/iconos/line.png",
     "Texto":                 "gui/iconos/text.png",
     "Zoom":                  "gui/iconos/zoom.png",
     "Insertar Formas":       "gui/iconos/shapes.png",
     "Difuminar":             "gui/iconos/blur.png",
+    "Estampa":               "gui/iconos/stamp.png",
 }
 
 def cargar_atajos():
