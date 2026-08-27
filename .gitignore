@@ -92,7 +92,11 @@ requirements_windows.txt
 # Compilador Linux
 build_all.sh
 
-# Ignorar paquetes generados por FPM / compiladores
+# Ignorar paquetes generados por FPM / compiladores / PyInstaller
 *.deb
 *.rpm
 *.pkg.tar.zst
+*.exe
+PNN-Setup_*.exe
+paintnotnet_*
+.tempmediaStorage/

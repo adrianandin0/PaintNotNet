@@ -53,6 +53,21 @@
 #### ⌨️ Atajos de Teclado Personalizables
 - **Configuración de Atajos**: Personaliza las teclas de acceso rápido para todas las 18 herramientas desde *Opciones -> Atajos de teclado...* con actualización de insignias en tiempo real.
 
+### 🆕 Novedades en la Versión 1.0.4
+- 🎨 **3 Nuevas Herramientas**:
+  - **Aerosol (Spray Paint)**: Pinta en un área circular con efecto aerosol, afectado por tamaño, alfa y suavizado.
+  - **Difuminar (Smudge)**: Difumina y arrastra píxeles en el lienzo con intensidad regulable.
+  - **Estampa (Stamp)**: Estampa y mecha patrones o muestras sobre el lienzo.
+- 📐 **Mejoras en Creación de Lienzo**:
+  - **Perfiles de Color y DPI**: Selector de espacio de color (*sRGB*, *Display P3*, *Adobe RGB*) y densidad de píxeles (*72, 96, 150, 300 DPI*).
+  - **Guardado Predeterminado**: *"Establecer como predeterminado"* guarda dimensiones del lienzo, color de fondo, perfil de color y DPI.
+- ✨ **Mejoras Estéticas y Funcionales**:
+  - **Forma de Pincel en Barra Superior**: Alterna entre forma **Circular** y **Cuadrada** directo desde la barra de herramientas.
+  - **Alineación de Texto y Cuadros**: Justificado de texto y botones de alineación en la barra inferior para reubicar cuadros de texto activos.
+  - **Degradado Transparente**: Modo de degradado desde color sólido hasta transparencia de alfa 0.
+  - **Inserción Inteligente de Imágenes**: Opciones de *"Ajustar lienzo"*, *"Adaptar imagen"* e *"Insertar sin cambios"* para imágenes de archivo e internet.
+  - **Interfaz Liviana**: Eliminación de paneles laterales redundantes.
+
 ---
 
 ## 🇬🇧 About the Project (English)
@@ -68,7 +83,7 @@
 #### 🛠️ Drawing, Selection & Shape Tools
 - **Selection Tools**: Rectangle, Ellipse, Freeform Lasso, and Magic Wand with tolerance selection.
 - **Free Transformation**: Move Selected Pixels (`V`), Move Selection (`M`), and Invert Selection (`I`) beyond viewport boundaries.
-- **Paint & FX Tools**: Pencil, Paintbrush (with width and smoothing), Eraser, Paint Bucket, Gradient, Line/Curve Tool, and Blur.
+- **Paint & FX Tools**: Pencil, Paintbrush (with width and smoothing), Eraser, Paint Bucket, Gradient, Line/Curve Tool, Spray Paint, Smudge, and Stamp.
 - **Text & Shapes**: Adjustable geometric shapes (Rectangles, Ellipses, Stars, Polygons with rounded corners) and dynamic text layer engine.
 - **Color Picker**: Advanced Color Panel (color wheel, RGB/HSV/CMYK sliders, and saved palette history).
 
@@ -78,9 +93,12 @@
 - **Native `.pnn` Project Format**: Save projects preserving layers, transparency, and structure. Automatic MIME file association for double-clicking `.pnn` files.
 
 #### ⌨️ Customizable Keyboard Shortcuts
-- **Shortcut Configuration**: Customize keyboard shortcut keys for all 18 tools from *Options -> Keyboard Shortcuts...* with real-time badge updates.
+- **Shortcut Configuration**: Customize keyboard shortcut keys for all 21 tools from *Options -> Keyboard Shortcuts...* with real-time badge updates.
 
----
+### 🆕 What's New in Version 1.0.4
+- 🎨 **3 New Tools**: **Spray Paint**, **Smudge Tool**, and **Stamp Tool**.
+- 📐 **Enhanced Canvas Setup**: Color profile selection (*sRGB*, *Display P3*, *Adobe RGB*), DPI density controls, and unified *"Set as default"* preset persistence.
+- ✨ **Tool & UI Polish**: Top toolbar brush shape toggle (**Circular** / **Square**), text box canvas alignment from bottom bar, transparency gradient mode, and smart image import dialog (*"Expand Canvas"*, *"Fit Image"*, *"Keep Original Size"*).
 
 ## 🚀 Instalación y Uso / Installation & Usage
 
