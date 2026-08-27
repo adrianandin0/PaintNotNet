@@ -321,6 +321,7 @@ class TopToolBarWidget(QToolBar):
         self.combo_forma_tipo.addItem(QIcon("gui/iconos/shape_chat.png"), "", "Chat")
         self.combo_forma_tipo.addItem(QIcon("gui/iconos/shape_star.png"), "", "Estrella")
         self.combo_forma_tipo.addItem(QIcon("gui/iconos/shape_flower.png"), "", "Flor")
+        self.combo_forma_tipo.addItem(QIcon("gui/iconos/hand.png"), "", "Mano")
         self.combo_forma_tipo.setToolTip("Tipo de Forma: Rectángulo")
         self.combo_forma_tipo.currentIndexChanged.connect(self._on_forma_tipo_changed)
         self.act_combo_forma_tipo = self.addWidget(self.combo_forma_tipo)

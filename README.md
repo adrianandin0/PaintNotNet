@@ -61,7 +61,7 @@
 - 📐 **Mejoras en Creación de Lienzo**:
   - **Perfiles de Color y DPI**: Selector de espacio de color (*sRGB*, *Display P3*, *Adobe RGB*) y densidad de píxeles (*72, 96, 150, 300 DPI*).
   - **Guardado Predeterminado**: *"Establecer como predeterminado"* guarda dimensiones del lienzo, color de fondo, perfil de color y DPI.
-- ✨ **Mejoras Estéticas y Funcionales**:
+  - **Formas Geométricas**: Nueva forma vectorizada de **Mano** (*pointing hand*) añadida junto a Rectángulo, Triángulo, Elipse, Nube, Corazón, Chat, Estrella y Flor.
   - **Forma de Pincel en Barra Superior**: Alterna entre forma **Circular** y **Cuadrada** directo desde la barra de herramientas.
   - **Alineación de Texto y Cuadros**: Justificado de texto y botones de alineación en la barra inferior para reubicar cuadros de texto activos.
   - **Degradado Transparente**: Modo de degradado desde color sólido hasta transparencia de alfa 0.

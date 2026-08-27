@@ -168,6 +168,9 @@ class ShapesTool(BaseTool):
         elif tipo == "Flor":
             petals_path, center_path = self._build_flower_components(rect)
             path = petals_path.united(center_path)
+        elif tipo == "Mano":
+            outer_path, inner_path = self._build_hand_components(rect)
+            path = outer_path.united(inner_path)
         else: # Rectángulo
             if redondeado:
                 rx = max(2.0, min(rect.width(), rect.height()) * 0.15)
@@ -175,6 +178,60 @@ class ShapesTool(BaseTool):
             else:
                 path.addRect(rect)
         return path
+
+    def _build_hand_components(self, rect):
+        x, y, w, h = rect.x(), rect.y(), rect.width(), rect.height()
+
+        # Trazado exterior EXACTO de la figura del usuario (ambos lados del índice del mismo largo)
+        outer_path = QPainterPath()
+
+        # Base izquierda del índice (al mismo nivel que la base derecha del índice: y + h * 0.35)
+        outer_path.moveTo(x + w * 0.28, y + h * 0.35)
+
+        # Dedo índice hacia arriba (lado izquierdo)
+        outer_path.lineTo(x + w * 0.28, y + h * 0.10)
+        # Punta del índice redondeada
+        outer_path.cubicTo(x + w * 0.28, y + h * 0.03, x + w * 0.42, y + h * 0.03, x + w * 0.42, y + h * 0.10)
+        # Bajada del dedo índice (lado derecho del mismo largo que el izquierdo: y + h * 0.35)
+        outer_path.lineTo(x + w * 0.42, y + h * 0.35)
+
+        # Dedo Medio (bucle redondeado)
+        outer_path.cubicTo(x + w * 0.44, y + h * 0.28, x + w * 0.58, y + h * 0.28, x + w * 0.60, y + h * 0.38)
+
+        # Dedo Anular (bucle redondeado)
+        outer_path.cubicTo(x + w * 0.62, y + h * 0.32, x + w * 0.74, y + h * 0.32, x + w * 0.76, y + h * 0.43)
+
+        # Dedo Meñique (bucle redondeado y caída lateral derecha)
+        outer_path.cubicTo(x + w * 0.78, y + h * 0.38, x + w * 0.88, y + h * 0.40, x + w * 0.88, y + h * 0.52)
+
+        # Curva redondeada de la palma inferior
+        outer_path.cubicTo(x + w * 0.88, y + h * 0.75, x + w * 0.70, y + h * 0.88, x + w * 0.48, y + h * 0.88)
+
+        # Pulgar doblado a la izquierda (sale desde el lateral izquierdo del índice en y + h * 0.35)
+        outer_path.cubicTo(x + w * 0.30, y + h * 0.88, x + w * 0.12, y + h * 0.72, x + w * 0.12, y + h * 0.50)
+        outer_path.cubicTo(x + w * 0.12, y + h * 0.42, x + w * 0.20, y + h * 0.36, x + w * 0.28, y + h * 0.35)
+        outer_path.closeSubpath()
+
+        # Líneas interiores (separaciones de dedos)
+        inner_path = QPainterPath()
+
+        # Separación 1: lado izquierdo del índice bajando hacia la palma
+        inner_path.moveTo(x + w * 0.28, y + h * 0.35)
+        inner_path.lineTo(x + w * 0.28, y + h * 0.50)
+
+        # Separación 2: índice / medio
+        inner_path.moveTo(x + w * 0.42, y + h * 0.35)
+        inner_path.lineTo(x + w * 0.42, y + h * 0.50)
+
+        # Separación 3: medio / anular
+        inner_path.moveTo(x + w * 0.60, y + h * 0.38)
+        inner_path.lineTo(x + w * 0.60, y + h * 0.50)
+
+        # Separación 4: anular / meñique
+        inner_path.moveTo(x + w * 0.76, y + h * 0.43)
+        inner_path.lineTo(x + w * 0.76, y + h * 0.50)
+
+        return outer_path, inner_path
 
     def _build_flower_components(self, rect):
         cx, cy = rect.center().x(), rect.center().y()
@@ -224,7 +281,27 @@ class ShapesTool(BaseTool):
         brush_fill = QBrush(col_sec)
         brush_solid = QBrush(col_prim)
 
-        if tipo == "Flor":
+        if tipo == "Mano":
+            outer_path, inner_path = self._build_hand_components(rect)
+            if estilo == "Solo Borde":
+                painter.setPen(pen_border)
+                painter.setBrush(Qt.BrushStyle.NoBrush)
+                painter.drawPath(outer_path)
+                painter.drawPath(inner_path)
+            elif estilo == "Forma Sólida":
+                painter.setPen(Qt.PenStyle.NoPen)
+                painter.setBrush(brush_solid)
+                painter.drawPath(outer_path)
+                pen_inner = QPen(col_sec, max(1, grosor // 2), Qt.PenStyle.SolidLine, end_cap, join_cap)
+                painter.setPen(pen_inner)
+                painter.drawPath(inner_path)
+            else:  # Borde y Relleno
+                painter.setPen(pen_border)
+                painter.setBrush(brush_fill)
+                painter.drawPath(outer_path)
+                painter.drawPath(inner_path)
+            return
+        elif tipo == "Flor":
             petals_path, center_path = self._build_flower_components(rect)
 
             if estilo == "Solo Borde":

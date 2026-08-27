@@ -1299,24 +1299,9 @@ class CanvasWidget(QWidget):
         from PyQt6.QtWidgets import QApplication
         img = QApplication.clipboard().image()
         if not img.isNull():
-            from tools.move_select_pixels import MoveSelectPixelsTool
-            MoveSelectPixelsTool.commit_floating_image(self)
-
-            self.push_document_state("Pegar")
             img_format = img.convertToFormat(QImage.Format.Format_ARGB32_Premultiplied)
-            self.selection_engine.unscaled_floating_image = img_format.copy()
-            self.selection_engine.floating_image = img_format.copy()
-
-            img_w = img_format.width()
-            img_h = img_format.height()
-            pos_x = (self.layer_mgr.width - img_w) / 2.0 if img_w > self.layer_mgr.width else 0.0
-            pos_y = (self.layer_mgr.height - img_h) / 2.0 if img_h > self.layer_mgr.height else 0.0
-
-            self.selection_engine.original_image_pos = QPointF(pos_x, pos_y)
-            self.selection_engine.set_rectangle(QRectF(pos_x, pos_y, img_w, img_h))
-            if hasattr(self, 'main_window') and self.main_window:
-                self.main_window.activar_herramienta_mover()
-            self.update()
+            return self._procesar_insercion_imagen(img_format, "Pegar")
+        return False
 
     def _procesar_insercion_imagen(self, img_format: QImage, action_title: str = "Insertar Imagen"):
         from tools.move_select_pixels import MoveSelectPixelsTool

@@ -204,10 +204,11 @@ class SelectionEngine:
         self.last_mouse_pos = pos
 
     def end_transform(self):
-        # Si se hizo un resize o rotación, actualizar la imagen base al nuevo estado
-        # para que transformaciones posteriores usen la imagen acumulada correctamente.
+        # Para rotaciones acumuladas se actualiza la imagen base.
+        # Para redimensionado (resize), NUNCA se sobrescribe unscaled_floating_image
+        # para que la selección conserve 100% su resolución original al achicar y re-agrandar.
         if self.floating_image and not self.floating_image.isNull():
-            if (self.is_moving and self.active_handle not in (self.HANDLE_NONE, self.HANDLE_MOVE)) or self.is_rotating:
+            if self.is_rotating:
                 self.unscaled_floating_image = self.floating_image.copy()
                 self.rotation_angle = 0.0
                 self.base_rotation_angle = 0.0
@@ -268,13 +269,11 @@ class SelectionEngine:
             if self.unscaled_floating_image and not self.unscaled_floating_image.isNull():
                 new_w = max(1, int(new_rect.width()))
                 new_h = max(1, int(new_rect.height()))
-                # Siempre escalar desde el original sin modificar (unscaled_floating_image).
-                # NO sobrescribir unscaled_floating_image aquí: si se hace, cada
-                # movimiento del handle escala una imagen ya degradada y produce
-                # manchas/deformación cuando se reduce después de ampliar.
+                # Siempre escalar desde el original sin modificar (unscaled_floating_image)
+                # con SmoothTransformation para máxima calidad visual al achicar y agrandar.
                 self.floating_image = self.unscaled_floating_image.scaled(
                     new_w, new_h,
                     Qt.AspectRatioMode.IgnoreAspectRatio,
-                    Qt.TransformationMode.FastTransformation  # Nearest-neighbor: sin blur
+                    Qt.TransformationMode.SmoothTransformation
                 )
                 self.original_image_pos = new_rect.topLeft()
