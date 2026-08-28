@@ -9,6 +9,7 @@ class Layer:
         self.name = name
         self.visible = True
         self.locked = False
+        self.opacity = 1.0
         self.image = QImage(width, height, QImage.Format.Format_ARGB32_Premultiplied)
         if transparent:
             self.image.fill(Qt.GlobalColor.transparent)
@@ -62,7 +63,10 @@ class LayerManager:
         painter = QPainter(capa_combinada.image)
 
         for idx in reversed(indices_ordenados):
-            painter.drawImage(0, 0, self.capas[idx].image)
+            capa = self.capas[idx]
+            op = getattr(capa, 'opacity', 1.0)
+            painter.setOpacity(op)
+            painter.drawImage(0, 0, capa.image)
         painter.end()
 
         min_idx = indices_ordenados[0]
@@ -80,6 +84,8 @@ class LayerManager:
         painter = QPainter(imagen_final)
         for i, capa in enumerate(reversed(self.capas)):
             if capa.visible:
+                op = float(getattr(capa, 'opacity', 1.0))
+                painter.setOpacity(op)
                 painter.drawImage(0, 0, capa.image)
                 idx_real = len(self.capas) - 1 - i
                 if idx_real == self.indice_activo:

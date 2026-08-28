@@ -1,5 +1,9 @@
 {
   "Alfa:": "Alpha:",
+  "Opacidad (Alfa)...": "Opacity (Alpha)...",
+  "Opacidad de Capa": "Layer Opacity",
+  "Nivel de Alfa / Opacidad (0 - 100%):": "Alpha / Opacity Level (0 - 100%):",
+  "Cambiar Opacidad": "Change Opacity",
   "Archivo": "File",
   "Nuevo": "New",
   "Abrir...": "Open...",

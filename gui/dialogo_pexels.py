@@ -1,5 +1,6 @@
 """
 gui/dialogo_pexels.py — Diálogo de búsqueda e inserción de imágenes desde Internet con paginación (40 por página).
+Manejo seguro de hilos QThread para evitar bloqueos y cierres inesperados.
 """
 import os
 from PyQt6.QtWidgets import (
@@ -14,7 +15,7 @@ from core.pexels import PexelsAPIClient
 
 
 # ---------------------------------------------------------------------------
-# Workers asíncronos para búsquedas y descargas
+# Workers asíncronos para búsquedas y descargas con cancelación segura
 # ---------------------------------------------------------------------------
 
 class _SearchWorker(QThread):
@@ -25,13 +26,19 @@ class _SearchWorker(QThread):
         self.query = query
         self.is_transparent = is_transparent
         self.page = page
+        self._is_cancelled = False
+
+    def cancel(self):
+        self._is_cancelled = True
 
     def run(self):
         try:
             photos = PexelsAPIClient.search_photos(self.query, "DuckDuckGo", self.is_transparent, page=self.page, per_page=40)
-            self.results_ready.emit(photos, "")
+            if not self._is_cancelled:
+                self.results_ready.emit(photos, "")
         except Exception as e:
-            self.results_ready.emit([], str(e))
+            if not self._is_cancelled:
+                self.results_ready.emit([], str(e))
 
 
 class _DownloadWorker(QThread):
@@ -40,20 +47,27 @@ class _DownloadWorker(QThread):
     def __init__(self, url: str):
         super().__init__()
         self.url = url
+        self._is_cancelled = False
+
+    def cancel(self):
+        self._is_cancelled = True
 
     def run(self):
         try:
             data = PexelsAPIClient.download_bytes(self.url)
+            if self._is_cancelled:
+                return
             if data:
                 self.download_finished.emit(data, "")
             else:
                 self.download_finished.emit(b"", "Error al descargar la imagen.")
         except Exception as e:
-            self.download_finished.emit(b"", str(e))
+            if not self._is_cancelled:
+                self.download_finished.emit(b"", str(e))
 
 
 # ---------------------------------------------------------------------------
-# Tarjeta de Imagen limpia (solo la miniatura sin información extra)
+# Tarjeta de Imagen limpia con cancelación de hilo
 # ---------------------------------------------------------------------------
 
 class _ImageCardWidget(QPushButton):
@@ -66,6 +80,7 @@ class _ImageCardWidget(QPushButton):
         self.parent_dialog = parent_dialog
         self.is_selected = False
         self.pixmap: QPixmap | None = None
+        self.worker: _DownloadWorker | None = None
         self.setFixedSize(140, 105)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
@@ -78,7 +93,21 @@ class _ImageCardWidget(QPushButton):
             return
         self.worker = _DownloadWorker(url)
         self.worker.download_finished.connect(self._on_preview_loaded)
+        if self.parent_dialog and hasattr(self.parent_dialog, '_track_worker'):
+            self.parent_dialog._track_worker(self.worker)
         self.worker.start()
+
+    def cancel_download(self):
+        if self.worker:
+            try:
+                self.worker.download_finished.disconnect()
+            except Exception:
+                pass
+            self.worker.cancel()
+            if self.worker.isRunning():
+                self.worker.quit()
+                self.worker.wait(50)
+            self.worker = None
 
     def _on_preview_loaded(self, data: bytes, err: str):
         if data:
@@ -165,6 +194,7 @@ class DialogoBusquedaPexels(QDialog):
         self.current_page = 1
         self.search_worker: _SearchWorker | None = None
         self.download_worker: _DownloadWorker | None = None
+        self._active_workers = set()
 
         self.setWindowTitle(t("Insertar desde Internet"))
         self.resize(720, 560)
@@ -279,6 +309,32 @@ class DialogoBusquedaPexels(QDialog):
         self.input_search.setText("paisaje")
         self._on_new_search()
 
+    def _track_worker(self, worker):
+        if not worker:
+            return
+        self._active_workers.add(worker)
+        worker.finished.connect(lambda: self._active_workers.discard(worker))
+
+    def _stop_all_workers(self):
+        for w in list(self._active_workers):
+            try:
+                if hasattr(w, 'cancel'):
+                    w.cancel()
+                if w.isRunning():
+                    w.quit()
+                    w.wait(50)
+            except Exception:
+                pass
+        self._active_workers.clear()
+
+    def closeEvent(self, event):
+        self._stop_all_workers()
+        super().closeEvent(event)
+
+    def reject(self):
+        self._stop_all_workers()
+        super().reject()
+
     def _on_new_search(self):
         self.current_page = 1
         self._fetch_page()
@@ -297,6 +353,15 @@ class DialogoBusquedaPexels(QDialog):
         if not query:
             return
 
+        if self.search_worker and self.search_worker.isRunning():
+            self.search_worker.cancel()
+            try:
+                self.search_worker.results_ready.disconnect()
+            except Exception:
+                pass
+            self.search_worker.quit()
+            self.search_worker.wait(50)
+
         self._clear_grid()
         msg_loading = t("Cargando página %1...").replace("%1", str(self.current_page))
         self.lbl_status.setText(msg_loading)
@@ -311,11 +376,13 @@ class DialogoBusquedaPexels(QDialog):
         is_trans = self.chk_transparent.isChecked()
         self.search_worker = _SearchWorker(query, is_trans, page=self.current_page)
         self.search_worker.results_ready.connect(self._on_results_ready)
+        self._track_worker(self.search_worker)
         self.search_worker.start()
 
     def _clear_grid(self):
         self.selected_card = None
         for card in self.cards:
+            card.cancel_download()
             self.grid_layout.removeWidget(card)
             card.deleteLater()
         self.cards.clear()
@@ -368,8 +435,18 @@ class DialogoBusquedaPexels(QDialog):
         self.btn_insert.setEnabled(False)
         self.btn_cancel.setEnabled(False)
 
+        if self.download_worker and self.download_worker.isRunning():
+            self.download_worker.cancel()
+            try:
+                self.download_worker.download_finished.disconnect()
+            except Exception:
+                pass
+            self.download_worker.quit()
+            self.download_worker.wait(50)
+
         self.download_worker = _DownloadWorker(download_url)
         self.download_worker.download_finished.connect(self._on_full_image_downloaded)
+        self._track_worker(self.download_worker)
         self.download_worker.start()
 
     def _on_full_image_downloaded(self, data: bytes, err: str):

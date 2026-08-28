@@ -84,9 +84,13 @@ class PexelsAPIClient:
         if not photos:
             photos = PexelsAPIClient._search_ddg_embedded(search_q, is_transparent, page, per_page)
 
-        # 3. Fallback adicional a Wikimedia Commons
+        # 3. Fallback adicional a Wikimedia Commons (Archivos de imagen)
         if not photos:
             photos = PexelsAPIClient._search_wikimedia(search_q, is_transparent, page, per_page)
+
+        # 4. Fallback adicional a Unsplash Público
+        if not photos:
+            photos = PexelsAPIClient._search_unsplash_public(search_q, page, per_page)
 
         return photos
 
@@ -175,10 +179,10 @@ class PexelsAPIClient:
         offset = (page - 1) * per_page
         url = (
             "https://commons.wikimedia.org/w/api.php?"
-            f"action=query&generator=search&gsrsearch={encoded_q}&gsrlimit={per_page}&gsroffset={offset}"
+            f"action=query&generator=search&gsrsearch={encoded_q}&gsrnamespace=6&gsrlimit={per_page}&gsroffset={offset}"
             "&prop=imageinfo&iiprop=url|size&format=json"
         )
-        headers = {"User-Agent": "PaintNotNet/1.0 (https://paintnotnet.org)"}
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
         ctx = _get_ssl_context()
         req = urllib.request.Request(url, headers=headers)
 
@@ -203,6 +207,34 @@ class PexelsAPIClient:
         except Exception:
             pass
 
+        return photos
+
+    @staticmethod
+    def _search_unsplash_public(query: str, page: int, per_page: int) -> list:
+        clean_q = urllib.parse.quote(query.strip())
+        url = f"https://unsplash.com/napi/search/photos?query={clean_q}&page={page}&per_page={per_page}"
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        ctx = _get_ssl_context()
+        req = urllib.request.Request(url, headers=headers)
+        photos = []
+        try:
+            with urllib.request.urlopen(req, context=ctx, timeout=8) as resp:
+                if resp.status == 200:
+                    data = json.loads(resp.read().decode("utf-8", errors="ignore"))
+                    for item in data.get("results", []):
+                        urls = item.get("urls", {})
+                        small = urls.get("small") or urls.get("thumb")
+                        full = urls.get("full") or urls.get("regular") or small
+                        if small and full:
+                            photos.append({
+                                "id": item.get("id", full),
+                                "preview_url": small,
+                                "download_url": full,
+                                "width": item.get("width", 800),
+                                "height": item.get("height", 600)
+                            })
+        except Exception:
+            pass
         return photos
 
     @staticmethod

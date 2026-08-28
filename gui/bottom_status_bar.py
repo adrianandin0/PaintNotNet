@@ -9,7 +9,7 @@ Contiene:
 from PyQt6.QtWidgets import (
     QWidget, QHBoxLayout, QLabel, QToolButton, QFrame, QCheckBox
 )
-from PyQt6.QtCore import Qt, QSize
+from PyQt6.QtCore import Qt, QSize, QTimer
 from PyQt6.QtGui import QIcon
 from core.i18n import t
 
@@ -84,13 +84,22 @@ class BottomStatusBarWidget(QWidget):
 
         layout.addStretch()
 
+        # 3. Label de Mensajes de Estado / Alertas (a la izquierda de las coordenadas X, Y)
+        self.lbl_msg = QLabel("")
+        layout.addWidget(self.lbl_msg)
+
+        # Timer para auto-ocultar mensajes
+        self.msg_timer = QTimer(self)
+        self.msg_timer.setSingleShot(True)
+        self.msg_timer.timeout.connect(lambda: self.lbl_msg.setText(""))
+
         # Separador vertical 2
         self.sep2 = QFrame()
         self.sep2.setFrameShape(QFrame.Shape.VLine)
         self.sep2.setFrameShadow(QFrame.Shadow.Sunken)
         layout.addWidget(self.sep2)
 
-        # 3. Coordenadas del Cursor (Fijas a la derecha de la barra estática)
+        # 4. Coordenadas del Cursor (Fijas a la derecha de la barra estática)
         self.lbl_cursor_pos = QLabel("X: -- px, Y: -- px")
         layout.addWidget(self.lbl_cursor_pos)
 
@@ -111,6 +120,7 @@ class BottomStatusBarWidget(QWidget):
         # Texto Negro en tema claro, Blanco en tema oscuro (tamaño 11px, respetando fuente del sistema)
         text_color_exact = "#FFFFFF" if is_dark else "#000000"
         border_subtle = "#555555" if is_dark else "#A0A0A0"
+        msg_color = "#64B4FF" if is_dark else "#0055B8"
 
         self.setStyleSheet(f"""
             QWidget#bottom_status_bar {{
@@ -145,6 +155,7 @@ class BottomStatusBarWidget(QWidget):
         label_style = f"font-size: 11px; font-weight: normal; color: {text_color_exact};"
         self.lbl_align.setStyleSheet(label_style)
         self.lbl_cursor_pos.setStyleSheet(label_style)
+        self.lbl_msg.setStyleSheet(f"font-size: 11px; font-weight: bold; color: {msg_color}; padding: 0 4px;")
         self.sep1.setStyleSheet(f"color: {border_subtle}; background-color: {border_subtle};")
         self.sep2.setStyleSheet(f"color: {border_subtle}; background-color: {border_subtle};")
 
@@ -166,11 +177,9 @@ class BottomStatusBarWidget(QWidget):
         else:
             self.lbl_cursor_pos.setText("X: -- px, Y: -- px")
 
-    def mostrar_mensaje(self, text: str, msecs: int = 2000):
-        if self.main_window and hasattr(self.main_window, 'statusBar'):
-            sb = self.main_window.statusBar()
-            if sb:
-                sb.showMessage(text, msecs)
+    def mostrar_mensaje(self, text: str, msecs: int = 2500):
+        self.lbl_msg.setText(text)
+        self.msg_timer.start(msecs)
 
     def retraducir_bar(self):
         self.chk_grid.setText(t("Cuadrícula de píxeles"))

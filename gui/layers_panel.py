@@ -1,8 +1,69 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QToolButton,
                              QPushButton, QListWidget, QListWidgetItem, QAbstractItemView,
-                             QMessageBox, QMenu, QInputDialog)
+                             QMessageBox, QMenu, QInputDialog, QWidgetAction, QSpinBox)
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QIcon, QPixmap, QImage, QPainter, QColor
+
+
+class AlphaMenuAction(QWidgetAction):
+    """Acción de menú personalizada con campo numérico de Alfa / Opacidad (0 - 100%)."""
+    def __init__(self, capa, panel, parent=None):
+        super().__init__(parent)
+        self.capa = capa
+        self.panel = panel
+
+        container = QWidget()
+        container.setStyleSheet("background: transparent;")
+        layout = QHBoxLayout(container)
+        layout.setContentsMargins(16, 2, 12, 2)
+        layout.setSpacing(6)
+
+        from core.i18n import t
+        self.lbl_alpha = QLabel(t("Alfa:"))
+        self.lbl_alpha.setStyleSheet("font-size: 11px; padding: 0px; margin: 0px;")
+
+        self.spin = QSpinBox()
+        self.spin.setRange(0, 100)
+        op_pct = int(round(getattr(capa, 'opacity', 1.0) * 100))
+        self.spin.setValue(op_pct)
+        self.spin.setFixedWidth(60)
+        self.spin.setToolTip(t("Transparencia de la capa (0-100%)"))
+        self.spin.setStyleSheet("""
+            QSpinBox {
+                font-size: 11px;
+                padding: 1px 3px;
+                border: 1px solid #555555;
+                border-radius: 3px;
+                background-color: #2B2B2B;
+                color: #FFFFFF;
+            }
+        """)
+
+        self.spin.valueChanged.connect(self._on_alpha_changed)
+
+        layout.addWidget(self.lbl_alpha)
+        layout.addWidget(self.spin)
+        layout.addStretch()
+
+        self.setDefaultWidget(container)
+
+    def _on_alpha_changed(self, val):
+        self.capa.opacity = max(0.0, min(1.0, val / 100.0))
+        row_widget = None
+        for i in range(self.panel.lista_capas.count()):
+            item = self.panel.lista_capas.item(i)
+            rw = self.panel.lista_capas.itemWidget(item)
+            if rw and rw.capa == self.capa:
+                row_widget = rw
+                break
+        if row_widget:
+            op_pct = int(round(self.capa.opacity * 100))
+            nombre_display = f"{self.capa.name} ({op_pct}%)" if op_pct < 100 else self.capa.name
+            row_widget.lbl_name.setText(nombre_display)
+
+        canvas = self.panel.obtener_canvas()
+        if canvas:
+            canvas.update()
 
 
 class LayerRowWidget(QWidget):
@@ -22,8 +83,10 @@ class LayerRowWidget(QWidget):
         self.actualizar_thumb()
         layout.addWidget(self.lbl_thumb)
 
-        # 2. Nombre de la Capa
-        self.lbl_name = QLabel(capa.name)
+        # 2. Nombre de la Capa (con indicador de Opacidad / Alfa si es menor al 100%)
+        op_pct = int(round(getattr(capa, 'opacity', 1.0) * 100))
+        nombre_display = f"{capa.name} ({op_pct}%)" if op_pct < 100 else capa.name
+        self.lbl_name = QLabel(nombre_display)
         self.lbl_name.setStyleSheet("font-size: 11px;")
         layout.addWidget(self.lbl_name)
 
@@ -272,6 +335,7 @@ class LayersPanelWidget(QWidget):
         nuevo_nombre = f"{orig_capa.name} Copia"
         dup_capa = Layer(nuevo_nombre, canvas.layer_mgr.width, canvas.layer_mgr.height, transparent=True)
         dup_capa.visible = orig_capa.visible
+        dup_capa.opacity = getattr(orig_capa, 'opacity', 1.0)
         dup_capa.image = orig_capa.image.copy()
 
         canvas.layer_mgr.capas.insert(row, dup_capa)
@@ -366,6 +430,12 @@ class LayersPanelWidget(QWidget):
 
         from core.i18n import t
         menu = QMenu(self)
+        menu.setStyleSheet("""
+            QMenu::item {
+                padding: 4px 16px 4px 16px;
+                font-size: 11px;
+            }
+        """)
 
         if len(selected_items) == 1:
             accion_renombrar = menu.addAction(t("Renombrar capa..."))
@@ -374,13 +444,22 @@ class LayersPanelWidget(QWidget):
             accion_duplicar = menu.addAction(t("Duplicar capa"))
             accion_duplicar.triggered.connect(self.duplicar_capa)
 
-        if len(selected_items) >= 2:
+            accion_eliminar = menu.addAction(t("Eliminar capa"))
+            accion_eliminar.triggered.connect(self.borrar_capa)
+
+            idx = self.lista_capas.row(item)
+            canvas = self.obtener_canvas()
+            if canvas and 0 <= idx < len(canvas.layer_mgr.capas):
+                capa = canvas.layer_mgr.capas[idx]
+                action_alfa = AlphaMenuAction(capa, self, menu)
+                menu.addAction(action_alfa)
+
+        elif len(selected_items) >= 2:
             accion_combinar = menu.addAction(t("Combinar capas"))
             accion_combinar.triggered.connect(self.combinar_capas)
 
-        menu.addSeparator()
-        accion_eliminar = menu.addAction(t("Eliminar capa"))
-        accion_eliminar.triggered.connect(self.borrar_capa)
+            accion_eliminar = menu.addAction(t("Eliminar capa"))
+            accion_eliminar.triggered.connect(self.borrar_capa)
 
         menu.exec(self.lista_capas.mapToGlobal(pos))
 
@@ -405,6 +484,35 @@ class LayersPanelWidget(QWidget):
             nombre_final = nuevo_nombre.strip()
             capa.name = nombre_final
             self.reconstruir_lista_capas()
+
+    def _opacidad_capa_dialogo(self, item):
+        idx = self.lista_capas.row(item)
+        if idx < 0:
+            return
+
+        canvas = self.obtener_canvas()
+        if not canvas or idx >= len(canvas.layer_mgr.capas):
+            return
+
+        capa = canvas.layer_mgr.capas[idx]
+        op_actual = int(round(getattr(capa, 'opacity', 1.0) * 100))
+
+        from core.i18n import t
+        nuevo_val, ok = QInputDialog.getInt(
+            self,
+            t("Opacidad de Capa"),
+            t("Nivel de Alfa / Opacidad (0 - 100%):"),
+            value=op_actual,
+            min=0,
+            max=100,
+            step=5
+        )
+
+        if ok:
+            capa.opacity = max(0.0, min(1.0, nuevo_val / 100.0))
+            self.reconstruir_lista_capas()
+            canvas.push_document_state(t("Cambiar Opacidad"))
+            canvas.update()
 
     def retraducir_panel(self):
         from core.i18n import t
