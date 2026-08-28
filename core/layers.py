@@ -22,6 +22,7 @@ class LayerManager:
     def __init__(self, width=800, height=600):
         self.width = width
         self.height = height
+        self.active_stroke_alpha = 1.0
 
         nombre_inicial = t("Capa %1").replace("%1", "1")
         capa_base = Layer(nombre_inicial, width, height, transparent=True)
@@ -93,6 +94,8 @@ class LayerManager:
                         painter.save()
                         if selection_path and not selection_path.isEmpty():
                             painter.setClipPath(selection_path)
+                        alpha_trazo = float(getattr(self, 'active_stroke_alpha', 1.0))
+                        painter.setOpacity(alpha_trazo)
                         painter.drawImage(0, 0, capa_trazo_temp)
                         painter.restore()
                     if draw_layer_preview_callback:
