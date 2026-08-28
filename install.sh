@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# PaintNotNet - Instalador Universal para Distribuciones Linux
+# PaintNotNet v1.0.5 - Instalador Universal para Distribuciones Linux
 # (Debian, Ubuntu, Linux Mint, Fedora, RHEL, CentOS, Arch, Manjaro, openSUSE, etc.)
 # ==============================================================================
 
@@ -22,7 +22,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 echo -e "${COLOR_BLUE}==============================================================${COLOR_RESET}"
-echo -e "${COLOR_BLUE}        PaintNotNet - Linux Installer / Instalador           ${COLOR_RESET}"
+echo -e "${COLOR_BLUE}        PaintNotNet v1.0.5 - Linux Installer / Instalador    ${COLOR_RESET}"
 echo -e "${COLOR_BLUE}==============================================================${COLOR_RESET}"
 echo ""
 
