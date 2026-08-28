@@ -1,5 +1,5 @@
 # ==============================================================================
-# PaintNotNet - Dependencias para Windows / Dependencies for Windows
+# PaintNotNet v1.0.5 - Dependencias para Windows / Dependencies for Windows
 # ==============================================================================
 # Instalar en un entorno virtual con / Install in a virtual environment with:
 #   pip install -r requirements_windows.txt

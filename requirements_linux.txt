@@ -1,5 +1,5 @@
 # ==============================================================================
-# PaintNotNet - Dependencias para Linux / Dependencies for Linux
+# PaintNotNet v1.0.5 - Dependencias para Linux / Dependencies for Linux
 # ==============================================================================
 # Instalar en un entorno virtual con / Install in a virtual environment with:
 #   pip install -r requirements_linux.txt

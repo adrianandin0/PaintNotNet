@@ -53,6 +53,22 @@
 #### ⌨️ Atajos de Teclado Personalizables
 - **Configuración de Atajos**: Personaliza las teclas de acceso rápido para todas las 18 herramientas desde *Opciones -> Atajos de teclado...* con actualización de insignias en tiempo real.
 
+### 🆕 Novedades en la Versión 1.0.5
+- 🆘 **Autoguardado de Emergencia Multicapa (.pnn)**:
+  - Sistema de respaldo automático silencioso que guarda periódicamente los lienzos abiertos en formato nativo `.pnn` (`{lienzo}_{DDMMAAAA}_{HHMMSS}.pnn`).
+  - Preserva **todas las capas individuales** con sus metadatos (nombre, visibilidad, opacidad) y contenido transparente sin acoplar para continuar trabajando exactamente en el mismo estado tras un cierre inesperado.
+  - Diálogo interactivo al iniciar la aplicación tras una falla para restaurar o descartar permanentemente los borradores de emergencia.
+  - Eliminación automática de respaldos temporales al guardar formalmente la imagen o al cerrar la aplicación normalmente.
+- 🔄 **Motor de Transformación de Selección Compuesta**:
+  - Re-arquitectura del motor de selección (`SelectionEngine`) usando transformaciones afines compuestas de pasada única directamente desde la imagen original pura sin pérdida incremental de calidad.
+  - Solución al bucle de retroalimentación exponencial al escalar selecciones rotadas.
+  - Sincronización perfecta de los 8 tiradores de control en el historial de deshacer (`Ctrl+Z`) y eliminación total de copias de imagen fantasma en el lienzo.
+- 🖌️ **Suavizado de Trazo y Uniones Redondeadas en Pincel**:
+  - Filtrado de puntos duplicados/cercanos (< 1.5px) y configuración de `RoundJoin` con `miterLimit = 2.0` para eliminar picos y cortes triangulares en giros cerrados.
+- 🌐 **Internacionalización y Limpieza de Interfaz**:
+  - Traducción al español e inglés de diálogos de Redimensionar Imagen, Redimensionar Lienzo, Restauración de Emergencia y notificaciones del sistema.
+  - Desactivación del menú contextual por defecto al hacer clic derecho sobre la barra superior de menú/herramientas o selector de paneles.
+
 ### 🆕 Novedades en la Versión 1.0.4
 - 🎨 **3 Nuevas Herramientas**:
   - **Aerosol (Spray Paint)**: Pinta en un área circular con efecto aerosol, afectado por tamaño, alfa y suavizado.
@@ -94,6 +110,12 @@
 
 #### ⌨️ Customizable Keyboard Shortcuts
 - **Shortcut Configuration**: Customize keyboard shortcut keys for all 21 tools from *Options -> Keyboard Shortcuts...* with real-time badge updates.
+
+### 🆕 What's New in Version 1.0.5
+- 🆘 **Multi-layer Emergency Auto-Save (.pnn)**: Background auto-save of active open canvases in native `.pnn` format (`{canvas}_{DDMMAAAA}_{HHMMSS}.pnn`). Preserves **all individual layers** with complete metadata (name, visibility, opacity) and un-flattened structure. Interactive recovery dialog on startup. Auto-cleanup upon formal save or clean exit.
+- 🔄 **Single-Pass Compound Selection Transformations**: Re-architected `SelectionEngine` using single-pass compound affine matrix transformations operating directly on original raw image data with zero loss. Synchronized handle positions during Undo (`Ctrl+Z`) and eliminated ghost image artifacts.
+- 🖌️ **Brush Stroke Smoothing & Clean Joins**: Point distance filtering (< 1.5px) and `RoundJoin` with `miterLimit = 2.0` to eliminate triangular miter spikes on sharp turns.
+- 🌐 **Full i18n & Interface Polish**: Complete Spanish and English translations for Resize Canvas, Resize Image, and Emergency Recovery dialogs. Disabled default right-click context menus on top toolbars and panel titles.
 
 ### 🆕 What's New in Version 1.0.4
 - 🎨 **3 New Tools**: **Spray Paint**, **Smudge Tool**, and **Stamp Tool**.

@@ -1,5 +1,5 @@
 # ==============================================================================
-# PaintNotNet v1.0.4 — Archivo de Requerimientos Completo
+# PaintNotNet v1.0.5 — Archivo de Requerimientos Completo
 # Full Requirements File — Linux & Windows
 # ==============================================================================
 #
