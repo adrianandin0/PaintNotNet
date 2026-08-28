@@ -9,6 +9,10 @@ rm -f /usr/local/sbin/paintnotnet
 rm -f /usr/share/applications/PaintNotNet.desktop
 rm -f /usr/share/pixmaps/paintnotnet.png
 rm -f /usr/share/icons/hicolor/128x128/apps/paintnotnet.png
+rm -f /usr/share/mime/packages/paintnotnet.xml
+if command -v update-mime-database &> /dev/null; then
+    update-mime-database /usr/share/mime &> /dev/null || true
+fi
 if command -v update-desktop-database &> /dev/null; then
     update-desktop-database /usr/share/applications &> /dev/null || true
 fi
