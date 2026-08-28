@@ -496,6 +496,9 @@ class MenuArchivo:
                 canvas.lienzo_modificado = False
                 self.ventana.actualizar_titulo_ventana()
                 self.agregar_archivo_reciente(ruta_elegida)
+                if hasattr(self.ventana, 'emergency_mgr') and self.ventana.emergency_mgr:
+                    self.ventana.emergency_mgr.eliminar_respaldo_canvas(canvas)
+                    self.ventana.emergency_mgr.registrar_canvas(canvas, titulo=os.path.basename(ruta_elegida))
                 return True
 
         return False
@@ -509,6 +512,9 @@ class MenuArchivo:
             canvas.lienzo_modificado = False
             self.ventana.actualizar_titulo_ventana()
             self.agregar_archivo_reciente(canvas.archivo_actual)
+            if hasattr(self.ventana, 'emergency_mgr') and self.ventana.emergency_mgr:
+                self.ventana.emergency_mgr.eliminar_respaldo_canvas(canvas)
+                self.ventana.emergency_mgr.registrar_canvas(canvas, titulo=os.path.basename(canvas.archivo_actual))
             return True
 
         return False

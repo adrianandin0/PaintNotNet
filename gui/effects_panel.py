@@ -36,8 +36,12 @@ class _EffectColorSlot(QPushButton):
         self._key   = settings_key
         self._color: QColor | None = None
         self.setFixedSize(20, 20)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.PreventContextMenu)
         self._cargar()
         self._refresh_tooltip()
+
+    def contextMenuEvent(self, event):
+        event.ignore()
 
     # ---- persistencia --------------------------------------------------
 

@@ -67,7 +67,11 @@ class HistoryPanelWidget(QWidget):
 
         from core.i18n import t
         for idx, (st, action_name) in enumerate(history_mgr.history_stack):
-            item = QListWidgetItem(f"{idx}. {t(action_name)}")
+            if action_name.startswith("Rotar "):
+                act_trans = f"{t('Rotar')} {action_name[6:]}"
+            else:
+                act_trans = t(action_name)
+            item = QListWidgetItem(f"{idx}. {act_trans}")
             item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
 
             if idx > history_mgr.current_index:

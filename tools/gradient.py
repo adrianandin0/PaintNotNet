@@ -3,6 +3,8 @@ from PyQt6.QtGui import QPainter, QPen, QColor, QLinearGradient, QBrush, QImage
 from tools.base_tool import BaseTool
 
 
+from PyQt6.QtWidgets import QApplication
+
 class GradientTool(BaseTool):
     def __init__(self):
         super().__init__("Degradado", "gui/iconos/gradient.png")
@@ -20,14 +22,27 @@ class GradientTool(BaseTool):
             self.is_dragging = True
             canvas.update()
 
+    def _constrain_point(self, pos: QPointF) -> QPointF:
+        if not self.p_start:
+            return pos
+        modifiers = QApplication.keyboardModifiers()
+        if bool(modifiers & Qt.KeyboardModifier.ShiftModifier):
+            dx = pos.x() - self.p_start.x()
+            dy = pos.y() - self.p_start.y()
+            if abs(dx) >= abs(dy):
+                return QPointF(pos.x(), self.p_start.y())
+            else:
+                return QPointF(self.p_start.x(), pos.y())
+        return pos
+
     def mouse_move(self, canvas, event, color_activo=None):
         if self.is_dragging:
-            self.p_end = QPointF(event.position())
+            self.p_end = self._constrain_point(QPointF(event.position()))
             canvas.update()
 
     def mouse_release(self, canvas, event, color_activo=None):
         if self.is_dragging and event.button() == self.active_button:
-            self.p_end = QPointF(event.position())
+            self.p_end = self._constrain_point(QPointF(event.position()))
             self.is_dragging = False
             self.commit_gradient(canvas)
             if hasattr(canvas, 'push_document_state'):

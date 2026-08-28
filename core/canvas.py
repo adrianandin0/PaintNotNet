@@ -93,6 +93,7 @@ class CanvasWidget(QWidget):
         self._color_secundario = QColor(255, 255, 255, 255)
 
         self.callback_modificado = None
+        self.lienzo_modificado = False
         self.drawing = False
         self.last_point = QPoint()
         self.cursor_pos = None
@@ -663,81 +664,118 @@ class CanvasWidget(QWidget):
             self.main_window.history_panel.actualizar_historial()
 
     def push_floating_sub_state(self, label):
-        if not hasattr(self, 'floating_sub_history') or self.floating_sub_history is None:
-            self.floating_sub_history = []
-
-        engine = self.selection_engine
-        if not engine.floating_image or engine.floating_image.isNull():
-            return
-
-        snapshot = {
-            'floating_image': engine.floating_image.copy(),
-            'unscaled_floating_image': engine.unscaled_floating_image.copy() if engine.unscaled_floating_image else engine.floating_image.copy(),
-            'active_rect': QRectF(engine.active_rect),
-            'active_path': QPainterPath(engine.active_path),
-            'rotation_angle': float(engine.rotation_angle),
-            'original_image_pos': QPointF(engine.original_image_pos),
-            'label': label
-        }
-
-        if hasattr(self, 'floating_sub_index') and self.floating_sub_index < len(self.floating_sub_history) - 1:
-            self.floating_sub_history = self.floating_sub_history[:self.floating_sub_index + 1]
-
-        self.floating_sub_history.append(snapshot)
-        self.floating_sub_index = len(self.floating_sub_history) - 1
-        self.actualizar_historial_gui()
-        self.marcar_modificado(True)
+        self.push_document_state(label)
 
     def restaurar_sub_estado_flotante(self, snapshot):
         engine = self.selection_engine
         engine.floating_image = snapshot['floating_image'].copy()
         engine.unscaled_floating_image = snapshot['unscaled_floating_image'].copy()
+        if 'original_raw_image' in snapshot and snapshot['original_raw_image']:
+            engine.original_raw_image = snapshot['original_raw_image'].copy()
+        else:
+            engine.original_raw_image = engine.unscaled_floating_image.copy()
+
         engine.active_rect = QRectF(snapshot['active_rect'])
         engine.active_path = QPainterPath(snapshot['active_path'])
-        engine.rotation_angle = float(snapshot['rotation_angle'])
+
+        tot_rot = float(snapshot.get('total_rotation', snapshot.get('rotation_angle', 0.0)))
+        engine.total_rotation = tot_rot
+        engine.rotation_angle = tot_rot
+        engine.scale_x = float(snapshot.get('scale_x', 1.0))
+        engine.scale_y = float(snapshot.get('scale_y', 1.0))
+
+        if 'rotation_center' in snapshot and snapshot['rotation_center']:
+            engine.rotation_center = QPointF(snapshot['rotation_center'])
+        else:
+            engine.rotation_center = QPointF(engine.active_rect.center())
+
+        if 'initial_unrotated_path' in snapshot and snapshot['initial_unrotated_path']:
+            engine.initial_unrotated_path = QPainterPath(snapshot['initial_unrotated_path'])
+        else:
+            engine.initial_unrotated_path = QPainterPath(engine.active_path)
+
+        if 'initial_unrotated_rect' in snapshot and snapshot['initial_unrotated_rect']:
+            engine.initial_unrotated_rect = QRectF(snapshot['initial_unrotated_rect'])
+        else:
+            engine.initial_unrotated_rect = QRectF(engine.active_rect)
+
+        engine.original_image_pos = QPointF(snapshot['original_image_pos'])
+
     def empaquetar_paquete_flotante(self):
-        if not hasattr(self, 'floating_initial_canvas') or self.floating_initial_canvas is None:
+        engine = self.selection_engine
+        if not engine.floating_image or engine.floating_image.isNull():
             return None
-        sub_hist = getattr(self, 'floating_sub_history', [])
-        sub_idx = getattr(self, 'floating_sub_index', 0)
+        initial_canvas = self.floating_initial_canvas.copy() if (hasattr(self, 'floating_initial_canvas') and self.floating_initial_canvas) else None
         return {
-            'initial_canvas': self.floating_initial_canvas.copy(),
-            'sub_history': [
-                {
-                    'floating_image': snap['floating_image'].copy(),
-                    'unscaled_floating_image': snap['unscaled_floating_image'].copy(),
-                    'active_rect': QRectF(snap['active_rect']),
-                    'active_path': QPainterPath(snap['active_path']),
-                    'rotation_angle': float(snap['rotation_angle']),
-                    'original_image_pos': QPointF(snap['original_image_pos']),
-                    'label': snap['label']
-                } for snap in sub_hist
-            ],
-            'sub_index': sub_idx
+            'floating_image': engine.floating_image.copy(),
+            'unscaled_floating_image': engine.unscaled_floating_image.copy() if engine.unscaled_floating_image else engine.floating_image.copy(),
+            'original_raw_image': engine.original_raw_image.copy() if getattr(engine, 'original_raw_image', None) else (engine.unscaled_floating_image.copy() if engine.unscaled_floating_image else engine.floating_image.copy()),
+            'active_rect': QRectF(engine.active_rect),
+            'active_path': QPainterPath(engine.active_path),
+            'rotation_angle': float(getattr(engine, 'rotation_angle', 0.0)),
+            'total_rotation': float(getattr(engine, 'total_rotation', 0.0)),
+            'scale_x': float(getattr(engine, 'scale_x', 1.0)),
+            'scale_y': float(getattr(engine, 'scale_y', 1.0)),
+            'rotation_center': QPointF(engine.rotation_center) if (hasattr(engine, 'rotation_center') and engine.rotation_center and not engine.rotation_center.isNull()) else QPointF(engine.active_rect.center()),
+            'initial_unrotated_path': QPainterPath(engine.initial_unrotated_path) if getattr(engine, 'initial_unrotated_path', None) else QPainterPath(engine.active_path),
+            'initial_unrotated_rect': QRectF(engine.initial_unrotated_rect) if getattr(engine, 'initial_unrotated_rect', None) else QRectF(engine.active_rect),
+            'original_image_pos': QPointF(engine.original_image_pos),
+            'initial_canvas': initial_canvas,
         }
 
     def restaurar_paquete_flotante(self, pkg):
-        if not pkg or 'initial_canvas' not in pkg:
+        engine = self.selection_engine
+        if not pkg or not isinstance(pkg, dict):
+            engine.floating_image = None
+            engine.unscaled_floating_image = None
+            engine.original_raw_image = None
+            self.floating_initial_canvas = None
             return
-        self.floating_initial_canvas = pkg['initial_canvas'].copy()
-        self.floating_sub_history = [
-            {
-                'floating_image': snap['floating_image'].copy(),
-                'unscaled_floating_image': snap['unscaled_floating_image'].copy(),
-                'active_rect': QRectF(snap['active_rect']),
-                'active_path': QPainterPath(snap['active_path']),
-                'rotation_angle': float(snap['rotation_angle']),
-                'original_image_pos': QPointF(snap['original_image_pos']),
-                'label': snap['label']
-            } for snap in pkg.get('sub_history', [])
-        ]
-        self.floating_sub_index = pkg.get('sub_index', -1)
-        if self.floating_sub_history:
-            idx = max(0, min(self.floating_sub_index, len(self.floating_sub_history) - 1))
-            self.floating_sub_index = idx
-            self.restaurar_sub_estado_flotante(self.floating_sub_history[idx])
-        if hasattr(self, 'main_window') and self.main_window:
-            self.main_window.activar_herramienta_mover()
+
+        # Formato de paquete flotante con sub_history (legado)
+        if 'sub_history' in pkg and pkg['sub_history']:
+            sub_hist = pkg['sub_history']
+            sub_idx = max(0, min(pkg.get('sub_index', 0), len(sub_hist) - 1))
+            pkg = sub_hist[sub_idx]
+
+        # Formato moderno directo
+        if 'floating_image' in pkg and pkg['floating_image'] and not pkg['floating_image'].isNull():
+            engine.floating_image = pkg['floating_image'].copy()
+            engine.unscaled_floating_image = pkg['unscaled_floating_image'].copy() if pkg.get('unscaled_floating_image') else pkg['floating_image'].copy()
+            engine.original_raw_image = pkg['original_raw_image'].copy() if pkg.get('original_raw_image') else engine.unscaled_floating_image.copy()
+            engine.active_rect = QRectF(pkg['active_rect']) if 'active_rect' in pkg else QRectF()
+            engine.active_path = QPainterPath(pkg['active_path']) if 'active_path' in pkg else QPainterPath()
+
+            tot_rot = float(pkg.get('total_rotation', pkg.get('rotation_angle', 0.0)))
+            engine.total_rotation = tot_rot
+            engine.rotation_angle = tot_rot
+            engine.scale_x = float(pkg.get('scale_x', 1.0))
+            engine.scale_y = float(pkg.get('scale_y', 1.0))
+
+            if 'rotation_center' in pkg and pkg['rotation_center']:
+                engine.rotation_center = QPointF(pkg['rotation_center'])
+            else:
+                engine.rotation_center = QPointF(engine.active_rect.center())
+
+            if 'initial_unrotated_path' in pkg and pkg['initial_unrotated_path']:
+                engine.initial_unrotated_path = QPainterPath(pkg['initial_unrotated_path'])
+            else:
+                engine.initial_unrotated_path = QPainterPath(engine.active_path)
+
+            if 'initial_unrotated_rect' in pkg and pkg['initial_unrotated_rect']:
+                engine.initial_unrotated_rect = QRectF(pkg['initial_unrotated_rect'])
+            else:
+                engine.initial_unrotated_rect = QRectF(engine.active_rect)
+
+            engine.original_image_pos = QPointF(pkg['original_image_pos']) if 'original_image_pos' in pkg else QPointF()
+            self.floating_initial_canvas = pkg['initial_canvas'].copy() if pkg.get('initial_canvas') else None
+            if hasattr(self, 'main_window') and self.main_window:
+                self.main_window.activar_herramienta_mover()
+        else:
+            engine.floating_image = None
+            engine.unscaled_floating_image = None
+            engine.original_raw_image = None
+            self.floating_initial_canvas = None
 
     def asegurar_imagen_flotante(self):
         engine = self.selection_engine
@@ -754,6 +792,7 @@ class CanvasWidget(QWidget):
 
                 engine.floating_image = buffer.copy(rect)
                 engine.unscaled_floating_image = engine.floating_image.copy()
+                engine.init_raw_image(engine.floating_image)
                 engine.original_image_pos = QPointF(rect.topLeft())
 
                 self.floating_sub_history = []
@@ -857,7 +896,15 @@ class CanvasWidget(QWidget):
         if (pkg1 is None) != (pkg2 is None):
             return False
         if pkg1 and pkg2:
-            if pkg1.get('sub_index') != pkg2.get('sub_index'):
+            if pkg1.get('original_image_pos') != pkg2.get('original_image_pos'):
+                return False
+            if pkg1.get('active_rect') != pkg2.get('active_rect'):
+                return False
+            if pkg1.get('active_path') != pkg2.get('active_path'):
+                return False
+            if pkg1.get('rotation_angle') != pkg2.get('rotation_angle'):
+                return False
+            if pkg1.get('floating_image') != pkg2.get('floating_image'):
                 return False
 
         # Comparar capas (visibilidad, nombre e imagen)
@@ -942,17 +989,16 @@ class CanvasWidget(QWidget):
             if floating_pkg:
                 self.restaurar_paquete_flotante(floating_pkg)
             else:
-                if self.selection_engine.floating_image:
-                    self.selection_engine.floating_image = None
-                    self.selection_engine.unscaled_floating_image = None
-                    self.floating_sub_history = []
-                    self.floating_sub_index = -1
+                self.selection_engine.floating_image = None
+                self.selection_engine.unscaled_floating_image = None
+                self.selection_engine.original_raw_image = None
+                self.floating_initial_canvas = None
 
-            selection_path = snap.get('selection_path')
-            if selection_path and not selection_path.isEmpty():
-                self.selection_engine.set_path(QPainterPath(selection_path))
-            elif not floating_pkg:
-                self.selection_engine.clear_selection()
+                selection_path = snap.get('selection_path')
+                if selection_path and not selection_path.isEmpty():
+                    self.selection_engine.set_path(QPainterPath(selection_path))
+                else:
+                    self.selection_engine.clear_selection()
 
             if hasattr(self, 'main_window') and self.main_window and hasattr(self.main_window, 'layers_panel'):
                 self.main_window.layers_panel.reconstruir_lista_capas()
@@ -968,27 +1014,11 @@ class CanvasWidget(QWidget):
     def rehacer(self): self.redo()
 
     def undo(self):
-        if self.selection_engine.floating_image and hasattr(self, 'floating_sub_history') and self.floating_sub_history:
-            if hasattr(self, 'floating_sub_index') and self.floating_sub_index > 0:
-                self.floating_sub_index -= 1
-                self.restaurar_sub_estado_flotante(self.floating_sub_history[self.floating_sub_index])
-                self.actualizar_historial_gui()
-                self.update()
-                return
-
         prev_state = self.history_mgr.undo()
         if prev_state is not None:
             self.restaurar_snapshot_documento(prev_state)
 
     def redo(self):
-        if self.selection_engine.floating_image and hasattr(self, 'floating_sub_history') and self.floating_sub_history:
-            if hasattr(self, 'floating_sub_index') and self.floating_sub_index < len(self.floating_sub_history) - 1:
-                self.floating_sub_index += 1
-                self.restaurar_sub_estado_flotante(self.floating_sub_history[self.floating_sub_index])
-                self.actualizar_historial_gui()
-                self.update()
-                return
-
         next_state = self.history_mgr.redo()
         if next_state is not None:
             self.restaurar_snapshot_documento(next_state)

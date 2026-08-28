@@ -39,6 +39,7 @@ class MoveSelectPixelsTool(BaseTool):
                     engine.floating_image = masked
 
                 engine.unscaled_floating_image = engine.floating_image.copy()
+                engine.init_raw_image(engine.floating_image)
                 engine.original_image_pos = QPointF(rect.topLeft())
                 engine.is_new_content = False
                 canvas.floating_history = [engine.floating_image.copy()]
@@ -69,7 +70,7 @@ class MoveSelectPixelsTool(BaseTool):
         engine = canvas.selection_engine
         if engine.is_moving or engine.is_rotating:
             engine.end_transform()
-            canvas.push_floating_sub_state("Transformar")
+            canvas.push_document_state("Mover Contenido")
 
     @staticmethod
     def commit_floating_image(canvas):

@@ -5,11 +5,15 @@ from PyQt6.QtGui import QPainter, QPen, QColor, QBrush, QImage
 from tools.base_tool import BaseTool
 
 
+from PyQt6.QtWidgets import QApplication
+
 class SprayTool(BaseTool):
     """Herramienta Aerosol / Spray Paint."""
     def __init__(self):
         super().__init__("Aerosol", "gui/iconos/spray.png")
         self.is_drawing = False
+        self.shift_anchor = None
+        self._last_pos = None
 
     def draw_handles(self, painter, canvas):
         if canvas.cursor_pos is None:
@@ -41,13 +45,32 @@ class SprayTool(BaseTool):
         if event.button() in (Qt.MouseButton.LeftButton, Qt.MouseButton.RightButton):
             self.is_drawing = True
             pos = event.position()
+            self._last_pos = pos
+            self.shift_anchor = None
             color = color_activo if color_activo else (canvas.color_primario if event.button() == Qt.MouseButton.LeftButton else canvas.color_secundario)
             self._spray_at(canvas, pos, color)
             canvas.update()
 
     def mouse_move(self, canvas, event, color_activo=None):
         if self.is_drawing:
-            pos = event.position()
+            raw_pos = event.position()
+            modifiers = QApplication.keyboardModifiers()
+            is_shift = bool(modifiers & Qt.KeyboardModifier.ShiftModifier)
+
+            if is_shift:
+                if self.shift_anchor is None:
+                    self.shift_anchor = QPointF(self._last_pos) if self._last_pos else raw_pos
+                dx = raw_pos.x() - self.shift_anchor.x()
+                dy = raw_pos.y() - self.shift_anchor.y()
+                if abs(dx) >= abs(dy):
+                    pos = QPointF(raw_pos.x(), self.shift_anchor.y())
+                else:
+                    pos = QPointF(self.shift_anchor.x(), raw_pos.y())
+            else:
+                self.shift_anchor = None
+                pos = raw_pos
+
+            self._last_pos = pos
             color = color_activo if color_activo else (canvas.color_primario if event.buttons() & Qt.MouseButton.LeftButton else canvas.color_secundario)
             self._spray_at(canvas, pos, color)
             canvas.update()
@@ -55,6 +78,8 @@ class SprayTool(BaseTool):
     def mouse_release(self, canvas, event, color_activo=None):
         if self.is_drawing:
             self.is_drawing = False
+            self.shift_anchor = None
+            self._last_pos = None
             if hasattr(canvas, 'push_document_state'):
                 canvas.push_document_state(self.name)
             canvas.update()

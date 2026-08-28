@@ -92,7 +92,8 @@ class AnclajeWidget(QGroupBox):
 class DialogoTamanoBase(QDialog):
     def __init__(self, titulo, ancho_actual, alto_actual, parent=None, incluir_anclaje=False):
         super().__init__(parent)
-        self.setWindowTitle(titulo)
+        from core.i18n import t
+        self.setWindowTitle(t(titulo))
         self.setFixedWidth(290)
         self.ancho_orig = ancho_actual
         self.alto_orig = alto_actual
@@ -103,8 +104,8 @@ class DialogoTamanoBase(QDialog):
 
         # Modo de Entrada (Píxeles vs Porcentaje)
         layout_modo = QHBoxLayout()
-        self.rad_px = QRadioButton("Píxeles")
-        self.rad_porcentaje = QRadioButton("Porcentaje (%)")
+        self.rad_px = QRadioButton(t("Píxeles"))
+        self.rad_porcentaje = QRadioButton(t("Porcentaje (%)"))
         self.rad_px.setChecked(True)
 
         self.grupo_modo = QButtonGroup(self)
@@ -117,14 +118,14 @@ class DialogoTamanoBase(QDialog):
 
         # Controles Ancho / Alto
         layout_ancho = QHBoxLayout()
-        layout_ancho.addWidget(QLabel("Ancho:"))
+        layout_ancho.addWidget(QLabel(t("Ancho:")))
         self.spin_ancho = QSpinBox()
         self.spin_ancho.setRange(1, 99999)
         self.spin_ancho.setValue(ancho_actual)
         layout_ancho.addWidget(self.spin_ancho)
 
         layout_alto = QHBoxLayout()
-        layout_alto.addWidget(QLabel("Alto:"))
+        layout_alto.addWidget(QLabel(t("Alto:")))
         self.spin_alto = QSpinBox()
         self.spin_alto.setRange(1, 99999)
         self.spin_alto.setValue(alto_actual)
@@ -134,7 +135,7 @@ class DialogoTamanoBase(QDialog):
         layout.addLayout(layout_alto)
 
         # Mantener proporciones
-        self.chk_proporcional = QCheckBox("Mantener proporciones")
+        self.chk_proporcional = QCheckBox(t("Mantener proporciones"))
         self.chk_proporcional.setChecked(True)
         layout.addWidget(self.chk_proporcional)
 
@@ -151,10 +152,10 @@ class DialogoTamanoBase(QDialog):
 
         # Botones Confirmar / Cancelar
         layout_btns = QHBoxLayout()
-        btn_ok = QPushButton("Aceptar")
+        btn_ok = QPushButton(t("Aceptar"))
         btn_ok.setDefault(True)
         btn_ok.setAutoDefault(True)
-        btn_cancel = QPushButton("Cancelar")
+        btn_cancel = QPushButton(t("Cancelar"))
         btn_ok.clicked.connect(self.accept)
         btn_cancel.clicked.connect(self.reject)
         layout_btns.addWidget(btn_ok)

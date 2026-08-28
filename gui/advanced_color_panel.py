@@ -21,7 +21,7 @@ class GradientSliderWidget(QWidget):
         self.slider_type = slider_type
         self._value = min_val
         self.current_color = QColor(0, 0, 0)
-        self.setFixedHeight(16)
+        self.setFixedHeight(17)
         self.setMinimumWidth(70)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
@@ -61,55 +61,50 @@ class GradientSliderWidget(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         w = self.width()
-        h = self.height()
-        bar_h = 10
+        bar_h = 11
         margin = 3
 
-        # Dibujar degradado de fondo
-        bar_rect = QRectF(margin, 2, w - (margin * 2), bar_h)
+        bar_rect = QRectF(margin, 1, w - (margin * 2), bar_h)
         gradient = QLinearGradient(bar_rect.left(), 0, bar_rect.right(), 0)
 
-        r = self.current_color.red()
-        g = self.current_color.green()
-        b = self.current_color.blue()
         h_val, s_val, v_val, _ = self.current_color.getHsv()
         if h_val < 0:
             h_val = 0
 
         if self.slider_type == "red":
-            gradient.setColorAt(0.0, QColor(0, g, b))
-            gradient.setColorAt(1.0, QColor(255, g, b))
+            gradient.setColorAt(0.0, QColor(0, 0, 0))
+            gradient.setColorAt(1.0, QColor(255, 0, 0))
         elif self.slider_type == "green":
-            gradient.setColorAt(0.0, QColor(r, 0, b))
-            gradient.setColorAt(1.0, QColor(r, 255, b))
+            gradient.setColorAt(0.0, QColor(0, 0, 0))
+            gradient.setColorAt(1.0, QColor(0, 255, 0))
         elif self.slider_type == "blue":
-            gradient.setColorAt(0.0, QColor(r, g, 0))
-            gradient.setColorAt(1.0, QColor(r, g, 255))
+            gradient.setColorAt(0.0, QColor(0, 0, 0))
+            gradient.setColorAt(1.0, QColor(0, 0, 255))
         elif self.slider_type == "hue":
             for i in range(7):
                 pos = i / 6.0
                 hue_angle = int(i * 60) % 360
                 gradient.setColorAt(pos, QColor.fromHsv(hue_angle, 255, 255))
         elif self.slider_type == "sat":
-            gradient.setColorAt(0.0, QColor.fromHsv(h_val, 0, v_val))
-            gradient.setColorAt(1.0, QColor.fromHsv(h_val, 255, v_val))
+            gradient.setColorAt(0.0, QColor(0, 0, 0))
+            gradient.setColorAt(1.0, QColor.fromHsv(h_val, 255, 255))
         elif self.slider_type == "val":
-            gradient.setColorAt(0.0, QColor.fromHsv(h_val, s_val, 0))
-            gradient.setColorAt(1.0, QColor.fromHsv(h_val, s_val, 255))
+            gradient.setColorAt(0.0, QColor(0, 0, 0))
+            gradient.setColorAt(1.0, QColor(255, 255, 255))
 
         painter.setBrush(QBrush(gradient))
-        painter.setPen(QPen(QColor(60, 60, 60), 1))
+        painter.setPen(QPen(QColor(30, 30, 30), 1))
         painter.drawRect(bar_rect)
 
-        # Dibujar tirador triangular inferior
+        # Tirador triangular inferior (blanco con centro oscuro)
         ratio = (self._value - self.min_val) / float(self.max_val - self.min_val or 1)
         ix = bar_rect.left() + ratio * bar_rect.width()
         iy = bar_rect.bottom() + 1
 
-        tri_h = 5
+        tri_h = 4
         tri_w = 4
-        painter.setPen(QPen(QColor(255, 255, 255), 1))
-        painter.setBrush(QBrush(QColor(0, 0, 0)))
+        painter.setPen(QPen(QColor(240, 240, 240), 1))
+        painter.setBrush(QBrush(QColor(20, 20, 20)))
 
         polygon = [
             QPointF(ix, iy),
@@ -133,9 +128,20 @@ class AdvancedColorPanelWidget(QWidget):
         self.modo_color = "primario"
         self._updating = False
 
-        lbl_style = "font-size: 11px;"
-        hdr_style = "font-size: 11px; font-weight: bold;"
-        input_style = "font-size: 11px; padding: 0px;"
+        lbl_style = "font-size: 11px; font-weight: normal; color: #CCCCCC;"
+        input_style = """
+            QSpinBox, QLineEdit {
+                background-color: #262626;
+                color: #EDEDED;
+                border: 1px solid #444444;
+                border-radius: 4px;
+                padding: 0px 2px;
+                font-size: 11px;
+            }
+            QSpinBox:focus, QLineEdit:focus {
+                border: 1px solid #007ACC;
+            }
+        """
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -149,8 +155,8 @@ class AdvancedColorPanelWidget(QWidget):
 
         content = QWidget()
         layout = QVBoxLayout(content)
-        layout.setContentsMargins(2, 2, 2, 2)
-        layout.setSpacing(2)
+        layout.setContentsMargins(8, 4, 8, 4)
+        layout.setSpacing(4)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         # 1. Muestras Superpuestas + Botón Swap + Rueda de Color Centrada
@@ -184,122 +190,107 @@ class AdvancedColorPanelWidget(QWidget):
 
         layout.addLayout(row_top)
 
-        # 2. Sección RGB (R, V, A)
-        grid_rgb = QGridLayout()
-        grid_rgb.setContentsMargins(0, 0, 4, 0)
-        grid_rgb.setSpacing(2)
+        # 2. Grid Unificado Compacto: RGB, Hex, MSV
+        grid = QGridLayout()
+        grid.setContentsMargins(0, 2, 0, 0)
+        grid.setHorizontalSpacing(4)
+        grid.setVerticalSpacing(3)
 
         # R
         lbl_r = QLabel("R:")
         lbl_r.setStyleSheet(lbl_style)
-        grid_rgb.addWidget(lbl_r, 0, 0)
+        grid.addWidget(lbl_r, 0, 0)
         self.slider_r = GradientSliderWidget(0, 255, "red")
         self.spin_r = QSpinBox()
         self.spin_r.setRange(0, 255)
-        self.spin_r.setFixedWidth(36)
-        self.spin_r.setFixedHeight(16)
+        self.spin_r.setFixedWidth(38)
+        self.spin_r.setFixedHeight(17)
         self.spin_r.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         self.spin_r.setStyleSheet(input_style)
-        grid_rgb.addWidget(self.slider_r, 0, 1)
-        grid_rgb.addWidget(self.spin_r, 0, 2)
+        grid.addWidget(self.slider_r, 0, 1)
+        grid.addWidget(self.spin_r, 0, 2)
 
         # G (Green)
         lbl_g = QLabel("G:")
         lbl_g.setStyleSheet(lbl_style)
-        grid_rgb.addWidget(lbl_g, 1, 0)
+        grid.addWidget(lbl_g, 1, 0)
         self.slider_g = GradientSliderWidget(0, 255, "green")
         self.spin_g = QSpinBox()
         self.spin_g.setRange(0, 255)
-        self.spin_g.setFixedWidth(36)
-        self.spin_g.setFixedHeight(16)
+        self.spin_g.setFixedWidth(38)
+        self.spin_g.setFixedHeight(17)
         self.spin_g.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         self.spin_g.setStyleSheet(input_style)
-        grid_rgb.addWidget(self.slider_g, 1, 1)
-        grid_rgb.addWidget(self.spin_g, 1, 2)
+        grid.addWidget(self.slider_g, 1, 1)
+        grid.addWidget(self.spin_g, 1, 2)
 
         # B (Blue)
         lbl_b = QLabel("B:")
         lbl_b.setStyleSheet(lbl_style)
-        grid_rgb.addWidget(lbl_b, 2, 0)
+        grid.addWidget(lbl_b, 2, 0)
         self.slider_b = GradientSliderWidget(0, 255, "blue")
         self.spin_b = QSpinBox()
         self.spin_b.setRange(0, 255)
-        self.spin_b.setFixedWidth(36)
-        self.spin_b.setFixedHeight(16)
+        self.spin_b.setFixedWidth(38)
+        self.spin_b.setFixedHeight(17)
         self.spin_b.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         self.spin_b.setStyleSheet(input_style)
-        grid_rgb.addWidget(self.slider_b, 2, 1)
-        grid_rgb.addWidget(self.spin_b, 2, 2)
+        grid.addWidget(self.slider_b, 2, 1)
+        grid.addWidget(self.spin_b, 2, 2)
 
-        layout.addLayout(grid_rgb)
-
-        # 3. Fila Hex (centrada verticalmente entre RGB y MSV)
-        row_hex = QHBoxLayout()
-        row_hex.setContentsMargins(0, 3, 4, 3)
-        row_hex.setSpacing(2)
-
+        # Hex.:
         lbl_hex = QLabel("Hex.:")
         lbl_hex.setStyleSheet(lbl_style)
-        row_hex.addWidget(lbl_hex)
-
+        grid.addWidget(lbl_hex, 3, 0)
         self.txt_hex = QLineEdit("000000")
         self.txt_hex.setMaxLength(7)
-        self.txt_hex.setFixedWidth(64)
-        self.txt_hex.setFixedHeight(16)
+        self.txt_hex.setFixedHeight(17)
         self.txt_hex.setStyleSheet(input_style)
-        row_hex.addWidget(self.txt_hex)
-        row_hex.addStretch()
-
-        layout.addLayout(row_hex)
-
-        # 4. Sección MSV (HSV) (M, S, V)
-        grid_msv = QGridLayout()
-        grid_msv.setContentsMargins(0, 0, 4, 0)
-        grid_msv.setSpacing(2)
+        grid.addWidget(self.txt_hex, 3, 1)
 
         # M (Matiz / Hue)
         lbl_h = QLabel("M:")
         lbl_h.setStyleSheet(lbl_style)
-        grid_msv.addWidget(lbl_h, 0, 0)
+        grid.addWidget(lbl_h, 4, 0)
         self.slider_h = GradientSliderWidget(0, 360, "hue")
         self.spin_h = QSpinBox()
         self.spin_h.setRange(0, 360)
-        self.spin_h.setFixedWidth(36)
-        self.spin_h.setFixedHeight(16)
+        self.spin_h.setFixedWidth(38)
+        self.spin_h.setFixedHeight(17)
         self.spin_h.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         self.spin_h.setStyleSheet(input_style)
-        grid_msv.addWidget(self.slider_h, 0, 1)
-        grid_msv.addWidget(self.spin_h, 0, 2)
+        grid.addWidget(self.slider_h, 4, 1)
+        grid.addWidget(self.spin_h, 4, 2)
 
         # S (Saturación)
         lbl_s = QLabel("S:")
         lbl_s.setStyleSheet(lbl_style)
-        grid_msv.addWidget(lbl_s, 1, 0)
+        grid.addWidget(lbl_s, 5, 0)
         self.slider_s = GradientSliderWidget(0, 100, "sat")
         self.spin_s = QSpinBox()
         self.spin_s.setRange(0, 100)
-        self.spin_s.setFixedWidth(36)
-        self.spin_s.setFixedHeight(16)
+        self.spin_s.setFixedWidth(38)
+        self.spin_s.setFixedHeight(17)
         self.spin_s.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         self.spin_s.setStyleSheet(input_style)
-        grid_msv.addWidget(self.slider_s, 1, 1)
-        grid_msv.addWidget(self.spin_s, 1, 2)
+        grid.addWidget(self.slider_s, 5, 1)
+        grid.addWidget(self.spin_s, 5, 2)
 
         # V (Valor / Brillo)
         lbl_v = QLabel("V:")
         lbl_v.setStyleSheet(lbl_style)
-        grid_msv.addWidget(lbl_v, 2, 0)
+        grid.addWidget(lbl_v, 6, 0)
         self.slider_v = GradientSliderWidget(0, 100, "val")
         self.spin_v = QSpinBox()
         self.spin_v.setRange(0, 100)
-        self.spin_v.setFixedWidth(36)
-        self.spin_v.setFixedHeight(16)
+        self.spin_v.setFixedWidth(38)
+        self.spin_v.setFixedHeight(17)
         self.spin_v.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         self.spin_v.setStyleSheet(input_style)
-        grid_msv.addWidget(self.slider_v, 2, 1)
-        grid_msv.addWidget(self.spin_v, 2, 2)
+        grid.addWidget(self.slider_v, 6, 1)
+        grid.addWidget(self.spin_v, 6, 2)
 
-        layout.addLayout(grid_msv)
+        layout.addLayout(grid)
         layout.addStretch(1)
 
         scroll.setWidget(content)

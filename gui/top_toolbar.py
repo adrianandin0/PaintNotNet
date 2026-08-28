@@ -14,6 +14,7 @@ class TopToolBarWidget(QToolBar):
         self.main_window = main_window
         self.setMovable(False)
         self.setFloatable(False)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.PreventContextMenu)
         self.setIconSize(QSize(24, 24))
         self.setStyleSheet("QToolBar { spacing: 4px; padding: 2px; }")
 
@@ -661,7 +662,7 @@ class TopToolBarWidget(QToolBar):
         from tools.stamp import StampTool
 
         uses_grosor = isinstance(tool_obj, (BrushTool, PencilTool, EraserTool, LineTool, ShapesTool, SprayTool, SmudgeTool, StampTool))
-        uses_forma = isinstance(tool_obj, (BrushTool, PencilTool, EraserTool, LineTool, SprayTool, SmudgeTool, StampTool))
+        uses_forma = isinstance(tool_obj, (BrushTool, PencilTool, EraserTool))
         uses_tolerance = isinstance(tool_obj, (BucketTool, MagicWandTool))
         uses_smoothness = isinstance(tool_obj, (BrushTool, LineTool, EraserTool, ShapesTool, SprayTool, StampTool))
         uses_zoom = isinstance(tool_obj, ZoomTool)
@@ -1074,4 +1075,7 @@ class TopToolBarWidget(QToolBar):
             self.combo_blur_modo.setItemText(0, t("Pixelado"))
             self.combo_blur_modo.setItemText(1, t("Gaussiano"))
             self.combo_blur_modo.blockSignals(False)
+
+    def contextMenuEvent(self, event):
+        event.ignore()
 

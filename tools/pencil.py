@@ -1,5 +1,6 @@
 from PyQt6.QtCore import Qt, QPoint
 from PyQt6.QtGui import QPainter, QPen, QColor, QBrush
+from PyQt6.QtWidgets import QApplication
 from tools.base_tool import BaseTool
 
 
@@ -8,6 +9,7 @@ class PencilTool(BaseTool):
         super().__init__("Lápiz", "gui/iconos/pencil.png")
         self.last_point = QPoint()
         self.is_drawing = False
+        self.shift_anchor = None
 
     def draw_handles(self, painter, canvas):
         if canvas.cursor_pos is None:
@@ -43,6 +45,7 @@ class PencilTool(BaseTool):
         if event.button() in (Qt.MouseButton.LeftButton, Qt.MouseButton.RightButton):
             self.is_drawing = True
             self.last_point = event.position().toPoint()
+            self.shift_anchor = None
             color = QColor(color_activo if color_activo else canvas.color_primario)
             color.setAlpha(255)  # Lápiz es siempre 100% sólido
 
@@ -61,7 +64,23 @@ class PencilTool(BaseTool):
 
     def mouse_move(self, canvas, event, color_activo=None):
         if self.is_drawing:
-            current_point = event.position().toPoint()
+            raw_pos = event.position().toPoint()
+            modifiers = QApplication.keyboardModifiers()
+            is_shift = bool(modifiers & Qt.KeyboardModifier.ShiftModifier)
+
+            if is_shift:
+                if self.shift_anchor is None:
+                    self.shift_anchor = QPoint(self.last_point)
+                dx = raw_pos.x() - self.shift_anchor.x()
+                dy = raw_pos.y() - self.shift_anchor.y()
+                if abs(dx) >= abs(dy):
+                    current_point = QPoint(raw_pos.x(), self.shift_anchor.y())
+                else:
+                    current_point = QPoint(self.shift_anchor.x(), raw_pos.y())
+            else:
+                self.shift_anchor = None
+                current_point = raw_pos
+
             color = QColor(color_activo if color_activo else canvas.color_primario)
             color.setAlpha(255)  # Lápiz es siempre 100% sólido
 
@@ -84,3 +103,4 @@ class PencilTool(BaseTool):
 
     def mouse_release(self, canvas, event, color_activo=None):
         self.is_drawing = False
+        self.shift_anchor = None

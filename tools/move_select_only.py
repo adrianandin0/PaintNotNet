@@ -32,4 +32,9 @@ class MoveSelectOnlyTool(BaseTool):
         canvas.update()
 
     def mouse_release(self, canvas, event, color_activo=None):
-        canvas.selection_engine.end_transform()
+        engine = canvas.selection_engine
+        if engine.is_moving or engine.is_rotating:
+            engine.end_transform()
+            canvas.push_document_state("Mover Selección")
+        else:
+            engine.end_transform()

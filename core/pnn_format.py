@@ -9,8 +9,8 @@ def guardar_proyecto_pnn(canvas, ruta_archivo):
     """
     Guarda el proyecto completo de PaintNotNet en formato nativo .pnn (ZIP).
     Contiene:
-    - manifest.json: metadatos del proyecto y lista de capas.
-    - layer_0.png, layer_1.png...: imágenes PNG individuales en RGBA32.
+    - manifest.json: metadatos del proyecto y lista de capas individuales.
+    - layer_0.png, layer_1.png...: imágenes PNG individuales por capa en RGBA32.
     """
     layer_mgr = canvas.layer_mgr
 
@@ -23,6 +23,9 @@ def guardar_proyecto_pnn(canvas, ruta_archivo):
         "layers": []
     }
 
+    engine = getattr(canvas, 'selection_engine', None)
+    has_floating = bool(engine and engine.floating_image and not engine.floating_image.isNull())
+
     with zipfile.ZipFile(ruta_archivo, 'w', compression=zipfile.ZIP_DEFLATED) as zip_file:
         for idx, capa in enumerate(layer_mgr.capas):
             img_filename = f"layer_{idx}.png"
@@ -34,10 +37,19 @@ def guardar_proyecto_pnn(canvas, ruta_archivo):
             }
             manifest["layers"].append(layer_info)
 
+            img_to_save = capa.image
+            if has_floating and idx == layer_mgr.indice_activo:
+                from PyQt6.QtGui import QPainter
+                img_to_save = capa.image.copy()
+                p = QPainter(img_to_save)
+                p.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+                p.drawImage(engine.original_image_pos, engine.floating_image)
+                p.end()
+
             # Convertir QImage a bytes PNG
             buffer = QBuffer()
             buffer.open(QIODevice.OpenModeFlag.WriteOnly)
-            capa.image.save(buffer, "PNG")
+            img_to_save.save(buffer, "PNG")
             bytes_data = buffer.data().data()
             buffer.close()
 
@@ -100,6 +112,10 @@ def cargar_proyecto_pnn(canvas, ruta_archivo):
         canvas._ajustar_tamano_widget(width, height)
         canvas.capa_trazo_temp = QImage(width, height, QImage.Format.Format_ARGB32_Premultiplied)
         canvas.capa_trazo_temp.fill(Qt.GlobalColor.transparent)
+
+        # Reconstruir panel de capas en UI
+        if hasattr(canvas, 'main_window') and canvas.main_window and hasattr(canvas.main_window, 'layers_panel'):
+            canvas.main_window.layers_panel.reconstruir_lista_capas()
 
         # Reset de selección
         canvas.selection_engine.clear_selection()

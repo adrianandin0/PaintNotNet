@@ -5,22 +5,15 @@ from tools.base_tool import BaseTool
 from tools.brush import _draw_cursor
 
 
+from PyQt6.QtWidgets import QApplication
+
+
 class EraserTool(BaseTool):
-    """Goma de borrar.
-
-    Estrategia: borrado INCREMENTAL — solo se borra el nuevo segmento en cada
-    evento de mouse_move.  Esto evita redibujar el path completo (que crea
-    artefactos de antialiasing al combinar con CompositionMode_Clear).
-
-    Modo Redondo: QPen RoundCap incremental.
-    Modo Cuadrado: stamps de drawRect axis-aligned incrementales
-                   (evita la rotación de SquareCap).
-    """
-
     def __init__(self):
         super().__init__("Goma de Borrar", "gui/iconos/eraser.png")
         self.is_drawing = False
         self._last_pos: QPointF | None = None
+        self.shift_anchor: QPointF | None = None
 
     # ── cursor de preview ─────────────────────────────────────────────────────
 
@@ -52,14 +45,31 @@ class EraserTool(BaseTool):
             self.is_drawing = True
             pos = event.position()
             self._last_pos = pos
+            self.shift_anchor = None
             # Punto inicial: forma centrada sin dirección
             self._erase_segment(canvas, pos, pos)
             canvas.update()
 
     def mouse_move(self, canvas, event, color_activo=None):
-        if not self.is_drawing:
+        if not self.is_drawing or self._last_pos is None:
             return
-        pos = event.position()
+        raw_pos = event.position()
+        modifiers = QApplication.keyboardModifiers()
+        is_shift = bool(modifiers & Qt.KeyboardModifier.ShiftModifier)
+
+        if is_shift:
+            if self.shift_anchor is None:
+                self.shift_anchor = QPointF(self._last_pos)
+            dx = raw_pos.x() - self.shift_anchor.x()
+            dy = raw_pos.y() - self.shift_anchor.y()
+            if abs(dx) >= abs(dy):
+                pos = QPointF(raw_pos.x(), self.shift_anchor.y())
+            else:
+                pos = QPointF(self.shift_anchor.x(), raw_pos.y())
+        else:
+            self.shift_anchor = None
+            pos = raw_pos
+
         self._erase_segment(canvas, self._last_pos, pos)
         self._last_pos = pos
         if canvas.callback_modificado:
@@ -69,6 +79,7 @@ class EraserTool(BaseTool):
     def mouse_release(self, canvas, event, color_activo=None):
         self.is_drawing = False
         self._last_pos = None
+        self.shift_anchor = None
 
     # ── borrado por segmento ──────────────────────────────────────────────────
 

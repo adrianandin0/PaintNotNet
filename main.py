@@ -50,7 +50,7 @@ class PaintNotNet(QMainWindow):
         self.tool_panel = ToolPanelWidget(main_window=self)
         self.tools_dock.setWidget(self.tool_panel)
         self.tools_dock.setTitleBarWidget(self._hacer_titulo_dock("gui/iconos/tools.png", "Herramientas"))
-        self.tools_dock.setFixedHeight(280)
+        self.tools_dock.setFixedHeight(270)
         self.tools_dock.setFixedWidth(120)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.tools_dock)
 
@@ -73,7 +73,7 @@ class PaintNotNet(QMainWindow):
         self.advanced_color_dock.setWidget(self.advanced_color_panel)
         self.advanced_color_dock.setTitleBarWidget(self._hacer_titulo_dock("gui/iconos/color-plus.png", "Color"))
         self.advanced_color_dock.setFixedWidth(160)
-        self.advanced_color_dock.setFixedHeight(210)
+        self.advanced_color_dock.setFixedHeight(220)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.advanced_color_dock)
 
         # 4. Dock de Historial
@@ -137,6 +137,10 @@ class PaintNotNet(QMainWindow):
         self.text_panel = self.top_toolbar
         self.effects_panel = self.top_toolbar
 
+        # Inicializar Gestor de Autoguardado de Emergencia
+        from core.emergency_save import EmergencySaveManager
+        self.emergency_mgr = EmergencySaveManager(main_window=self)
+
         from core.i18n import t
         settings = QSettings("PaintNotNet", "PaintNotNet")
         init_w = settings.value("default_canvas_w", 800, type=int)
@@ -168,6 +172,9 @@ class PaintNotNet(QMainWindow):
         self.shortcut_esc = QShortcut(QKeySequence(Qt.Key.Key_Escape), self)
         self.shortcut_esc.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
         self.shortcut_esc.activated.connect(self._ejecutar_escape_global)
+
+        # Verificar si existen autoguardados de emergencia al iniciar
+        QTimer.singleShot(150, self._verificar_respaldos_emergencia_inicio)
 
 
     def _hacer_titulo_dock(self, icono_path, tooltip=""):
@@ -360,6 +367,10 @@ class PaintNotNet(QMainWindow):
             idx, self.tab_widget.tabBar().ButtonPosition.RightSide, btn_cerrar
         )
         self.tab_widget.setCurrentIndex(idx)
+
+        if hasattr(self, 'emergency_mgr') and self.emergency_mgr:
+            self.emergency_mgr.registrar_canvas(canvas, titulo=titulo)
+
         return canvas
 
     def _hacer_boton_cerrar(self):
@@ -468,8 +479,11 @@ class PaintNotNet(QMainWindow):
             area_scroll = self.tab_widget.widget(index)
             if area_scroll and hasattr(area_scroll, 'widget'):
                 canvas = area_scroll.widget()
-                if canvas and hasattr(canvas, 'selection_engine'):
-                    canvas.selection_engine.clear_selection()
+                if canvas:
+                    if hasattr(canvas, 'selection_engine'):
+                        canvas.selection_engine.clear_selection()
+                    if hasattr(self, 'emergency_mgr') and self.emergency_mgr:
+                        self.emergency_mgr.eliminar_respaldo_canvas(canvas)
 
             self.tab_widget.removeTab(index)
 
@@ -498,6 +512,8 @@ class PaintNotNet(QMainWindow):
             idx = self._find_tab_index_for_canvas(canvas)
             if idx >= 0:
                 self.actualizar_titulo_pestana(idx)
+            if hasattr(self, 'emergency_mgr') and self.emergency_mgr:
+                self.emergency_mgr.solicitar_guardado_emergencia(canvas)
         self.actualizar_titulo_ventana()
         if hasattr(self, 'layers_panel'):
             self.layers_panel.actualizar_thumbnails()
@@ -700,6 +716,58 @@ class PaintNotNet(QMainWindow):
                 canvas.active_tool_obj.commit_text(canvas, canvas.color_primario)
             canvas.cancelar_o_deseleccionar()
 
+    def createPopupMenu(self):
+        """Desactiva el menú contextual emergente por defecto de la ventana principal al hacer clic derecho en toolbars/docks."""
+        return None
+
+    def _verificar_respaldos_emergencia_inicio(self):
+        from core.emergency_save import buscar_respaldos_emergencia, DialogoRestauracionEmergencia, limpiar_todos_los_respaldos
+        from core.pnn_format import cargar_proyecto_pnn
+        from PyQt6.QtWidgets import QDialog
+
+        archivos = buscar_respaldos_emergencia()
+        if not archivos:
+            return
+
+        dlg = DialogoRestauracionEmergencia(count_files=len(archivos), parent=self)
+        res = dlg.exec()
+        if res == QDialog.DialogCode.Accepted:
+            first_canvas_reused = False
+            for filepath in archivos:
+                nombre_base = os.path.basename(filepath)
+                parts = nombre_base.split('_')
+                if len(parts) >= 3:
+                    titulo_orig = "_".join(parts[:-2])
+                else:
+                    titulo_orig = os.path.splitext(nombre_base)[0]
+
+                if not first_canvas_reused and self.tab_widget.count() == 1:
+                    area_scroll = self.tab_widget.widget(0)
+                    canvas = area_scroll.widget() if area_scroll else None
+                    if canvas and not getattr(canvas, 'lienzo_modificado', False) and len(canvas.layer_mgr.capas) <= 1:
+                        if cargar_proyecto_pnn(canvas, filepath):
+                            self.tab_widget.setTabText(0, titulo_orig)
+                            canvas.lienzo_modificado = True
+                            first_canvas_reused = True
+                            if hasattr(self, 'emergency_mgr'):
+                                self.emergency_mgr.registrar_canvas(canvas, titulo=titulo_orig)
+                            continue
+
+                canvas_nuevo = self.crear_nueva_pestana(800, 600, transparent=True, titulo=titulo_orig)
+                if cargar_proyecto_pnn(canvas_nuevo, filepath):
+                    canvas_nuevo.lienzo_modificado = True
+                    if hasattr(self, 'emergency_mgr'):
+                        self.emergency_mgr.registrar_canvas(canvas_nuevo, titulo=titulo_orig)
+
+            for f in archivos:
+                try:
+                    if os.path.exists(f):
+                        os.remove(f)
+                except Exception:
+                    pass
+        else:
+            limpiar_todos_los_respaldos()
+
     def closeEvent(self, event: QCloseEvent):
         if hasattr(self, 'menu_archivo'):
             if not self.menu_archivo.confirmar_descarte_cambios():
@@ -725,6 +793,9 @@ class PaintNotNet(QMainWindow):
                     else:
                         custom_hexs.append("")
                 settings.setValue("custom_colors", custom_hexs)
+
+        if hasattr(self, 'emergency_mgr') and self.emergency_mgr:
+            self.emergency_mgr.limpiar_todos()
 
         event.accept()
 

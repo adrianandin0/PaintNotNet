@@ -99,6 +99,24 @@ class LineTool(BaseTool):
         self.p1 = self.p0 + vec * (1.0 / 3.0)
         self.p2 = self.p0 + vec * (2.0 / 3.0)
 
+    def _get_blue_handle_point(self):
+        if not (self.p0 and self.p1 and self.p2 and self.p3):
+            return None
+        p0, p1, p2, p3 = self.p0, self.p1, self.p2, self.p3
+        mid_x = 0.125 * p0.x() + 0.375 * p1.x() + 0.375 * p2.x() + 0.125 * p3.x()
+        mid_y = 0.125 * p0.y() + 0.375 * p1.y() + 0.375 * p2.y() + 0.125 * p3.y()
+        mid_pt = QPointF(mid_x, mid_y)
+
+        dx = p3.x() - p0.x()
+        dy = p3.y() - p0.y()
+        norm = math.hypot(dx, dy)
+        if norm > 1e-5:
+            nx = -dy / norm
+            ny = dx / norm
+        else:
+            nx, ny = 0.0, -1.0
+        return QPointF(mid_pt.x() + nx * 14.0, mid_pt.y() + ny * 14.0)
+
     def hit_test(self, pos):
         if self.state != 2:
             return self.HANDLE_NONE
@@ -114,6 +132,13 @@ class LineTool(BaseTool):
         for h_id, pt in pts:
             if pt and QRectF(pt.x() - s2, pt.y() - s2, self.HANDLE_SIZE, self.HANDLE_SIZE).contains(pos):
                 return h_id
+
+        # 5º tirador azul de movimiento
+        blue_pt = self._get_blue_handle_point()
+        if blue_pt:
+            sb2 = (self.HANDLE_SIZE + 2) / 2.0
+            if QRectF(blue_pt.x() - sb2, blue_pt.y() - sb2, self.HANDLE_SIZE + 2, self.HANDLE_SIZE + 2).contains(pos):
+                return self.HANDLE_BODY
 
         # Si no toca ningún handle, comprobar si toca el cuerpo de la curva
         if self._point_near_bezier(pos):
@@ -182,6 +207,13 @@ class LineTool(BaseTool):
         is_shift = bool(modifiers & Qt.KeyboardModifier.ShiftModifier)
 
         if self.state == 1:
+            if is_shift and self.p0:
+                dx = pos.x() - self.p0.x()
+                dy = pos.y() - self.p0.y()
+                if abs(dx) >= abs(dy):
+                    pos = QPointF(pos.x(), self.p0.y())
+                else:
+                    pos = QPointF(self.p0.x(), pos.y())
             self._init_points(self.p0, pos)
             canvas.update()
         elif self.state == 2:
@@ -331,3 +363,12 @@ class LineTool(BaseTool):
             for pt in pts:
                 if pt:
                     painter.drawRect(QRectF(pt.x() - s2, pt.y() - s2, s, s))
+
+            # 5º tirador azul de movimiento
+            blue_pt = self._get_blue_handle_point()
+            if blue_pt:
+                sb = self.HANDLE_SIZE + 2
+                sb2 = sb / 2.0
+                painter.setPen(QPen(QColor(0, 50, 160), 1.5))
+                painter.setBrush(QBrush(QColor(0, 120, 215)))
+                painter.drawRect(QRectF(blue_pt.x() - sb2, blue_pt.y() - sb2, sb, sb))

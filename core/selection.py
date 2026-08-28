@@ -22,13 +22,18 @@ class SelectionEngine:
         self.active_path = QPainterPath()
         self.floating_image = None
         self.unscaled_floating_image = None
+        self.original_raw_image = None  # Copia intacta de máxima resolución al iniciar la selección
         self.original_image_pos = QPointF()
         self.is_transforming = False
 
+        self.scale_x = 1.0
+        self.scale_y = 1.0
+        self.total_rotation = 0.0
         self.rotation_angle = 0.0
         self.base_rotation_angle = 0.0
         self.initial_mouse_angle = 0.0
         self.rotation_center = QPointF()
+
         self.initial_unrotated_path = None
         self.initial_unrotated_rect = None
         self.active_handle = 0
@@ -66,10 +71,14 @@ class SelectionEngine:
         self.active_path = QPainterPath()
         self.floating_image = None
         self.unscaled_floating_image = None
+        self.original_raw_image = None
         self.is_transforming = False
         self._reset_transform_state()
 
     def _reset_transform_state(self):
+        self.scale_x = 1.0
+        self.scale_y = 1.0
+        self.total_rotation = 0.0
         self.rotation_angle = 0.0
         self.base_rotation_angle = 0.0
         self.initial_mouse_angle = 0.0
@@ -79,24 +88,99 @@ class SelectionEngine:
         self.is_moving = False
         self.is_rotating = False
 
+    def init_raw_image(self, img):
+        """Inicializa la imagen original sin degradación para transformaciones compuestas."""
+        if img and not img.isNull():
+            self.original_raw_image = img.copy()
+            self.unscaled_floating_image = img.copy()
+            self.floating_image = img.copy()
+            self.scale_x = 1.0
+            self.scale_y = 1.0
+            self.total_rotation = 0.0
+            self.rotation_center = QPointF(self.active_rect.center())
+            self.initial_unrotated_path = QPainterPath(self.active_path)
+            self.initial_unrotated_rect = QRectF(self.active_rect)
+
+    def _apply_compound_transform(self):
+        """
+        Aplica la matriz de transformación compuesta (escalado + rotación) en un solo paso
+        directamente desde la imagen original pura sin ninguna pérdida acumulada de calidad.
+        """
+        raw = self.original_raw_image or self.unscaled_floating_image
+        if not raw or raw.isNull():
+            return
+
+        t_img = QTransform()
+        t_img.scale(self.scale_x, self.scale_y)
+        t_img.rotate(self.total_rotation)
+
+        # Renderizado suavizado directo desde el original de alta calidad
+        self.floating_image = raw.transformed(t_img, Qt.TransformationMode.SmoothTransformation)
+        self.unscaled_floating_image = raw.copy()
+
+        new_w = float(self.floating_image.width())
+        new_h = float(self.floating_image.height())
+
+        cx, cy = self.rotation_center.x(), self.rotation_center.y()
+        top_left = QPointF(cx - new_w / 2.0, cy - new_h / 2.0)
+        self.original_image_pos = top_left
+        self.active_rect = QRectF(top_left.x(), top_left.y(), new_w, new_h)
+
+        # Mapeo del path de selección
+        if self.initial_unrotated_path and not self.initial_unrotated_path.isEmpty() and self.initial_unrotated_rect:
+            orig_cx = self.initial_unrotated_rect.center().x()
+            orig_cy = self.initial_unrotated_rect.center().y()
+
+            t_path = (
+                QTransform()
+                .translate(cx, cy)
+                .rotate(self.total_rotation)
+                .scale(self.scale_x, self.scale_y)
+                .translate(-orig_cx, -orig_cy)
+            )
+            self.active_path = t_path.map(self.initial_unrotated_path)
+
     def get_handles(self):
         if not self.has_selection():
             return {}
 
-        r = self.active_rect
+        raw = self.original_raw_image or self.unscaled_floating_image
+        if raw and not raw.isNull():
+            W = float(raw.width()) * self.scale_x
+            H = float(raw.height()) * self.scale_y
+        else:
+            r = self.active_rect
+            W = r.width()
+            H = r.height()
+
+        cx = self.rotation_center.x() if (self.rotation_center and not self.rotation_center.isNull()) else self.active_rect.center().x()
+        cy = self.rotation_center.y() if (self.rotation_center and not self.rotation_center.isNull()) else self.active_rect.center().y()
+
+        rad = math.radians(self.total_rotation)
+        cos_a = math.cos(rad)
+        sin_a = math.sin(rad)
+
         s = self.HANDLE_SIZE
         s2 = s / 2.0
 
-        return {
-            self.HANDLE_TOP_LEFT: QRectF(r.left() - s2, r.top() - s2, s, s),
-            self.HANDLE_TOP_RIGHT: QRectF(r.right() - s2, r.top() - s2, s, s),
-            self.HANDLE_BOTTOM_LEFT: QRectF(r.left() - s2, r.bottom() - s2, s, s),
-            self.HANDLE_BOTTOM_RIGHT: QRectF(r.right() - s2, r.bottom() - s2, s, s),
-            self.HANDLE_TOP_CENTER: QRectF(r.center().x() - s2, r.top() - s2, s, s),
-            self.HANDLE_BOTTOM_CENTER: QRectF(r.center().x() - s2, r.bottom() - s2, s, s),
-            self.HANDLE_MIDDLE_LEFT: QRectF(r.left() - s2, r.center().y() - s2, s, s),
-            self.HANDLE_MIDDLE_RIGHT: QRectF(r.right() - s2, r.center().y() - s2, s, s),
+        local_positions = {
+            self.HANDLE_TOP_LEFT: (-W / 2.0, -H / 2.0),
+            self.HANDLE_TOP_RIGHT: (W / 2.0, -H / 2.0),
+            self.HANDLE_BOTTOM_LEFT: (-W / 2.0, H / 2.0),
+            self.HANDLE_BOTTOM_RIGHT: (W / 2.0, H / 2.0),
+            self.HANDLE_TOP_CENTER: (0.0, -H / 2.0),
+            self.HANDLE_BOTTOM_CENTER: (0.0, H / 2.0),
+            self.HANDLE_MIDDLE_LEFT: (-W / 2.0, 0.0),
+            self.HANDLE_MIDDLE_RIGHT: (W / 2.0, 0.0),
         }
+
+        handles = {}
+        for handle_id, (lx, ly) in local_positions.items():
+            canvas_x = cx + (lx * cos_a - ly * sin_a)
+            canvas_y = cy + (lx * sin_a + ly * cos_a)
+            handles[handle_id] = QRectF(canvas_x - s2, canvas_y - s2, s, s)
+
+        return handles
 
     def hit_test(self, point_f):
         handles = self.get_handles()
@@ -111,35 +195,25 @@ class SelectionEngine:
         if not self.has_selection():
             return
 
-        cx, cy = self.active_rect.center().x(), self.active_rect.center().y()
-        self.rotation_angle += degrees
-        total_angle = self.rotation_angle
+        if not self.original_raw_image and self.floating_image:
+            self.init_raw_image(self.floating_image)
 
-        t_path = QTransform().translate(cx, cy).rotate(degrees).translate(-cx, -cy)
-        if not self.active_path.isEmpty():
-            self.active_path = t_path.map(self.active_path)
-            self.active_rect = self.active_path.boundingRect()
-
-        if self.unscaled_floating_image and not self.unscaled_floating_image.isNull():
-            t_img = QTransform().rotate(total_angle)
-            rotated = self.unscaled_floating_image.transformed(t_img, Qt.TransformationMode.SmoothTransformation)
-            self.floating_image = rotated
-            self.unscaled_floating_image = rotated.copy()
-            self.rotation_angle = 0.0
-            self.base_rotation_angle = 0.0
-
-            new_w = rotated.width()
-            new_h = rotated.height()
-
-            new_left = cx - new_w / 2.0
-            new_top = cy - new_h / 2.0
-
-            self.active_rect = QRectF(new_left, new_top, new_w, new_h)
-            self.original_image_pos = QPointF(new_left, new_top)
+        self.total_rotation = (self.total_rotation + degrees) % 360.0
+        self._apply_compound_transform()
 
     def begin_transform(self, pos, button, hit):
         self.active_handle = hit
         self.last_mouse_pos = pos
+
+        if not self.original_raw_image and self.floating_image and not self.floating_image.isNull():
+            self.init_raw_image(self.floating_image)
+
+        if not self.rotation_center or self.rotation_center.isNull():
+            self.rotation_center = QPointF(self.active_rect.center())
+
+        if not self.initial_unrotated_rect or self.initial_unrotated_rect.isEmpty():
+            self.initial_unrotated_rect = QRectF(self.active_rect)
+            self.initial_unrotated_path = QPainterPath(self.active_path)
 
         if button == Qt.MouseButton.RightButton and hit in (
             self.HANDLE_TOP_LEFT, self.HANDLE_TOP_RIGHT,
@@ -147,14 +221,14 @@ class SelectionEngine:
         ):
             self.is_rotating = True
             self.is_moving = False
-            self.rotation_center = QPointF(self.active_rect.center())
             self.initial_mouse_angle = math.atan2(pos.y() - self.rotation_center.y(), pos.x() - self.rotation_center.x())
-            self.base_rotation_angle = self.rotation_angle
-            self.initial_unrotated_path = QPainterPath(self.active_path)
-            self.initial_unrotated_rect = QRectF(self.active_rect)
+            self.base_rotation_angle = self.total_rotation
         else:
             self.is_moving = True
             self.is_rotating = False
+            self.initial_scale_x_drag = self.scale_x
+            self.initial_scale_y_drag = self.scale_y
+            self.initial_center_drag = QPointF(self.rotation_center)
 
     def update_transform(self, pos, is_shift=False):
         if self.is_rotating:
@@ -162,57 +236,30 @@ class SelectionEngine:
             delta_rad = curr_angle - self.initial_mouse_angle
             delta_deg = math.degrees(delta_rad)
 
-            total_angle = self.base_rotation_angle + delta_deg
-            self.rotation_angle = total_angle
-
-            cx, cy = self.rotation_center.x(), self.rotation_center.y()
-
-            if self.initial_unrotated_path and not self.initial_unrotated_path.isEmpty():
-                t = QTransform().translate(cx, cy).rotate(delta_deg).translate(-cx, -cy)
-                self.active_path = t.map(self.initial_unrotated_path)
-                self.active_rect = self.active_path.boundingRect()
-
-            if self.unscaled_floating_image and not self.unscaled_floating_image.isNull():
-                t_img = QTransform().rotate(total_angle)
-                rotated = self.unscaled_floating_image.transformed(t_img, Qt.TransformationMode.SmoothTransformation)
-                self.floating_image = rotated
-
-                new_w = rotated.width()
-                new_h = rotated.height()
-
-                new_left = cx - new_w / 2.0
-                new_top = cy - new_h / 2.0
-
-                self.active_rect = QRectF(new_left, new_top, new_w, new_h)
-                self.original_image_pos = QPointF(new_left, new_top)
+            self.total_rotation = (self.base_rotation_angle + delta_deg) % 360.0
+            self._apply_compound_transform()
 
         elif self.is_moving:
             if self.active_handle not in (self.HANDLE_NONE, self.HANDLE_MOVE):
                 self.resize_selection(self.active_handle, pos, lock_aspect_ratio=is_shift)
             elif self.active_handle == self.HANDLE_MOVE:
                 delta = pos - self.last_mouse_pos
-                dx, dy = delta.x(), delta.y()
-
-                self.original_image_pos += QPointF(dx, dy)
-                self.active_rect.translate(dx, dy)
+                self.rotation_center += delta
+                self.original_image_pos += delta
+                self.active_rect.translate(delta.x(), delta.y())
 
                 if not self.active_path.isEmpty():
                     transform = QTransform()
-                    transform.translate(dx, dy)
+                    transform.translate(delta.x(), delta.y())
                     self.active_path = transform.map(self.active_path)
+                if self.initial_unrotated_path and not self.initial_unrotated_path.isEmpty():
+                    self.initial_unrotated_path = QTransform().translate(delta.x(), delta.y()).map(self.initial_unrotated_path)
+                if self.initial_unrotated_rect:
+                    self.initial_unrotated_rect.translate(delta.x(), delta.y())
 
         self.last_mouse_pos = pos
 
     def end_transform(self):
-        # Para rotaciones acumuladas se actualiza la imagen base.
-        # Para redimensionado (resize), NUNCA se sobrescribe unscaled_floating_image
-        # para que la selección conserve 100% su resolución original al achicar y re-agrandar.
-        if self.floating_image and not self.floating_image.isNull():
-            if self.is_rotating:
-                self.unscaled_floating_image = self.floating_image.copy()
-                self.rotation_angle = 0.0
-                self.base_rotation_angle = 0.0
-
         self.is_moving = False
         self.is_rotating = False
         self.active_handle = self.HANDLE_NONE
@@ -221,59 +268,77 @@ class SelectionEngine:
         if not self.has_selection() or handle_id in (self.HANDLE_NONE, self.HANDLE_MOVE):
             return
 
-        old_rect = QRectF(self.active_rect)
-        if old_rect.width() <= 1 or old_rect.height() <= 1:
+        if not self.original_raw_image and self.floating_image and not self.floating_image.isNull():
+            self.init_raw_image(self.floating_image)
+
+        raw = self.original_raw_image or self.unscaled_floating_image
+        if not raw or raw.isNull():
             return
 
-        l, r, t, b = old_rect.left(), old_rect.right(), old_rect.top(), old_rect.bottom()
-        px, py = current_pos.x(), current_pos.y()
+        raw_w = float(raw.width())
+        raw_h = float(raw.height())
+
+        # Dimensiones en espacio local des-rotado al inicio del arrastre
+        W0 = raw_w * getattr(self, 'initial_scale_x_drag', self.scale_x)
+        H0 = raw_h * getattr(self, 'initial_scale_y_drag', self.scale_y)
+        center0 = getattr(self, 'initial_center_drag', self.rotation_center)
+
+        # Proyectar current_pos al sistema de coordenadas local sin rotación
+        rad = math.radians(-self.total_rotation)
+        cos_a = math.cos(rad)
+        sin_a = math.sin(rad)
+
+        dx = current_pos.x() - center0.x()
+        dy = current_pos.y() - center0.y()
+
+        local_x = dx * cos_a - dy * sin_a
+        local_y = dx * sin_a + dy * cos_a
+
+        l0, r0 = -W0 / 2.0, W0 / 2.0
+        t0, b0 = -H0 / 2.0, H0 / 2.0
+
+        l1, r1, t1, b1 = l0, r0, t0, b0
 
         if handle_id in (self.HANDLE_TOP_LEFT, self.HANDLE_MIDDLE_LEFT, self.HANDLE_BOTTOM_LEFT):
-            l = px
+            l1 = min(r0 - 2.0, local_x)
         if handle_id in (self.HANDLE_TOP_RIGHT, self.HANDLE_MIDDLE_RIGHT, self.HANDLE_BOTTOM_RIGHT):
-            r = px
+            r1 = max(l0 + 2.0, local_x)
         if handle_id in (self.HANDLE_TOP_LEFT, self.HANDLE_TOP_CENTER, self.HANDLE_TOP_RIGHT):
-            t = py
+            t1 = min(b0 - 2.0, local_y)
         if handle_id in (self.HANDLE_BOTTOM_LEFT, self.HANDLE_BOTTOM_CENTER, self.HANDLE_BOTTOM_RIGHT):
-            b = py
+            b1 = max(t0 + 2.0, local_y)
 
-        new_rect = QRectF(QPointF(l, t), QPointF(r, b)).normalized()
+        new_w = r1 - l1
+        new_h = b1 - t1
 
         if lock_aspect_ratio:
-            if self.unscaled_floating_image and not self.unscaled_floating_image.isNull():
-                orig_aspect = float(self.unscaled_floating_image.width()) / max(1.0, float(self.unscaled_floating_image.height()))
+            orig_aspect = raw_w / max(1.0, raw_h)
+            if new_w / max(1.0, new_h) > orig_aspect:
+                new_w = new_h * orig_aspect
+                if handle_id in (self.HANDLE_TOP_LEFT, self.HANDLE_MIDDLE_LEFT, self.HANDLE_BOTTOM_LEFT):
+                    l1 = r1 - new_w
+                else:
+                    r1 = l1 + new_w
             else:
-                orig_aspect = old_rect.width() / max(1.0, old_rect.height())
+                new_h = new_w / orig_aspect
+                if handle_id in (self.HANDLE_TOP_LEFT, self.HANDLE_TOP_CENTER, self.HANDLE_TOP_RIGHT):
+                    t1 = b1 - new_h
+                else:
+                    b1 = t1 + new_h
 
-            curr_w = new_rect.width()
-            curr_h = new_rect.height()
+        if new_w > 2 and new_h > 2:
+            self.scale_x = max(0.001, new_w / raw_w)
+            self.scale_y = max(0.001, new_h / raw_h)
 
-            if curr_w / max(1.0, curr_h) > orig_aspect:
-                new_rect.setWidth(curr_h * orig_aspect)
-            else:
-                new_rect.setHeight(curr_w / orig_aspect)
+            local_cx = (l1 + r1) / 2.0
+            local_cy = (t1 + b1) / 2.0
 
-        if new_rect.width() > 2 and new_rect.height() > 2:
-            sx = new_rect.width() / max(1.0, old_rect.width())
-            sy = new_rect.height() / max(1.0, old_rect.height())
+            rad_back = math.radians(self.total_rotation)
+            cos_b = math.cos(rad_back)
+            sin_b = math.sin(rad_back)
 
-            transform = QTransform()
-            transform.translate(new_rect.left(), new_rect.top())
-            transform.scale(sx, sy)
-            transform.translate(-old_rect.left(), -old_rect.top())
+            new_cx = center0.x() + (local_cx * cos_b - local_cy * sin_b)
+            new_cy = center0.y() + (local_cx * sin_b + local_cy * cos_b)
+            self.rotation_center = QPointF(new_cx, new_cy)
 
-            if not self.active_path.isEmpty():
-                self.active_path = transform.map(self.active_path)
-            self.active_rect = new_rect
-
-            if self.unscaled_floating_image and not self.unscaled_floating_image.isNull():
-                new_w = max(1, int(new_rect.width()))
-                new_h = max(1, int(new_rect.height()))
-                # Siempre escalar desde el original sin modificar (unscaled_floating_image)
-                # con SmoothTransformation para máxima calidad visual al achicar y agrandar.
-                self.floating_image = self.unscaled_floating_image.scaled(
-                    new_w, new_h,
-                    Qt.AspectRatioMode.IgnoreAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation
-                )
-                self.original_image_pos = new_rect.topLeft()
+            self._apply_compound_transform()
