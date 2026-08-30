@@ -152,8 +152,10 @@ echo -e "${COLOR_YELLOW}${MSG_STEP3}${COLOR_RESET}"
 mkdir -p /usr/share/pixmaps
 cp "${SCRIPT_DIR}/gui/icono.png" /usr/share/pixmaps/paintnotnet.png
 
-mkdir -p /usr/share/icons/hicolor/128x128/apps
-cp "${SCRIPT_DIR}/gui/icono.png" /usr/share/icons/hicolor/128x128/apps/paintnotnet.png
+for sz in 16x16 32x32 48x48 64x64 128x128 256x256 512x512; do
+    mkdir -p "/usr/share/icons/hicolor/${sz}/apps"
+    cp "${SCRIPT_DIR}/gui/icono.png" "/usr/share/icons/hicolor/${sz}/apps/paintnotnet.png"
+done
 
 # Registrar MIME Type .pnn en el sistema
 mkdir -p /usr/share/mime/packages
@@ -196,6 +198,18 @@ if command -v gtk-update-icon-cache &> /dev/null; then
     gtk-update-icon-cache -f -t /usr/share/icons/hicolor &> /dev/null || true
 fi
 touch /usr/share/icons/hicolor &> /dev/null || true
+
+# Actualización de la caché de servicios / menú de KDE Plasma
+if command -v kbuildsycoca6 &> /dev/null; then
+    kbuildsycoca6 --noincremental &> /dev/null || true
+elif command -v kbuildsycoca5 &> /dev/null; then
+    kbuildsycoca5 --noincremental &> /dev/null || true
+fi
+
+REAL_USER="${SUDO_USER:-$USER}"
+if [ -n "$REAL_USER" ] && [ "$REAL_USER" != "root" ]; then
+    su - "$REAL_USER" -c "kbuildsycoca6 --noincremental &> /dev/null || kbuildsycoca5 --noincremental &> /dev/null || true" &> /dev/null || true
+fi
 
 # Configurar PaintNotNet como la aplicación predeterminada para archivos .pnn
 if command -v xdg-mime &> /dev/null; then

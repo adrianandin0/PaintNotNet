@@ -27,6 +27,21 @@ from gui.menu_ver import MenuVer
 from gui.menu_ajustes import MenuAjustes
 from gui.menu_acerca import MenuAcerca
 
+
+def obtener_ruta_icono_app() -> str:
+    base = os.path.dirname(os.path.abspath(__file__))
+    posibles = [
+        os.path.join(base, "gui", "icono.png"),
+        os.path.join(base, "gui", "paintdotnet.ico"),
+        os.path.join(base, "gui", "iconos", "paintdotnet.ico"),
+        "/usr/share/pixmaps/paintnotnet.png"
+    ]
+    for ruta in posibles:
+        if os.path.exists(ruta):
+            return ruta
+    return "gui/icono.png"
+
+
 class PaintNotNet(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -36,7 +51,7 @@ class PaintNotNet(QMainWindow):
             self.restoreGeometry(geometry)
         else:
             self.resize(1500, 800)
-        self.setWindowIcon(QIcon("gui/iconos/paintdotnet.ico"))
+        self.setWindowIcon(QIcon(obtener_ruta_icono_app()))
         self.archivo_actual = None
         self.lienzo_modificado = False
 
@@ -96,9 +111,7 @@ class PaintNotNet(QMainWindow):
         self.layers_dock.setFixedHeight(180)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.layers_dock)
 
-        import sys
-        ico_path = "gui/paintdotnet.ico" if sys.platform == "win32" and os.path.exists("gui/paintdotnet.ico") else "gui/icono.png"
-        self.setWindowIcon(QIcon(ico_path))
+        self.setWindowIcon(QIcon(obtener_ruta_icono_app()))
 
         # ==========================================
         # ÁREA CENTRAL MULTI-PESTAÑA (TABBED MDI)
@@ -805,7 +818,7 @@ if __name__ == '__main__':
     from core.theme import ThemeManager
     from core.i18n import I18nManager
 
-    app.setWindowIcon(QIcon("gui/iconos/paintdotnet.ico"))
+    app.setWindowIcon(QIcon(obtener_ruta_icono_app()))
     I18nManager().cargar_idioma_configurado()
 
     ventana = PaintNotNet()

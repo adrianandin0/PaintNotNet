@@ -14,10 +14,15 @@ class DialogoAcerca(QDialog):
         layout.setContentsMargins(20, 18, 20, 18)
         layout.setSpacing(12)
 
-        lbl_titulo = QLabel(t("PaintNotNet (Versión Beta)"))
+        lbl_titulo = QLabel("PaintNotNet")
         lbl_titulo.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_titulo.setStyleSheet("font-size: 16px; font-weight: bold; color: #00AAFF;")
+        lbl_titulo.setStyleSheet("font-size: 22px; font-weight: bold; color: #00AAFF;")
         layout.addWidget(lbl_titulo)
+
+        lbl_version = QLabel(t("Versión: 1.0.6"))
+        lbl_version.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lbl_version.setStyleSheet("font-size: 13px; font-weight: normal; color: #999999;")
+        layout.addWidget(lbl_version)
 
         from core.theme import ThemeManager
         tm = ThemeManager()
