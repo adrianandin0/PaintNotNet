@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# PaintNotNet v1.0.5 - Instalador Universal para Distribuciones Linux
+# PaintNotNet v1.0.6 - Instalador Universal para Distribuciones Linux
 # (Debian, Ubuntu, Linux Mint, Fedora, RHEL, CentOS, Arch, Manjaro, openSUSE, etc.)
 # ==============================================================================
 
@@ -22,7 +22,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 echo -e "${COLOR_BLUE}==============================================================${COLOR_RESET}"
-echo -e "${COLOR_BLUE}        PaintNotNet v1.0.5 - Linux Installer / Instalador    ${COLOR_RESET}"
+echo -e "${COLOR_BLUE}        PaintNotNet v1.0.6 - Linux Installer / Instalador    ${COLOR_RESET}"
 echo -e "${COLOR_BLUE}==============================================================${COLOR_RESET}"
 echo ""
 
@@ -46,8 +46,8 @@ echo ""
 if [ "$SELECTED_LANG" = "English" ]; then
     HEADER_TITLE="         PaintNotNet Installer for Linux                    "
     MSG_COMPILING="[i] Compiling the latest version of PaintNotNet..."
-    MSG_NO_PYINSTALLER="[!] Error: PyInstaller is not installed."
-    MSG_STEP1="[1/4] Checking system dependencies (Qt6 / XCB / OpenGL)..."
+    MSG_NO_PYINSTALLER="[i] Installing Python dependencies & PyInstaller..."
+    MSG_STEP1="[1/4] Checking system dependencies (Python / Pip / Qt6 / OpenGL)..."
     MSG_DISTRO_DEBIAN="      Debian/Ubuntu based distribution detected (apt)."
     MSG_DISTRO_FEDORA="      Fedora/RedHat based distribution detected (dnf)."
     MSG_DISTRO_ARCH="      Arch Linux/Manjaro based distribution detected (pacman)."
@@ -66,8 +66,8 @@ if [ "$SELECTED_LANG" = "English" ]; then
 else
     HEADER_TITLE="         Instalador de PaintNotNet para Linux                "
     MSG_COMPILING="[i] Compilando la versión más reciente de PaintNotNet..."
-    MSG_NO_PYINSTALLER="[!] Error: PyInstaller no está instalado."
-    MSG_STEP1="[1/4] Verificando dependencias del sistema (Qt6 / XCB / OpenGL)..."
+    MSG_NO_PYINSTALLER="[i] Instalando dependencias de Python y PyInstaller..."
+    MSG_STEP1="[1/4] Verificando dependencias del sistema (Python / Pip / Qt6 / OpenGL)..."
     MSG_DISTRO_DEBIAN="      Distribución basada en Debian/Ubuntu detectada (apt)."
     MSG_DISTRO_FEDORA="      Distribución basada en Fedora/RedHat detectada (dnf)."
     MSG_DISTRO_ARCH="      Distribución basada en Arch Linux/Manjaro detectada (pacman)."
@@ -97,38 +97,60 @@ APP_SOURCE="${SCRIPT_DIR}/dist_pkg/PaintNotNet"
 # Limpiar carpetas de compilaciones antiguas que requerían root
 rm -rf "${SCRIPT_DIR}/build" "${SCRIPT_DIR}/dist" "${SCRIPT_DIR}/build_pkg" "${SCRIPT_DIR}/dist_pkg"
 
-echo -e "${COLOR_YELLOW}${MSG_COMPILING}${COLOR_RESET}"
-if [ -f "${SCRIPT_DIR}/venv/bin/pyinstaller" ]; then
-    "${SCRIPT_DIR}/venv/bin/pyinstaller" --noconfirm --workpath "${SCRIPT_DIR}/build_pkg" --distpath "${SCRIPT_DIR}/dist_pkg" "${SCRIPT_DIR}/PaintNotNet.spec"
-elif command -v pyinstaller &> /dev/null; then
-    pyinstaller --noconfirm --workpath "${SCRIPT_DIR}/build_pkg" --distpath "${SCRIPT_DIR}/dist_pkg" "${SCRIPT_DIR}/PaintNotNet.spec"
-else
-    echo -e "${COLOR_RED}${MSG_NO_PYINSTALLER}${COLOR_RESET}"
-    exit 1
-fi
-
 # 3. Diagnóstico e instalación de dependencias del sistema según la distribución
 echo -e "${COLOR_YELLOW}${MSG_STEP1}${COLOR_RESET}"
 
 if command -v apt-get &> /dev/null; then
     echo -e "${MSG_DISTRO_DEBIAN}"
     apt-get update -qq || true
-    apt-get install -y -qq libxcb-cursor0 libegl1 libgl1 libdbus-1-3 \
+    apt-get install -y -qq python3 python3-pip python3-venv build-essential \
+        libxcb-cursor0 libegl1 libgl1 libdbus-1-3 \
         libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 \
         libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xfixes0 &> /dev/null || true
 
 elif command -v dnf &> /dev/null; then
     echo -e "${MSG_DISTRO_FEDORA}"
-    dnf install -y -q libxcb libX11-xcb mesa-libEGL mesa-libGL dbus-libs &> /dev/null || true
+    dnf install -y -q python3 python3-pip gcc gcc-c++ \
+        libxcb libX11-xcb mesa-libEGL mesa-libGL dbus-libs &> /dev/null || true
 
 elif command -v pacman &> /dev/null; then
     echo -e "${MSG_DISTRO_ARCH}"
-    pacman -Sy --needed --noconfirm libxcb libegl libgl dbus &> /dev/null || true
+    pacman -Sy --needed --noconfirm python python-pip base-devel \
+        libxcb libegl libgl dbus &> /dev/null || true
 
 elif command -v zypper &> /dev/null; then
     echo -e "${MSG_DISTRO_SUSE}"
-    zypper install -y -q libxcb-cursor0 libEGL1 libGL1 libdbus-1-3 &> /dev/null || true
+    zypper install -y -q python3 python3-pip gcc \
+        libxcb-cursor0 libEGL1 libGL1 libdbus-1-3 &> /dev/null || true
 fi
+
+# 4. Verificación y preparación del entorno de Python + PyInstaller
+PYINSTALLER_BIN=""
+
+if [ -f "${SCRIPT_DIR}/venv/bin/pyinstaller" ]; then
+    PYINSTALLER_BIN="${SCRIPT_DIR}/venv/bin/pyinstaller"
+elif command -v pyinstaller &> /dev/null; then
+    PYINSTALLER_BIN="$(command -v pyinstaller)"
+fi
+
+if [ -z "$PYINSTALLER_BIN" ]; then
+    echo -e "${COLOR_YELLOW}${MSG_NO_PYINSTALLER}${COLOR_RESET}"
+    if [ ! -d "${SCRIPT_DIR}/venv" ]; then
+        python3 -m venv "${SCRIPT_DIR}/venv" || python -m venv "${SCRIPT_DIR}/venv"
+    fi
+    "${SCRIPT_DIR}/venv/bin/python" -m pip install --upgrade pip &> /dev/null || true
+    if [ -f "${SCRIPT_DIR}/requirements_linux.txt" ]; then
+        "${SCRIPT_DIR}/venv/bin/python" -m pip install -r "${SCRIPT_DIR}/requirements_linux.txt"
+    elif [ -f "${SCRIPT_DIR}/requirements.txt" ]; then
+        "${SCRIPT_DIR}/venv/bin/python" -m pip install -r "${SCRIPT_DIR}/requirements.txt"
+    else
+        "${SCRIPT_DIR}/venv/bin/python" -m pip install PyQt6 numpy opencv-python pyinstaller
+    fi
+    PYINSTALLER_BIN="${SCRIPT_DIR}/venv/bin/pyinstaller"
+fi
+
+echo -e "${COLOR_YELLOW}${MSG_COMPILING}${COLOR_RESET}"
+"$PYINSTALLER_BIN" --noconfirm --clean --workpath "${SCRIPT_DIR}/build_pkg" --distpath "${SCRIPT_DIR}/dist_pkg" "${SCRIPT_DIR}/PaintNotNet.spec"
 
 # 4. Copiar la aplicación a /opt/paintnotnet
 INSTALL_DIR="/opt/paintnotnet"
