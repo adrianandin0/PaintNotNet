@@ -41,7 +41,8 @@
 #### 🛠️ Herramientas de Dibujo, Selección y Formas
 - **Herramientas de Selección**: Selección Rectangular, Elíptica, Lasso Libre y Varita Mágica por tolerancia.
 - **Transformación Libre**: Mover Contenido (`V`), Mover Selección (`M`) e Invertir Selección (`I`) sin límites de lienzo.
-- **Pintura y Efectos**: Lápiz, Pincel (con grosor y suavizado), Goma de Borrar, Balde de Pintura, Degradado, Herramienta de Líneas/Curvas y Difuminado.
+- **Pintura y Efectos**: Lápiz, Pincel (con grosor y suavizado), Goma de Borrar, Balde de Pintura, Degradado, Herramienta de Líneas/Curvas, Aerosol, Difuminado y Estampa.
+- **Ajustes de Imagen y Color**: Exposición, Temperatura de Color, Niveles (puntos negro/blanco de entrada y salida), Sepia, Posterizado, Brillo, Contraste, Tono/Saturación, Invertir Colores y Desaturar.
 - **Inserción de Texto y Formas**: Formas geométricas ajustables (Rectángulos, Elipses, Estrellas, Polígonos con bordes redondeados) y motor de texto dinámico.
 - **Selector de Color**: Panel de Color Avanzado (rueda cromática, sliders RGB/HSV/CMYK e historial de paletas).
 
@@ -52,6 +53,29 @@
 
 #### ⌨️ Atajos de Teclado Personalizables
 - **Configuración de Atajos**: Personaliza las teclas de acceso rápido para todas las 18 herramientas desde *Opciones -> Atajos de teclado...* con actualización de insignias en tiempo real.
+
+### 🆕 Novedades en la Versión 1.0.6
+- 🎛️ **Nuevos Ajustes de Imagen y Color**:
+  - **Exposición**: Control preciso de luminancia y sobreexposición sin saturar blancos.
+  - **Temperatura de Color**: Ajuste de balance de blancos térmico para lograr tonos cálidos o fríos.
+  - **Niveles de Color (Input/Output Levels)**: Calibración independiente de puntos de entrada/salida (*Input Black/White*, *Output Black/White*) con previsualización directa.
+  - **Efecto Sepia**: Aplicación de virado sepia fotográfico vintage con ajuste de intensidad.
+  - **Posterizado**: Reducción de niveles de cuantización por canal cromático para estilos retro/arte pop.
+- 🎨 **Diálogo Selector de Color Integrado (`SingleColorPickerDialog`)**:
+  - Selector de color independiente para efectos de texto (**Borde**, **Resplandor** y **Sombra**).
+  - Muestra de color con transparencia y slider de Alfa ($0$ a $255$), Rueda de Color HSV (`ColorWheel`), paleta fija de 70 colores ($7\times 10$) y campos numéricos/sliders para RGB, Hexadecimal y HSV.
+  - Sincronización persistente en tiempo real de los 21 slots de colores guardados de usuario entre el menú lateral y los diálogos de efectos.
+  - Previsualización en vivo en el lienzo con botones de **Aceptar** y **Cancelar** (restauración inmediata del color original al cancelar).
+- 🎯 **Sincronización Completa de Alineación de Selección**:
+  - Corrección en `align_selection()` para desplazar coordinadamente el área seleccionada, la imagen flotante, la ruta vectorial, el centro de rotación y los 8 tiradores de control (*handles*).
+  - Solución al problema de desfasaje de coordenadas `QPointF(0,0)` en evaluaciones booleanas de PyQt6 al alinear secuencialmente (*Arriba* $\rightarrow$ *Izquierda* $\rightarrow$ *Abajo*).
+- ⌨️ **Movimiento de Selección por Teclado e Historial**:
+  - Movimiento preciso de la selección píxel a píxel usando las flechas del teclado (con o sin contenido flotante).
+  - Integración total con el historial de deshacer (`Ctrl+Z`) para revertir desplazamientos por teclado paso a paso sin perder la selección ni alterar el contenido del lienzo.
+- 💬 **Notificaciones del Sistema e Interfaz**:
+  - Aviso flotante *"Autoguardado"* / *"Autosaved"* en la barra de estado inferior en texto itálico sin negrita al completarse el autoguardado de seguridad.
+  - Formato de 11px uniforme para menús de ajustes (*Niveles*, *Posterizar*, *Ajustes de Color*), centrado de encabezados e inspección visual mejorada para botones de reinicio (*reset*) en tema claro.
+  - Diálogo **Acerca de PaintNotNet** actualizado e integración del nuevo logo oficial de la aplicación en el instalador y sistema Freedesktop / KDE.
 
 ### 🆕 Novedades en la Versión 1.0.5
 - 🆘 **Autoguardado de Emergencia Multicapa (.pnn)**:
@@ -100,6 +124,7 @@
 - **Selection Tools**: Rectangle, Ellipse, Freeform Lasso, and Magic Wand with tolerance selection.
 - **Free Transformation**: Move Selected Pixels (`V`), Move Selection (`M`), and Invert Selection (`I`) beyond viewport boundaries.
 - **Paint & FX Tools**: Pencil, Paintbrush (with width and smoothing), Eraser, Paint Bucket, Gradient, Line/Curve Tool, Spray Paint, Smudge, and Stamp.
+- **Image & Color Adjustments**: Exposure, Color Temperature, Color Levels (Input/Output Black & White points), Sepia, Posterize, Brightness, Contrast, Hue/Saturation, Invert Colors, and Desaturate.
 - **Text & Shapes**: Adjustable geometric shapes (Rectangles, Ellipses, Stars, Polygons with rounded corners) and dynamic text layer engine.
 - **Color Picker**: Advanced Color Panel (color wheel, RGB/HSV/CMYK sliders, and saved palette history).
 
@@ -110,6 +135,29 @@
 
 #### ⌨️ Customizable Keyboard Shortcuts
 - **Shortcut Configuration**: Customize keyboard shortcut keys for all 21 tools from *Options -> Keyboard Shortcuts...* with real-time badge updates.
+
+### 🆕 What's New in Version 1.0.6
+- 🎛️ **New Color & Image Adjustments**:
+  - **Exposure**: Fine luminance and overexposure control without clipping highlights.
+  - **Color Temperature**: Thermal white balance adjustment for warm or cool tones.
+  - **Color Levels (Input/Output Levels)**: Independent calibration of Input/Output Black/White points with real-time canvas preview.
+  - **Sepia Effect**: Vintage photographic sepia toning with adjustable intensity.
+  - **Posterize**: Color channel quantization level reduction for retro/pop-art styling.
+- 🎨 **Dedicated Single Color Picker Dialog (`SingleColorPickerDialog`)**:
+  - Integrated color selection dialog for text effects (**Border**, **Glow**, and **Shadow**).
+  - Features alpha transparency preview swatch and slider ($0$ to $255$), HSV Color Wheel (`ColorWheel`), 70-color standard palette grid ($7\times 10$), and RGB/Hex/HSV numeric inputs and sliders.
+  - Real-time persistent synchronization of 21 custom saved user slots across the side panel and text effect dialogs.
+  - Live canvas preview with **OK** and **Cancel** buttons (instant reversion to original color upon cancellation).
+- 🎯 **Synchronized Selection Alignment & Handles**:
+  - Fixes `align_selection()` to shift the selection rect, floating content, vector clip path, rotation center, and all 8 control handles in unison.
+  - Resolves coordinate evaluation edge cases (`QPointF(0,0)` PyQt6 boolean check) during sequential canvas alignments (*Top* $\rightarrow$ *Left* $\rightarrow$ *Bottom*).
+- ⌨️ **Keyboard Selection Movement & Undo Support**:
+  - Precise pixel-by-pixel arrow key movement for active selections and floating pixel content.
+  - Full integration with the Undo stack (`Ctrl+Z`) to revert step-by-step arrow key movements without dropping active selections.
+- 💬 **System Notifications & UI Polish**:
+  - Floating italic *"Autoguardado"* / *"Autosaved"* status bar notifications upon background emergency save completion.
+  - Standardized 11px font across all adjustment dialogs (*Levels*, *Posterize*, etc.), centered header titles, and improved hover contrast for slider reset buttons in light theme.
+  - Redesigned **About PaintNotNet** dialog and system-wide Freedesktop / KDE desktop integration with the new application logo.
 
 ### 🆕 What's New in Version 1.0.5
 - 🆘 **Multi-layer Emergency Auto-Save (.pnn)**: Background auto-save of active open canvases in native `.pnn` format (`{canvas}_{DDMMAAAA}_{HHMMSS}.pnn`). Preserves **all individual layers** with complete metadata (name, visibility, opacity) and un-flattened structure. Interactive recovery dialog on startup. Auto-cleanup upon formal save or clean exit.
