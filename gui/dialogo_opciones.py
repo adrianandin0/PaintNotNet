@@ -13,7 +13,7 @@ class DialogoOpciones(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle(t("Preferencias de usuario"))
-        self.setFixedSize(540, 345)
+        self.setFixedSize(540, 365)
 
         self.setStyleSheet("""
             QDialog {
@@ -21,7 +21,7 @@ class DialogoOpciones(QDialog):
             }
             QGroupBox {
                 font-size: 11px;
-                font-weight: bold;
+                font-weight: normal;
                 border-radius: 4px;
                 margin-top: 8px;
                 padding-top: 6px;
@@ -30,9 +30,11 @@ class DialogoOpciones(QDialog):
                 subcontrol-origin: margin;
                 subcontrol-position: top center;
                 padding: 0 4px;
+                font-weight: normal;
             }
             QLabel {
                 font-size: 11px;
+                font-weight: normal;
             }
             QComboBox, QLineEdit {
                 font-size: 11px;
@@ -40,6 +42,7 @@ class DialogoOpciones(QDialog):
             }
             QCheckBox {
                 font-size: 11px;
+                font-weight: normal;
             }
         """)
 
@@ -49,9 +52,9 @@ class DialogoOpciones(QDialog):
         layout.setContentsMargins(12, 8, 12, 8)
         layout.setSpacing(6)
 
-        # 1. Tema de la interfaz
+        # 1. Tema
         from core.theme import ThemeManager
-        group_theme = QGroupBox(t("Tema de la interfaz"))
+        group_theme = QGroupBox(t("Tema"))
         layout_theme = QHBoxLayout()
         layout_theme.setContentsMargins(8, 6, 8, 6)
         layout_theme.setSpacing(6)
@@ -81,7 +84,7 @@ class DialogoOpciones(QDialog):
         layout.addWidget(group_theme)
 
         # 2. Idioma
-        group_lang = QGroupBox(t("Idioma / Language"))
+        group_lang = QGroupBox(t("Idioma"))
         layout_lang = QHBoxLayout()
         layout_lang.setContentsMargins(8, 6, 8, 6)
         layout_lang.setSpacing(6)
@@ -154,23 +157,27 @@ class DialogoOpciones(QDialog):
         group_format.setLayout(layout_format)
         layout.addWidget(group_format)
 
-        # 5. Guardar cambios al cerrar, Mostrar atajos y Eliminar preferencias
+        # 5. Opciones verticales (Mostrar atajos y Guardar cambios) + Eliminar preferencias
         layout_chk = QHBoxLayout()
-        layout_chk.setContentsMargins(0, 0, 0, 0)
+        layout_chk.setContentsMargins(4, 2, 4, 2)
 
-        self.chk_save_on_close = QCheckBox(t("Guardar cambios al cerrar"))
-        save_on_close = self.settings.value("save_on_close", True, type=bool)
-        self.chk_save_on_close.setChecked(save_on_close)
-        layout_chk.addWidget(self.chk_save_on_close)
+        vbox_chks = QVBoxLayout()
+        vbox_chks.setSpacing(4)
 
         self.chk_show_shortcuts = QCheckBox(t("Mostrar atajos de teclado"))
         show_shortcuts = self.settings.value("show_shortcuts", True, type=bool)
         self.chk_show_shortcuts.setChecked(show_shortcuts)
-        layout_chk.addWidget(self.chk_show_shortcuts)
+        vbox_chks.addWidget(self.chk_show_shortcuts)
 
+        self.chk_save_on_close = QCheckBox(t("Guardar cambios al cerrar"))
+        save_on_close = self.settings.value("save_on_close", True, type=bool)
+        self.chk_save_on_close.setChecked(save_on_close)
+        vbox_chks.addWidget(self.chk_save_on_close)
+
+        layout_chk.addLayout(vbox_chks)
         layout_chk.addStretch()
 
-        self.btn_reset_prefs = QPushButton(t("Eliminar preferencias de usuario"))
+        self.btn_reset_prefs = QPushButton(t("Eliminar preferencias"))
         self.btn_reset_prefs.setIcon(QIcon("gui/iconos/bin.png"))
         self.btn_reset_prefs.setIconSize(QSize(14, 14))
         self.btn_reset_prefs.setToolTip(t("Eliminar todas las preferencias y restablecer a valores de fábrica"))

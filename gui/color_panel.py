@@ -4,8 +4,47 @@ from PyQt6.QtWidgets import (
     QGridLayout, QLabel, QSpinBox, QSlider, QLineEdit
 )
 from PyQt6.QtGui import QColor, QPainter, QBrush, QPen, QConicalGradient, QIcon
-from PyQt6.QtCore import Qt, QPointF, QRectF, QSize, pyqtSignal
+from PyQt6.QtCore import Qt, QPointF, QRectF, QSize, pyqtSignal, QSettings
 from core.i18n import t
+
+
+_LISTENERS_CUSTOM_SLOTS = []
+
+def registrar_listener_custom(widget):
+    if widget not in _LISTENERS_CUSTOM_SLOTS:
+        _LISTENERS_CUSTOM_SLOTS.append(widget)
+
+def desregistrar_listener_custom(widget):
+    if widget in _LISTENERS_CUSTOM_SLOTS:
+        _LISTENERS_CUSTOM_SLOTS.remove(widget)
+
+def notificar_cambio_custom_slots():
+    for w in list(_LISTENERS_CUSTOM_SLOTS):
+        if hasattr(w, 'actualizar_custom_slots_ui'):
+            try:
+                w.actualizar_custom_slots_ui()
+            except Exception as e:
+                print(f"[ColorPanel] Error actualizando slots: {e}")
+
+def cargar_custom_colors():
+    settings = QSettings("PaintNotNet", "CustomColors")
+    colors = []
+    for i in range(21):
+        val = settings.value(f"slot_{i}", None)
+        if val:
+            c = QColor(val)
+            colors.append(c if c.isValid() else None)
+        else:
+            colors.append(None)
+    return colors
+
+def guardar_custom_colors(colors_list):
+    settings = QSettings("PaintNotNet", "CustomColors")
+    for i in range(21):
+        if i < len(colors_list) and colors_list[i] and colors_list[i].isValid():
+            settings.setValue(f"slot_{i}", colors_list[i].name(QColor.NameFormat.HexArgb))
+        else:
+            settings.remove(f"slot_{i}")
 
 
 class ColorButton(QPushButton):
@@ -258,7 +297,8 @@ class ColorPanelWidget(QWidget):
         self.color_secundario = QColor(255, 255, 255, 255)
         self.modo_color = "primario"
 
-        self.custom_colors = [None] * 21
+        self.custom_colors = cargar_custom_colors()
+        registrar_listener_custom(self)
 
         layout = QVBoxLayout()
         layout.setContentsMargins(4, 4, 4, 4)
@@ -346,7 +386,7 @@ class ColorPanelWidget(QWidget):
         layout.addLayout(grid_paleta)
 
         # 4. Slots de Usuario (Guardados - 7 por fila)
-        self.lbl_custom = QLabel("Guardadas:")
+        self.lbl_custom = QLabel(t("Guardadas:"))
         self.lbl_custom.setStyleSheet("font-size: 11px; font-weight: normal; margin-top: 2px;")
         layout.addWidget(self.lbl_custom, alignment=Qt.AlignmentFlag.AlignCenter)
 
@@ -370,6 +410,7 @@ class ColorPanelWidget(QWidget):
 
         self.setLayout(layout)
         self.setFixedWidth(118)
+        self.actualizar_custom_slots_ui()
         self.actualizar_ui()
 
     def set_modo(self, modo):
@@ -403,18 +444,26 @@ class ColorPanelWidget(QWidget):
         self.modo_color = modo
         self.set_color_activo(color)
 
+    def actualizar_custom_slots_ui(self):
+        self.custom_colors = cargar_custom_colors()
+        for idx, btn in enumerate(self.botones_custom):
+            if idx < len(self.custom_colors):
+                btn.set_color(self.custom_colors[idx])
+
     def on_slot_custom_interacted(self, index, button, is_shift, is_ctrl):
         color_existente = self.custom_colors[index]
 
         if is_ctrl:
             self.custom_colors[index] = None
-            self.botones_custom[index].set_color(None)
+            guardar_custom_colors(self.custom_colors)
+            notificar_cambio_custom_slots()
             return
 
         if color_existente is None or is_shift:
             color_a_guardar = QColor(self.color_primario if button == Qt.MouseButton.LeftButton else self.color_secundario)
             self.custom_colors[index] = color_a_guardar
-            self.botones_custom[index].set_color(color_a_guardar)
+            guardar_custom_colors(self.custom_colors)
+            notificar_cambio_custom_slots()
         else:
             modo = "primario" if button == Qt.MouseButton.LeftButton else "secundario"
             self.modo_color = modo

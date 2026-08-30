@@ -237,6 +237,8 @@ class EmergencySaveManager(QObject):
             return
         try:
             guardar_proyecto_pnn(canvas, filepath)
+            if self.main_window and hasattr(self.main_window, 'bottom_bar') and self.main_window.bottom_bar:
+                self.main_window.bottom_bar.mostrar_mensaje(t("Autoguardado"), 2000, italic=True)
         except Exception as e:
             print(f"[EmergencySave] Error al realizar autoguardado en {filepath}: {e}")
 

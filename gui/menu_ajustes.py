@@ -23,11 +23,11 @@ BTN_RESET_SS = """
     QPushButton {
         background: transparent;
         border: none;
-        color: #aaaaaa;
+        color: #77777A;
         font-size: 14px;
         padding: 0 2px;
     }
-    QPushButton:hover { color: #EDEDED; }
+    QPushButton:hover { color: #007acc; }
 """
 
 SLIDER_BASE_SS = """
@@ -322,6 +322,12 @@ class _BaseAdjustDialog(QDialog):
         self.setWindowTitle(title)
         self.setWindowFlags(Qt.WindowType.Tool | Qt.WindowType.WindowStaysOnTopHint)
         self.setModal(False)
+        self.setStyleSheet("""
+            QDialog, QLabel, QCheckBox, QPushButton, QSpinBox, QDoubleSpinBox, QGroupBox {
+                font-size: 11px;
+                font-weight: normal;
+            }
+        """)
 
         self.target_is_floating = canvas.asegurar_imagen_flotante()
         self.orig_image = _get_orig(canvas, self.target_is_floating)
@@ -1040,14 +1046,14 @@ class DialogoPosterizado(_BaseAdjustDialog):
 
         self._updating_sync = False
 
-        self.chk_sync = QCheckBox(t("Vincular canales (aplicar en simultáneo)"))
+        self.chk_sync = QCheckBox(t("Vincular canales"))
         self.chk_sync.setChecked(True)
         self._main_layout.addWidget(self.chk_sync)
 
-        self.row_r = SliderRow(t("Rojo (Niveles):"), 2, 255, 255)
-        self.row_g = SliderRow(t("Verde (Niveles):"), 2, 255, 255)
-        self.row_b = SliderRow(t("Azul (Niveles):"), 2, 255, 255)
-        self.row_a = SliderRow(t("Alpha (Niveles):"), 2, 255, 255)
+        self.row_r = SliderRow(t("Rojo:"), 2, 255, 255)
+        self.row_g = SliderRow(t("Verde:"), 2, 255, 255)
+        self.row_b = SliderRow(t("Azul:"), 2, 255, 255)
+        self.row_a = SliderRow(t("Alfa:"), 2, 255, 255)
 
         self._main_layout.addWidget(self.row_r)
         self._main_layout.addWidget(self.row_g)
@@ -1294,6 +1300,12 @@ class DialogoNiveles(_BaseAdjustDialog):
     def __init__(self, canvas, parent=None):
         super().__init__(canvas, t("Niveles"), parent)
         self.setFixedWidth(420)
+        self.setStyleSheet("""
+            QDialog, QLabel, QCheckBox, QPushButton, QSpinBox, QDoubleSpinBox {
+                font-size: 11px;
+                font-weight: normal;
+            }
+        """)
 
         self.hist_widget = HistogramWidget()
         self.hist_widget.set_image(self.orig_image)
@@ -1301,9 +1313,9 @@ class DialogoNiveles(_BaseAdjustDialog):
 
         layout_ch = QHBoxLayout()
         layout_ch.addWidget(QLabel(t("Canales:")))
-        self.chk_r = QCheckBox(t("Rojo (R)"))
-        self.chk_g = QCheckBox(t("Verde (G)"))
-        self.chk_b = QCheckBox(t("Azul (B)"))
+        self.chk_r = QCheckBox(t("Rojo"))
+        self.chk_g = QCheckBox(t("Verde"))
+        self.chk_b = QCheckBox(t("Azul"))
         self.chk_r.setChecked(True)
         self.chk_g.setChecked(True)
         self.chk_b.setChecked(True)
@@ -1317,8 +1329,9 @@ class DialogoNiveles(_BaseAdjustDialog):
         layout_in = QVBoxLayout(group_in)
         layout_in.setContentsMargins(0, 4, 0, 4)
         layout_in.setSpacing(2)
-        lbl_in = QLabel(t("Niveles de Entrada (Negro / Gamma / Blanco):"))
-        lbl_in.setStyleSheet("font-size: 11px;")
+        lbl_in = QLabel(t("Niveles de entrada"))
+        lbl_in.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lbl_in.setStyleSheet("font-size: 11px; font-weight: bold;")
         layout_in.addWidget(lbl_in)
 
         self.row_in_black = SliderRow(t("Negro de Entrada:"), 0, 253, 0)
@@ -1334,8 +1347,9 @@ class DialogoNiveles(_BaseAdjustDialog):
         layout_out = QVBoxLayout(group_out)
         layout_out.setContentsMargins(0, 4, 0, 4)
         layout_out.setSpacing(2)
-        lbl_out = QLabel(t("Niveles de Salida (Negro / Blanco):"))
-        lbl_out.setStyleSheet("font-size: 11px;")
+        lbl_out = QLabel(t("Niveles de salida"))
+        lbl_out.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lbl_out.setStyleSheet("font-size: 11px; font-weight: bold;")
         layout_out.addWidget(lbl_out)
 
         self.row_out_black = SliderRow(t("Negro de Salida:"), 0, 255, 0)

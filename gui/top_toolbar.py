@@ -16,7 +16,18 @@ class TopToolBarWidget(QToolBar):
         self.setFloatable(False)
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.PreventContextMenu)
         self.setIconSize(QSize(24, 24))
-        self.setStyleSheet("QToolBar { spacing: 4px; padding: 2px; }")
+        self.setStyleSheet("""
+            QToolBar {
+                spacing: 4px;
+                padding-top: 3px;
+                padding-bottom: 6px;
+                padding-left: 4px;
+                padding-right: 4px;
+            }
+            QToolBar QToolButton, QToolBar QLabel, QToolBar QSpinBox, QToolBar QComboBox, QToolBar QCheckBox {
+                margin-bottom: 3px;
+            }
+        """)
 
         # 0. Nueva Pestaña (+)
         self.action_nueva_pestana = QAction(QIcon("gui/iconos/new.png"), "Nueva Pestaña", self)

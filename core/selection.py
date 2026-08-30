@@ -75,6 +75,31 @@ class SelectionEngine:
         self.is_transforming = False
         self._reset_transform_state()
 
+    def translate(self, dx, dy):
+        """Desplaza la posición de la selección y su contenido flotante por (dx, dy) píxeles."""
+        if not self.has_selection():
+            return
+
+        delta = QPointF(dx, dy)
+        if self.rotation_center and not self.rotation_center.isNull():
+            self.rotation_center += delta
+        elif self.active_rect and self.active_rect.isValid():
+            self.rotation_center = QPointF(self.active_rect.center() + delta)
+        if hasattr(self, 'original_image_pos') and self.original_image_pos is not None:
+            self.original_image_pos += delta
+        if self.active_rect and self.active_rect.isValid():
+            self.active_rect.translate(dx, dy)
+        if self.active_path and not self.active_path.isEmpty():
+            transform = QTransform()
+            transform.translate(dx, dy)
+            self.active_path = transform.map(self.active_path)
+        if self.initial_unrotated_path and not self.initial_unrotated_path.isEmpty():
+            transform_unr = QTransform()
+            transform_unr.translate(dx, dy)
+            self.initial_unrotated_path = transform_unr.map(self.initial_unrotated_path)
+        if self.initial_unrotated_rect and self.initial_unrotated_rect.isValid():
+            self.initial_unrotated_rect.translate(dx, dy)
+
     def _reset_transform_state(self):
         self.scale_x = 1.0
         self.scale_y = 1.0

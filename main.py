@@ -114,7 +114,7 @@ class PaintNotNet(QMainWindow):
 
         central_container = QWidget()
         layout_central = QVBoxLayout(central_container)
-        layout_central.setContentsMargins(0, 0, 0, 0)
+        layout_central.setContentsMargins(0, 4, 0, 0)
         layout_central.setSpacing(0)
         layout_central.addWidget(self.tab_widget)
 
@@ -180,10 +180,10 @@ class PaintNotNet(QMainWindow):
     def _hacer_titulo_dock(self, icono_path, tooltip=""):
         """Crea un widget de título mínimo con solo un ícono de 16x16 alineado a la izquierda."""
         widget = QWidget()
-        widget.setFixedHeight(18)
+        widget.setFixedHeight(21)
         widget.setStyleSheet("background: transparent;")
         layout = QHBoxLayout(widget)
-        layout.setContentsMargins(4, 1, 4, 1)
+        layout.setContentsMargins(4, 4, 4, 1)
         layout.setSpacing(0)
         lbl = QLabel()
         lbl.setPixmap(QIcon(icono_path).pixmap(QSize(16, 16)))

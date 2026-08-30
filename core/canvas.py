@@ -99,6 +99,7 @@ class CanvasWidget(QWidget):
         self.cursor_pos = None
         self.show_pixel_grid = False
         self.setMouseTracking(True)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
         # --- CAPA TEMPORAL PARA TRAZOS TRANSPARENTES PERFECTOS ---
         self.capa_trazo_temp = QImage(width, height, QImage.Format.Format_ARGB32_Premultiplied)
@@ -222,12 +223,84 @@ class CanvasWidget(QWidget):
         self.config_texto = config
         self.update()
 
+    def mover_seleccion_por_teclado(self, dx, dy):
+        """Mueve la selección (y su contenido flotante si aplica) mediante las teclas de dirección."""
+        engine = self.selection_engine
+        if not engine.has_selection():
+            return False
+
+        from tools.move_select_pixels import MoveSelectPixelsTool
+        # Si la herramienta activa es Mover Contenido y aún no se han levantado los píxeles, inicializarlos
+        if isinstance(self.active_tool_obj, MoveSelectPixelsTool) and engine.floating_image is None:
+            rect = engine.active_rect.toRect().intersected(QRect(0, 0, self.layer_mgr.width, self.layer_mgr.height))
+            if rect.width() > 0 and rect.height() > 0:
+                buffer = self.layer_mgr.buffer
+                self.floating_initial_canvas = buffer.copy()
+                engine.floating_image = buffer.copy(rect)
+
+                if not engine.active_path.isEmpty():
+                    masked = QImage(rect.size(), QImage.Format.Format_ARGB32_Premultiplied)
+                    masked.fill(Qt.GlobalColor.transparent)
+                    mpainter = QPainter(masked)
+                    local_path = QPainterPath(engine.active_path)
+                    local_path.translate(-QPointF(rect.topLeft()))
+                    mpainter.setClipPath(local_path)
+                    mpainter.drawImage(0, 0, engine.floating_image)
+                    mpainter.end()
+                    engine.floating_image = masked
+
+                engine.unscaled_floating_image = engine.floating_image.copy()
+                engine.init_raw_image(engine.floating_image)
+                engine.original_image_pos = QPointF(rect.topLeft())
+                engine.is_new_content = False
+                self.floating_history = [engine.floating_image.copy()]
+
+                painter = QPainter(buffer)
+                painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
+                if not engine.active_path.isEmpty():
+                    painter.setClipPath(engine.active_path)
+                painter.fillRect(rect, Qt.GlobalColor.transparent)
+                painter.end()
+
+        # Desplazar engine por (dx, dy)
+        engine.translate(dx, dy)
+        self._ajustar_tamano_widget()
+
+        action_name = "Mover Contenido" if (engine.floating_image and not engine.floating_image.isNull()) else "Mover Selección"
+        self.push_document_state(action_name)
+
+        if self.callback_modificado:
+            self.callback_modificado()
+        self.update()
+        return True
+
     def keyPressEvent(self, event):
         color_activo = self.color_primario
         if hasattr(self.active_tool_obj, 'key_press'):
             if self.active_tool_obj.key_press(self, event, color_activo):
                 event.accept()
                 return
+
+        # Mover selección por teclado con las flechas (Up, Down, Left, Right)
+        if self.selection_engine.has_selection() and event.key() in (
+            Qt.Key.Key_Left, Qt.Key.Key_Right, Qt.Key.Key_Up, Qt.Key.Key_Down
+        ):
+            step = 10 if bool(event.modifiers() & Qt.KeyboardModifier.ShiftModifier) else 1
+            dx = 0
+            dy = 0
+            if event.key() == Qt.Key.Key_Left:
+                dx = -step
+            elif event.key() == Qt.Key.Key_Right:
+                dx = step
+            elif event.key() == Qt.Key.Key_Up:
+                dy = -step
+            elif event.key() == Qt.Key.Key_Down:
+                dy = step
+
+            if self.mover_seleccion_por_teclado(dx, dy):
+                event.accept()
+                return
+
         super().keyPressEvent(event)
 
     def inputMethodEvent(self, event):
@@ -394,6 +467,7 @@ class CanvasWidget(QWidget):
         super().leaveEvent(event)
 
     def mousePressEvent(self, event):
+        self.setFocus()
         ev = self._canvas_event(event)
         self.cursor_pos = ev.position()
         self._notificar_posicion_cursor()
@@ -1360,10 +1434,9 @@ class CanvasWidget(QWidget):
             lienzo_w, lienzo_h = self.layer_mgr.width, self.layer_mgr.height
             pos_x = (lienzo_w - img_w) / 2.0 if img_w < lienzo_w else 0.0
             pos_y = (lienzo_h - img_h) / 2.0 if img_h < lienzo_h else 0.0
-            self.selection_engine.unscaled_floating_image = img_format.copy()
-            self.selection_engine.floating_image = img_format.copy()
-            self.selection_engine.original_image_pos = QPointF(pos_x, pos_y)
             self.selection_engine.set_rectangle(QRectF(pos_x, pos_y, img_w, img_h))
+            self.selection_engine.original_image_pos = QPointF(pos_x, pos_y)
+            self.selection_engine.init_raw_image(img_format)
 
         elif opcion == "adaptar_imagen":
             scaled_img = img_format.scaled(QSize(lienzo_w, lienzo_h), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
@@ -1371,18 +1444,16 @@ class CanvasWidget(QWidget):
             scaled_h = scaled_img.height()
             pos_x = (lienzo_w - scaled_w) / 2.0
             pos_y = (lienzo_h - scaled_h) / 2.0
-            self.selection_engine.unscaled_floating_image = scaled_img.copy()
-            self.selection_engine.floating_image = scaled_img.copy()
-            self.selection_engine.original_image_pos = QPointF(pos_x, pos_y)
             self.selection_engine.set_rectangle(QRectF(pos_x, pos_y, scaled_w, scaled_h))
+            self.selection_engine.original_image_pos = QPointF(pos_x, pos_y)
+            self.selection_engine.init_raw_image(scaled_img)
 
         else:  # "sin_cambios"
             pos_x = (lienzo_w - img_w) / 2.0 if img_w < lienzo_w else 0.0
             pos_y = (lienzo_h - img_h) / 2.0 if img_h < lienzo_h else 0.0
-            self.selection_engine.unscaled_floating_image = img_format.copy()
-            self.selection_engine.floating_image = img_format.copy()
-            self.selection_engine.original_image_pos = QPointF(pos_x, pos_y)
             self.selection_engine.set_rectangle(QRectF(pos_x, pos_y, img_w, img_h))
+            self.selection_engine.original_image_pos = QPointF(pos_x, pos_y)
+            self.selection_engine.init_raw_image(img_format)
 
         if hasattr(self, 'main_window') and self.main_window:
             self.main_window.activar_herramienta_mover()
@@ -1514,11 +1585,8 @@ class CanvasWidget(QWidget):
         if abs(dx) < 1e-4 and abs(dy) < 1e-4:
             return
 
-        engine.original_image_pos += QPointF(dx, dy)
-        engine.active_rect.translate(dx, dy)
-        if not engine.active_path.isEmpty():
-            t = QTransform().translate(dx, dy)
-            engine.active_path = t.map(engine.active_path)
+        engine.translate(dx, dy)
+        self.push_document_state("Alinear Selección")
 
         if hasattr(self, 'main_window') and self.main_window:
             self.main_window.activar_herramienta_mover()

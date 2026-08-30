@@ -60,39 +60,35 @@ class _EffectColorSlot(QPushButton):
         else:
             settings.remove(self._key)
 
-    # ---- interacción ---------------------------------------------------
-
     def mousePressEvent(self, event):
-        is_shift = bool(event.modifiers() & Qt.KeyboardModifier.ShiftModifier)
-        is_ctrl  = bool(event.modifiers() & Qt.KeyboardModifier.ControlModifier)
-        btn      = event.button()
+        if event.button() not in (Qt.MouseButton.LeftButton, Qt.MouseButton.RightButton):
+            return
 
-        if is_ctrl:
-            self._color = None
+        initial = self.get_color()
+        from gui.dialogo_color import SingleColorPickerDialog
+        dialog = SingleColorPickerDialog(initial_color=initial, parent=self)
+        dialog.color_preview_changed.connect(self._on_preview_color)
+
+        from PyQt6.QtWidgets import QDialog
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self._color = dialog.get_color()
             self._guardar()
             self.update()
             self._refresh_tooltip()
-            return
-
-        if self._color is None or is_shift:
-            self._color = QColor(self._get_panel_color(btn))
-            self._guardar()
-
-        self.update()
-        self._refresh_tooltip()
-        if self._color:
             self.color_changed.emit(QColor(self._color))
+        else:
+            self._color = QColor(initial)
+            self._guardar()
+            self.update()
+            self._refresh_tooltip()
+            self.color_changed.emit(QColor(initial))
         super().mousePressEvent(event)
 
-    def _get_panel_color(self, btn) -> QColor:
-        mw = self._panel.main_window
-        canvas = (getattr(mw, 'lienzo', None) or getattr(mw, 'canvas', None)) if mw else None
-        if canvas:
-            if btn == Qt.MouseButton.LeftButton:
-                return getattr(canvas, 'color_primario', QColor(255, 255, 255))
-            else:
-                return getattr(canvas, 'color_secundario', QColor(0, 0, 0))
-        return QColor(255, 255, 255)
+    def _on_preview_color(self, color):
+        self._color = QColor(color)
+        self.update()
+        self._refresh_tooltip()
+        self.color_changed.emit(QColor(color))
 
     # ---- propiedades ---------------------------------------------------
 

@@ -152,10 +152,11 @@ class BottomStatusBarWidget(QWidget):
             }}
         """)
 
+        self._msg_color = msg_color
         label_style = f"font-size: 11px; font-weight: normal; color: {text_color_exact};"
         self.lbl_align.setStyleSheet(label_style)
         self.lbl_cursor_pos.setStyleSheet(label_style)
-        self.lbl_msg.setStyleSheet(f"font-size: 11px; font-weight: bold; color: {msg_color}; padding: 0 4px;")
+        self.lbl_msg.setStyleSheet(f"font-size: 11px; font-weight: normal; font-style: normal; color: {msg_color}; padding: 0 4px;")
         self.sep1.setStyleSheet(f"color: {border_subtle}; background-color: {border_subtle};")
         self.sep2.setStyleSheet(f"color: {border_subtle}; background-color: {border_subtle};")
 
@@ -177,7 +178,10 @@ class BottomStatusBarWidget(QWidget):
         else:
             self.lbl_cursor_pos.setText("X: -- px, Y: -- px")
 
-    def mostrar_mensaje(self, text: str, msecs: int = 2500):
+    def mostrar_mensaje(self, text: str, msecs: int = 2500, italic: bool = False):
+        font_style = "italic" if italic else "normal"
+        msg_color = getattr(self, '_msg_color', '#007acc')
+        self.lbl_msg.setStyleSheet(f"font-size: 11px; font-weight: normal; font-style: {font_style}; color: {msg_color}; padding: 0 4px;")
         self.lbl_msg.setText(text)
         self.msg_timer.start(msecs)
 

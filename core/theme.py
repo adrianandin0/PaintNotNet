@@ -194,11 +194,29 @@ class ThemeManager:
             background-color: {p_bg};
             border-bottom: 1px solid {brd};
             color: {txt};
+            padding-top: 3px;
+            padding-bottom: 6px;
+            padding-left: 4px;
+            padding-right: 4px;
+        }}
+        QToolBar QToolButton, QToolBar QLabel, QToolBar QSpinBox, QToolBar QComboBox, QToolBar QCheckBox {{
+            margin-bottom: 3px;
+        }}
+        QPushButton[class="reset_btn"] {{
+            background: transparent;
+            border: none;
+            color: {gt_col};
+            font-size: 14px;
+            padding: 0 2px;
+        }}
+        QPushButton[class="reset_btn"]:hover {{
+            color: {acc};
         }}
         QDockWidget {{
             background-color: {p_bg};
             color: {txt};
             titlebar-close-icon: url(gui/iconos/close.png);
+            margin-top: 4px;
         }}
         QDockWidget::title {{
             background-color: {dt_bg};
@@ -207,8 +225,8 @@ class ThemeManager:
         }}
         QGroupBox {{
             font-size: 11px;
-            font-weight: bold;
-            color: {gt_col};
+            font-weight: normal;
+            color: {txt};
             border: 1px solid {brd};
             border-radius: 4px;
             margin-top: 8px;
@@ -219,7 +237,8 @@ class ThemeManager:
             subcontrol-origin: margin;
             subcontrol-position: top center;
             padding: 0 4px;
-            color: {gt_col};
+            color: {txt};
+            font-weight: normal;
         }}
         QListWidget, QListView, QTreeView, QTableView, QTableWidget {{
             background-color: {inp_bg};
