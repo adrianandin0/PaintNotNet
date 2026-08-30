@@ -128,21 +128,6 @@ class AdvancedColorPanelWidget(QWidget):
         self.modo_color = "primario"
         self._updating = False
 
-        lbl_style = "font-size: 11px; font-weight: normal; color: #CCCCCC;"
-        input_style = """
-            QSpinBox, QLineEdit {
-                background-color: #262626;
-                color: #EDEDED;
-                border: 1px solid #444444;
-                border-radius: 4px;
-                padding: 0px 2px;
-                font-size: 11px;
-            }
-            QSpinBox:focus, QLineEdit:focus {
-                border: 1px solid #007ACC;
-            }
-        """
-
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
@@ -197,96 +182,82 @@ class AdvancedColorPanelWidget(QWidget):
         grid.setVerticalSpacing(3)
 
         # R
-        lbl_r = QLabel("R:")
-        lbl_r.setStyleSheet(lbl_style)
-        grid.addWidget(lbl_r, 0, 0)
+        self.lbl_r = QLabel("R:")
+        grid.addWidget(self.lbl_r, 0, 0)
         self.slider_r = GradientSliderWidget(0, 255, "red")
         self.spin_r = QSpinBox()
         self.spin_r.setRange(0, 255)
         self.spin_r.setFixedWidth(38)
         self.spin_r.setFixedHeight(17)
         self.spin_r.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
-        self.spin_r.setStyleSheet(input_style)
         grid.addWidget(self.slider_r, 0, 1)
         grid.addWidget(self.spin_r, 0, 2)
 
         # G (Green)
-        lbl_g = QLabel("G:")
-        lbl_g.setStyleSheet(lbl_style)
-        grid.addWidget(lbl_g, 1, 0)
+        self.lbl_g = QLabel("G:")
+        grid.addWidget(self.lbl_g, 1, 0)
         self.slider_g = GradientSliderWidget(0, 255, "green")
         self.spin_g = QSpinBox()
         self.spin_g.setRange(0, 255)
         self.spin_g.setFixedWidth(38)
         self.spin_g.setFixedHeight(17)
         self.spin_g.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
-        self.spin_g.setStyleSheet(input_style)
         grid.addWidget(self.slider_g, 1, 1)
         grid.addWidget(self.spin_g, 1, 2)
 
         # B (Blue)
-        lbl_b = QLabel("B:")
-        lbl_b.setStyleSheet(lbl_style)
-        grid.addWidget(lbl_b, 2, 0)
+        self.lbl_b = QLabel("B:")
+        grid.addWidget(self.lbl_b, 2, 0)
         self.slider_b = GradientSliderWidget(0, 255, "blue")
         self.spin_b = QSpinBox()
         self.spin_b.setRange(0, 255)
         self.spin_b.setFixedWidth(38)
         self.spin_b.setFixedHeight(17)
         self.spin_b.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
-        self.spin_b.setStyleSheet(input_style)
         grid.addWidget(self.slider_b, 2, 1)
         grid.addWidget(self.spin_b, 2, 2)
 
         # Hex.:
-        lbl_hex = QLabel("Hex.:")
-        lbl_hex.setStyleSheet(lbl_style)
-        grid.addWidget(lbl_hex, 3, 0)
+        self.lbl_hex = QLabel("Hex.:")
+        grid.addWidget(self.lbl_hex, 3, 0)
         self.txt_hex = QLineEdit("000000")
         self.txt_hex.setMaxLength(7)
         self.txt_hex.setFixedHeight(17)
-        self.txt_hex.setStyleSheet(input_style)
         grid.addWidget(self.txt_hex, 3, 1)
 
         # M (Matiz / Hue)
-        lbl_h = QLabel("M:")
-        lbl_h.setStyleSheet(lbl_style)
-        grid.addWidget(lbl_h, 4, 0)
+        self.lbl_h = QLabel("M:")
+        grid.addWidget(self.lbl_h, 4, 0)
         self.slider_h = GradientSliderWidget(0, 360, "hue")
         self.spin_h = QSpinBox()
         self.spin_h.setRange(0, 360)
         self.spin_h.setFixedWidth(38)
         self.spin_h.setFixedHeight(17)
         self.spin_h.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
-        self.spin_h.setStyleSheet(input_style)
         grid.addWidget(self.slider_h, 4, 1)
         grid.addWidget(self.spin_h, 4, 2)
 
         # S (Saturación)
-        lbl_s = QLabel("S:")
-        lbl_s.setStyleSheet(lbl_style)
-        grid.addWidget(lbl_s, 5, 0)
+        self.lbl_s = QLabel("S:")
+        grid.addWidget(self.lbl_s, 5, 0)
         self.slider_s = GradientSliderWidget(0, 100, "sat")
         self.spin_s = QSpinBox()
         self.spin_s.setRange(0, 100)
         self.spin_s.setFixedWidth(38)
         self.spin_s.setFixedHeight(17)
         self.spin_s.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
-        self.spin_s.setStyleSheet(input_style)
         grid.addWidget(self.slider_s, 5, 1)
         grid.addWidget(self.spin_s, 5, 2)
 
         # V (Valor / Brillo)
-        lbl_v = QLabel("V:")
-        lbl_v.setStyleSheet(lbl_style)
-        grid.addWidget(lbl_v, 6, 0)
+        self.lbl_v = QLabel("V:")
+        grid.addWidget(self.lbl_v, 6, 0)
         self.slider_v = GradientSliderWidget(0, 100, "val")
         self.spin_v = QSpinBox()
         self.spin_v.setRange(0, 100)
         self.spin_v.setFixedWidth(38)
         self.spin_v.setFixedHeight(17)
         self.spin_v.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
-        self.spin_v.setStyleSheet(input_style)
         grid.addWidget(self.slider_v, 6, 1)
         grid.addWidget(self.spin_v, 6, 2)
 
@@ -327,7 +298,31 @@ class AdvancedColorPanelWidget(QWidget):
 
         p_bg = "#383838" if is_dark else "#DFDFDF"
         txt_col = "#EDEDED" if is_dark else "#222222"
+        input_bg = "#262626" if is_dark else "#FFFFFF"
+        border_col = "#444444" if is_dark else "#B0B0B0"
+
+        lbl_style = f"font-size: 11px; font-weight: normal; color: {txt_col};"
+        input_style = f"""
+            QSpinBox, QLineEdit {{
+                background-color: {input_bg};
+                color: {txt_col};
+                border: 1px solid {border_col};
+                border-radius: 4px;
+                padding: 0px 2px;
+                font-size: 11px;
+            }}
+            QSpinBox:focus, QLineEdit:focus {{
+                border: 1px solid #007ACC;
+            }}
+        """
+
         self.setStyleSheet(f"AdvancedColorPanelWidget, QWidget {{ background-color: {p_bg}; color: {txt_col}; }}")
+
+        for lbl in (self.lbl_r, self.lbl_g, self.lbl_b, self.lbl_hex, self.lbl_h, self.lbl_s, self.lbl_v):
+            lbl.setStyleSheet(lbl_style)
+
+        for inp in (self.spin_r, self.spin_g, self.spin_b, self.txt_hex, self.spin_h, self.spin_s, self.spin_v):
+            inp.setStyleSheet(input_style)
 
         self._actualizar_interfaz_desde_color(self.color_primario)
 
