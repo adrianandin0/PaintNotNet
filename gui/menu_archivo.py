@@ -26,12 +26,14 @@ class DialogoNuevoArchivo(QDialog):
 
         cb = QApplication.clipboard()
         cb_img = cb.image() if cb else None
-        if saved_w and saved_h and saved_w > 0 and saved_h > 0:
-            def_w = saved_w
-            def_h = saved_h
-        elif cb_img and not cb_img.isNull() and cb_img.width() > 0 and cb_img.height() > 0:
+        has_clipboard_img = cb_img and not cb_img.isNull() and cb_img.width() > 0 and cb_img.height() > 0
+
+        if has_clipboard_img:
             def_w = cb_img.width()
             def_h = cb_img.height()
+        elif saved_w and saved_h and saved_w > 0 and saved_h > 0:
+            def_w = saved_w
+            def_h = saved_h
         else:
             def_w = 800
             def_h = 600
