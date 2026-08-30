@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QToolBut
                              QPushButton, QListWidget, QListWidgetItem, QAbstractItemView,
                              QMessageBox, QMenu, QInputDialog, QWidgetAction, QSpinBox)
 from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtGui import QIcon, QPixmap, QImage, QPainter, QColor
+from PyQt6.QtGui import QIcon, QPixmap, QImage, QPainter, QColor, QPen
 
 
 class AlphaMenuAction(QWidgetAction):
@@ -105,8 +105,9 @@ class LayerRowWidget(QWidget):
         self.actualizar_estado_visibilidad()
 
     def actualizar_thumb(self):
-        thumb_icon = self.panel.generar_thumbnail(self.capa.image)
-        pix = thumb_icon.pixmap(16, 16)
+        thumb_icon, tw, th = self.panel.generar_thumbnail(self.capa.image)
+        pix = thumb_icon.pixmap(tw, th)
+        self.lbl_thumb.setFixedSize(tw, th)
         self.lbl_thumb.setPixmap(pix)
 
     def toggle_visibility(self):
@@ -221,21 +222,48 @@ class LayersPanelWidget(QWidget):
             return self.canvas_override
         return getattr(self.main_window, 'lienzo', getattr(self.main_window, 'canvas', None))
 
+    def calcular_tamano_thumbnail(self, layer_image):
+        if not layer_image or layer_image.isNull():
+            return 52, 52
+        w, h = layer_image.width(), layer_image.height()
+        if w <= 0 or h <= 0:
+            return 52, 52
+        aspect = w / float(h)
+        if aspect >= 1.0:
+            tw = 52
+            th = max(1, int(round(52.0 / aspect)))
+        else:
+            th = 52
+            tw = max(1, int(round(52.0 * aspect)))
+        return tw, th
+
     def generar_thumbnail(self, layer_image):
-        canvas_16 = QImage(16, 16, QImage.Format.Format_ARGB32_Premultiplied)
-        canvas_16.fill(QColor(45, 45, 45))
+        tw, th = self.calcular_tamano_thumbnail(layer_image)
+
+        canvas_thumb = QImage(tw, th, QImage.Format.Format_ARGB32_Premultiplied)
+        painter = QPainter(canvas_thumb)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
+        
+        # Fondo ajedrezado claro para transparencia
+        sq_size = 4
+        c1 = QColor(255, 255, 255)
+        c2 = QColor(204, 204, 204)
+        for y in range(0, th, sq_size):
+            for x in range(0, tw, sq_size):
+                col = c1 if ((x // sq_size) + (y // sq_size)) % 2 == 0 else c2
+                painter.fillRect(x, y, sq_size, sq_size, col)
 
         if layer_image and not layer_image.isNull():
-            thumb = layer_image.scaled(16, 16, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-            painter = QPainter(canvas_16)
-            ox = (16 - thumb.width()) // 2
-            oy = (16 - thumb.height()) // 2
+            thumb = layer_image.scaled(tw, th, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            ox = (tw - thumb.width()) // 2
+            oy = (th - thumb.height()) // 2
             painter.drawImage(ox, oy, thumb)
-            painter.setPen(QColor(90, 90, 90))
-            painter.drawRect(0, 0, 15, 15)
-            painter.end()
 
-        return QIcon(QPixmap.fromImage(canvas_16))
+        painter.setPen(QPen(QColor(160, 160, 165), 1))
+        painter.drawRect(0, 0, tw - 1, th - 1)
+        painter.end()
+
+        return QIcon(QPixmap.fromImage(canvas_thumb)), tw, th
 
     def actualizar_thumbnails(self):
         for i in range(self.lista_capas.count()):
@@ -243,6 +271,8 @@ class LayersPanelWidget(QWidget):
             row_widget = self.lista_capas.itemWidget(item)
             if row_widget and hasattr(row_widget, 'actualizar_thumb'):
                 row_widget.actualizar_thumb()
+                tw, th = self.calcular_tamano_thumbnail(row_widget.capa.image)
+                item.setSizeHint(QSize(0, max(30, th + 8)))
 
     def reconstruir_lista_capas(self):
         self.lista_capas.blockSignals(True)
@@ -255,8 +285,9 @@ class LayersPanelWidget(QWidget):
 
         mgr = canvas.layer_mgr
         for idx, capa in enumerate(mgr.capas):
+            tw, th = self.calcular_tamano_thumbnail(capa.image)
             item = QListWidgetItem()
-            item.setSizeHint(QSize(0, 26))
+            item.setSizeHint(QSize(0, max(30, th + 8)))
             item.setData(Qt.ItemDataRole.UserRole, idx)
             self.lista_capas.addItem(item)
 

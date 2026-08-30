@@ -71,7 +71,7 @@ class CanvasWidget(QWidget):
         # Módulos principales del core
         self.layer_mgr = LayerManager(width, height)
         self._ajustar_tamano_widget(width, height)
-        self.history_mgr = HistoryManager()
+        self.history_mgr = HistoryManager(200)
         self.selection_engine = SelectionEngine()
 
         # Instancia de la herramienta activa

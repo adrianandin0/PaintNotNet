@@ -13,7 +13,7 @@ class DialogoOpciones(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle(t("Preferencias de usuario"))
-        self.setFixedSize(460, 335)
+        self.setFixedSize(540, 345)
 
         self.setStyleSheet("""
             QDialog {
@@ -154,7 +154,7 @@ class DialogoOpciones(QDialog):
         group_format.setLayout(layout_format)
         layout.addWidget(group_format)
 
-        # 5. Guardar cambios al cerrar y Eliminar preferencias
+        # 5. Guardar cambios al cerrar, Mostrar atajos y Eliminar preferencias
         layout_chk = QHBoxLayout()
         layout_chk.setContentsMargins(0, 0, 0, 0)
 
@@ -162,6 +162,11 @@ class DialogoOpciones(QDialog):
         save_on_close = self.settings.value("save_on_close", True, type=bool)
         self.chk_save_on_close.setChecked(save_on_close)
         layout_chk.addWidget(self.chk_save_on_close)
+
+        self.chk_show_shortcuts = QCheckBox(t("Mostrar atajos de teclado"))
+        show_shortcuts = self.settings.value("show_shortcuts", True, type=bool)
+        self.chk_show_shortcuts.setChecked(show_shortcuts)
+        layout_chk.addWidget(self.chk_show_shortcuts)
 
         layout_chk.addStretch()
 
@@ -245,11 +250,16 @@ class DialogoOpciones(QDialog):
         self.settings.setValue("default_dir", self.input_dir.text())
         self.settings.setValue("default_format", self.combo_format.currentText())
         self.settings.setValue("save_on_close", self.chk_save_on_close.isChecked())
+        self.settings.setValue("show_shortcuts", self.chk_show_shortcuts.isChecked())
 
         I18nManager().establecer_idioma(nuevo_idioma)
 
-        if self.parent() and hasattr(self.parent(), 'retraducir_ui'):
-            self.parent().retraducir_ui()
+        parent = self.parent()
+        if parent:
+            if hasattr(parent, 'tool_panel') and parent.tool_panel:
+                parent.tool_panel.actualizar_insignias_atajos()
+            if hasattr(parent, 'retraducir_ui'):
+                parent.retraducir_ui()
 
         self.accept()
 

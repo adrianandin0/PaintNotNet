@@ -26,7 +26,7 @@ from tools.stamp import StampTool
 
 
 class ShortcutToolButton(QToolButton):
-    """QToolButton personalizado que dibuja una insignia con fondo gris/negro en la esquina inferior izquierda."""
+    """QToolButton personalizado que dibuja una insignia con la letra de acceso directo en la esquina inferior izquierda."""
     def __init__(self, parent=None):
         super().__init__(parent)
         self.shortcut_char = ""
@@ -41,16 +41,29 @@ class ShortcutToolButton(QToolButton):
             p = QPainter(self)
             p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
             
-            # Recuadro gris oscuro de 8x8 en la esquina inferior izquierda
-            bg_rect = QRectF(2, self.height() - 10, 8, 8)
-            p.setPen(Qt.PenStyle.NoPen)
-            p.setBrush(QBrush(QColor(30, 30, 30, 230)))
-            p.drawRect(bg_rect)
+            from core.theme import ThemeManager
+            tm = ThemeManager()
+            is_dark = (tm.resolver_nombre_tema(tm.current_theme) == "Oscuro")
 
-            # Letra blanca centrada de 6px
-            font = QFont("Arial", 6, QFont.Weight.Bold)
+            if is_dark:
+                bg_color = QColor(32, 32, 36, 230)
+                border_color = QColor(85, 85, 90)
+                text_color = QColor(255, 255, 255)
+            else:
+                bg_color = QColor(255, 255, 255, 240)
+                border_color = QColor(140, 140, 145)
+                text_color = QColor(20, 20, 20)
+
+            # Recuadro un poco más grande con reborde en la esquina inferior izquierda
+            bg_rect = QRectF(2.0, self.height() - 13.0, 11.0, 11.0)
+            p.setPen(QPen(border_color, 1.0))
+            p.setBrush(QBrush(bg_color))
+            p.drawRoundedRect(bg_rect, 2.0, 2.0)
+
+            # Letra un poco más grande (7pt) y centrada
+            font = QFont("Arial", 7, QFont.Weight.Bold)
             p.setFont(font)
-            p.setPen(QPen(QColor(255, 255, 255)))
+            p.setPen(QPen(text_color))
             p.drawText(bg_rect, Qt.AlignmentFlag.AlignCenter, self.shortcut_char)
             p.end()
 
@@ -119,13 +132,17 @@ class ToolPanelWidget(QWidget):
 
     def actualizar_insignias_atajos(self):
         from gui.dialogo_atajos import cargar_atajos
+        from PyQt6.QtCore import QSettings
+        settings = QSettings("PaintNotNet", "PaintNotNet")
+        show_shortcuts = settings.value("show_shortcuts", True, type=bool)
+
         atajos = cargar_atajos()
 
         for btn in self.button_group.buttons():
             tool = btn.property("tool_obj")
             if tool:
                 nombre = tool.name
-                char = atajos.get(nombre, "")
+                char = atajos.get(nombre, "") if show_shortcuts else ""
                 if isinstance(btn, ShortcutToolButton):
                     btn.set_shortcut_char(char)
 
