@@ -101,3 +101,13 @@ build_all.sh
 PNN-Setup_*.exe
 paintnotnet_*
 .tempmediaStorage/
+
+# Excluir cualquier archivo o carpeta sensible (PayPal / Bitcoin / QR)
+*paypal*
+*PayPal*
+*PAYPAL*
+*bitcoin*
+*Bitcoin*
+*BITCOIN*
+*btc*
+*BTC*
