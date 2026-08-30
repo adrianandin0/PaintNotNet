@@ -49,7 +49,7 @@ class TextPanelWidget(QWidget):
 
         self.spin_size = QSpinBox()
         self.spin_size.setRange(1, 9999)
-        self.spin_size.setValue(24)
+        self.spin_size.setValue(12)
         self.spin_size.setFixedHeight(20)
         self.spin_size.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         self.spin_size.setStyleSheet("font-size: 11px; color: #EDEDED;")
@@ -247,13 +247,19 @@ class TextPanelWidget(QWidget):
             canvas = getattr(self.main_window, 'lienzo',
                              getattr(self.main_window, 'canvas', None))
             if canvas:
+                if not hasattr(canvas, 'text_config') or canvas.text_config is None:
+                    canvas.text_config = {}
+                canvas.text_config.update(cfg)
+
+                if hasattr(self.main_window, 'top_toolbar') and self.main_window.top_toolbar:
+                    self.main_window.top_toolbar.actualizar_desde_formato_dict(canvas.text_config)
+
                 from tools.text import TextTool
                 tool = getattr(canvas, 'active_tool_obj', None)
                 if isinstance(tool, TextTool) and tool.is_editing:
                     tool.apply_format_to_selection(fmt_dict)
 
-    def actualizar_desde_formato(self, fmt):
-        """Actualiza la UI del panel para reflejar el formato en la posición actual del cursor sin emitir señales."""
+    def actualizar_desde_formato_dict(self, d: dict):
         self.blockSignals(True)
         self.btn_bold.blockSignals(True)
         self.btn_italic.blockSignals(True)
@@ -263,23 +269,33 @@ class TextPanelWidget(QWidget):
         self.spin_size.blockSignals(True)
         self._align_group.blockSignals(True)
 
-        self.btn_bold.setChecked(fmt.bold)
-        self.btn_italic.setChecked(fmt.italic)
-        self.btn_underline.setChecked(fmt.underline)
-        self.btn_strike.setChecked(fmt.strike)
-        self.spin_size.setValue(fmt.font_size)
+        if "bold" in d:
+            self.btn_bold.setChecked(bool(d["bold"]))
+        if "italic" in d:
+            self.btn_italic.setChecked(bool(d["italic"]))
+        if "underline" in d:
+            self.btn_underline.setChecked(bool(d["underline"]))
+        if "strike" in d:
+            self.btn_strike.setChecked(bool(d["strike"]))
+        if "font_size" in d:
+            self.spin_size.setValue(int(d["font_size"]))
+        elif "size" in d:
+            self.spin_size.setValue(int(d["size"]))
 
-        font = QFont(fmt.font_family)
-        self.font_combo.setCurrentFont(font)
+        if "font_family" in d:
+            font = QFont(str(d["font_family"]))
+            self.font_combo.setCurrentFont(font)
 
-        if fmt.alignment == Qt.AlignmentFlag.AlignHCenter:
-            self.btn_align_center.setChecked(True)
-        elif fmt.alignment == Qt.AlignmentFlag.AlignRight:
-            self.btn_align_right.setChecked(True)
-        elif fmt.alignment == Qt.AlignmentFlag.AlignJustify:
-            self.btn_align_justify.setChecked(True)
-        else:
-            self.btn_align_left.setChecked(True)
+        if "alignment" in d:
+            align = d["alignment"]
+            if align == Qt.AlignmentFlag.AlignHCenter:
+                self.btn_align_center.setChecked(True)
+            elif align == Qt.AlignmentFlag.AlignRight:
+                self.btn_align_right.setChecked(True)
+            elif align == Qt.AlignmentFlag.AlignJustify:
+                self.btn_align_justify.setChecked(True)
+            else:
+                self.btn_align_left.setChecked(True)
 
         self.btn_bold.blockSignals(False)
         self.btn_italic.blockSignals(False)
@@ -288,6 +304,20 @@ class TextPanelWidget(QWidget):
         self.font_combo.blockSignals(False)
         self.spin_size.blockSignals(False)
         self._align_group.blockSignals(False)
+        self.blockSignals(False)
+
+    def actualizar_desde_formato(self, fmt):
+        """Actualiza la UI del panel para reflejar el formato en la posición actual del cursor sin emitir señales."""
+        d = {
+            "bold": fmt.bold,
+            "italic": fmt.italic,
+            "underline": fmt.underline,
+            "strike": fmt.strike,
+            "font_size": fmt.font_size,
+            "font_family": fmt.font_family,
+            "alignment": fmt.alignment
+        }
+        self.actualizar_desde_formato_dict(d)
         self.blockSignals(False)
 
     def retraducir_panel(self):

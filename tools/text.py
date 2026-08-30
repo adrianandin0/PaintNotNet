@@ -23,14 +23,33 @@ from PyQt6.QtCore import Qt, QPoint, QRect, QObject, QEvent
 from tools.base_tool import BaseTool
 
 
+def obtener_fuente_predeterminada_sistema() -> str:
+    """Devuelve la familia de fuente por defecto del sistema (o la primera disponible de la lista de respaldo)."""
+    try:
+        from PyQt6.QtGui import QFontDatabase, QFont
+        sys_font = QFontDatabase.systemFont(QFontDatabase.SystemFont.GeneralFont)
+        if sys_font and sys_font.family():
+            return sys_font.family()
+        candidatos = [
+            "DejaVu Sans", "Liberation Sans", "Noto Sans",
+            "FreeSans", "Ubuntu", "Cantarell", "Segoe UI", "Arial", "Sans-Serif"
+        ]
+        for c in candidatos:
+            if QFontDatabase.hasFamily(c):
+                return c
+        return QFont().family()
+    except Exception:
+        return "Sans-Serif"
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  Modelo de datos
 # ─────────────────────────────────────────────────────────────────────────────
 
 @dataclass
 class CharFormat:
-    font_family: str              = "Arial"
-    font_size:   int              = 24
+    font_family: str              = field(default_factory=obtener_fuente_predeterminada_sistema)
+    font_size:   int              = 12
     bold:        bool             = False
     italic:      bool             = False
     underline:   bool             = False
@@ -829,15 +848,16 @@ class TextTool(BaseTool, QObject):
         self.pos = rect.topLeft()
 
     def _fmt_from_canvas(self, canvas, color_activo) -> CharFormat:
-        cfg = getattr(canvas, 'config_texto', {})
+        cfg = getattr(canvas, 'text_config', getattr(canvas, 'config_texto', {}))
         if callable(cfg):
             try: cfg = cfg()
             except Exception: cfg = {}
         if not isinstance(cfg, dict): cfg = {}
         font_obj = cfg.get("font", None)
+        def_family = obtener_fuente_predeterminada_sistema()
         return CharFormat(
-            font_family = cfg.get("font_family", font_obj.family() if font_obj else "Arial"),
-            font_size   = int(cfg.get("size", cfg.get("font_size", 24))),
+            font_family = cfg.get("font_family", font_obj.family() if font_obj else def_family),
+            font_size   = int(cfg.get("size", cfg.get("font_size", 12))),
             bold        = bool(cfg.get("bold",      False)),
             italic      = bool(cfg.get("italic",    False)),
             underline   = bool(cfg.get("underline", False)),

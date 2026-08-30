@@ -32,7 +32,7 @@ class MagicWandTool(BaseTool):
         pos = event.position().toPoint()
         if 0 <= pos.x() < canvas.layer_mgr.width and 0 <= pos.y() < canvas.layer_mgr.height:
             self.last_seed = pos
-            tol = getattr(canvas, 'tolerancia', 32)
+            tol = getattr(canvas, 'tolerancia', 50)
             if hasattr(canvas, 'main_window') and canvas.main_window and hasattr(canvas.main_window, 'top_toolbar'):
                 tol = canvas.main_window.top_toolbar.slider_tol.value()
 

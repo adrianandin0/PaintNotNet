@@ -21,7 +21,7 @@ class BucketTool(BaseTool):
             return
 
         color = color_activo if color_activo else canvas.color_primario
-        tolerancia = getattr(canvas, 'tolerancia', 32)
+        tolerancia = getattr(canvas, 'tolerancia', 50)
         if hasattr(canvas, 'main_window') and canvas.main_window and hasattr(canvas.main_window, 'top_toolbar'):
             tolerancia = canvas.main_window.top_toolbar.slider_tol.value()
 

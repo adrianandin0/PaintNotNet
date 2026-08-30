@@ -84,9 +84,19 @@ class CanvasWidget(QWidget):
         self.opacidad_pincel = 255
         self.suavizado_pincel = True
         self.forma_pincel = "Redondo"
-        self.modo_degradado = "Color"
-        self.tolerancia_balde = 30
-        self.config_texto = {}
+        self.tolerancia = 50
+        from tools.text import obtener_fuente_predeterminada_sistema
+        self.text_config = {
+            "font_family": obtener_fuente_predeterminada_sistema(),
+            "font_size": 12,
+            "size": 12,
+            "bold": False,
+            "italic": False,
+            "underline": False,
+            "strike": False,
+            "alignment": Qt.AlignmentFlag.AlignLeft
+        }
+        self.config_texto = lambda: self.text_config
 
         # Colores
         self._color_primario = QColor(0, 0, 0, 255)

@@ -13,7 +13,6 @@ from gui.tool_panel import ToolPanelWidget
 from gui.color_panel import ColorPanelWidget
 from gui.advanced_color_panel import AdvancedColorPanelWidget
 from gui.text_panel import TextPanelWidget
-from gui.effects_panel import EffectsPanelWidget
 from gui.layers_panel import LayersPanelWidget
 from gui.history_panel import HistoryPanelWidget
 from gui.top_toolbar import TopToolBarWidget
@@ -213,8 +212,6 @@ class PaintNotNet(QMainWindow):
             for attr, is_vis in saved_vis.items():
                 if hasattr(self, attr):
                     getattr(self, attr).setVisible(bool(is_vis))
-        else:
-            self.effects_dock.setVisible(False)
 
         if settings.value("save_on_close", True, type=bool):
             custom_hexs = settings.value("custom_colors", None)
@@ -246,9 +243,7 @@ class PaintNotNet(QMainWindow):
         docks_visibles = {
             'tools_dock': True,
             'color_dock': True,
-            'text_dock': True,
             'advanced_color_dock': True,
-            'effects_dock': False,
             'history_dock': True,
             'layers_dock': True,
         }
@@ -261,9 +256,6 @@ class PaintNotNet(QMainWindow):
             if hasattr(self.color_panel, 'botones_custom'):
                 for btn in self.color_panel.botones_custom:
                     btn.set_color(None)
-
-        if hasattr(self, 'effects_panel') and self.effects_panel:
-            self.effects_panel.reset_to_defaults()
 
         from core.theme import ThemeManager
         from core.i18n import I18nManager
@@ -455,7 +447,14 @@ class PaintNotNet(QMainWindow):
                 canvas.color_primario = self.color_panel.color_primario
                 canvas.color_secundario = self.color_panel.color_secundario
 
-            # Sincronizar valores actuales del toolbar al nuevo canvas
+            # Sincronizar formato de texto e interfaz al cambiar de pestaña
+            if hasattr(canvas, 'text_config') and canvas.text_config:
+                if hasattr(self, 'text_panel') and self.text_panel:
+                    self.text_panel.actualizar_desde_formato_dict(canvas.text_config)
+                if hasattr(self, 'top_toolbar') and self.top_toolbar:
+                    self.top_toolbar.actualizar_desde_formato_dict(canvas.text_config)
+
+            # Sincronizar valores de herramientas
             if hasattr(self, 'top_toolbar'):
                 tb = self.top_toolbar
                 canvas.grosor_pincel = tb.spin_grosor.value()
@@ -621,8 +620,6 @@ class PaintNotNet(QMainWindow):
 
         if hasattr(self, 'text_panel') and hasattr(self.text_panel, 'retraducir_panel'):
             self.text_panel.retraducir_panel()
-        if hasattr(self, 'effects_panel') and hasattr(self.effects_panel, 'retraducir_panel'):
-            self.effects_panel.retraducir_panel()
         if hasattr(self, 'layers_panel') and hasattr(self.layers_panel, 'retraducir_panel'):
             self.layers_panel.retraducir_panel()
         if hasattr(self, 'history_panel') and hasattr(self.history_panel, 'retraducir_panel'):
@@ -632,8 +629,6 @@ class PaintNotNet(QMainWindow):
         if hasattr(self, 'bottom_bar') and hasattr(self.bottom_bar, 'retraducir_bar'):
             self.bottom_bar.retraducir_bar()
 
-        if hasattr(self, 'text_dock'):
-            self.text_dock.setWindowTitle(t("Texto"))
         if hasattr(self, 'tools_dock'):
             self.tools_dock.setWindowTitle(t("Herramientas"))
         if hasattr(self, 'layers_dock'):
@@ -791,8 +786,8 @@ class PaintNotNet(QMainWindow):
         settings.setValue("geometry", self.saveGeometry())
 
         docks_attr = [
-            'tools_dock', 'color_dock', 'text_dock',
-            'effects_dock', 'layers_dock', 'history_dock', 'advanced_color_dock'
+            'tools_dock', 'color_dock',
+            'layers_dock', 'history_dock', 'advanced_color_dock'
         ]
         docks_visibles = {attr: getattr(self, attr).isVisible() for attr in docks_attr if hasattr(self, attr)}
         settings.setValue("docks_visible", docks_visibles)

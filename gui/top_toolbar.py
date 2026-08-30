@@ -154,7 +154,7 @@ class TopToolBarWidget(QToolBar):
 
         self.slider_tol = QSlider(Qt.Orientation.Horizontal)
         self.slider_tol.setRange(0, 100)
-        self.slider_tol.setValue(32)
+        self.slider_tol.setValue(50)
         self.slider_tol.setFixedWidth(65)
         self.slider_tol.valueChanged.connect(self._on_tolerancia_changed)
         self.act_slider_tol = self.addWidget(self.slider_tol)
@@ -428,7 +428,7 @@ class TopToolBarWidget(QToolBar):
 
         self.spin_texto_tam = QSpinBox()
         self.spin_texto_tam.setRange(1, 9999)
-        self.spin_texto_tam.setValue(24)
+        self.spin_texto_tam.setValue(12)
         self.spin_texto_tam.setSuffix(" px")
         self.spin_texto_tam.setFixedHeight(22)
         self.spin_texto_tam.setFixedWidth(58)
@@ -846,15 +846,19 @@ class TopToolBarWidget(QToolBar):
             self.sep_texto_efe.setVisible(uses_text)
 
     def _emitir_cambio_texto_parcial(self, diff_dict):
-        if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
-            canvas = self.main_window.lienzo
-            from tools.text import TextTool
-            if hasattr(canvas, 'active_tool_obj') and isinstance(canvas.active_tool_obj, TextTool):
-                canvas.active_tool_obj.on_format_changed(canvas, diff_dict)
-            else:
-                cfg = getattr(canvas, 'config_texto', {})
-                cfg.update(diff_dict)
-                canvas.actualizar_config_texto(cfg)
+        if self.main_window:
+            canvas = getattr(self.main_window, 'lienzo', getattr(self.main_window, 'canvas', None))
+            if canvas:
+                if not hasattr(canvas, 'text_config') or canvas.text_config is None:
+                    canvas.text_config = {}
+                canvas.text_config.update(diff_dict)
+
+                if hasattr(self.main_window, 'text_panel') and self.main_window.text_panel:
+                    self.main_window.text_panel.actualizar_desde_formato_dict(canvas.text_config)
+
+                from tools.text import TextTool
+                if hasattr(canvas, 'active_tool_obj') and isinstance(canvas.active_tool_obj, TextTool):
+                    canvas.active_tool_obj.on_format_changed(canvas, diff_dict)
 
     def _emitir_cambio_efectos(self, *_):
         if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
@@ -881,7 +885,7 @@ class TopToolBarWidget(QToolBar):
     def obtener_config(self) -> dict:
         return self.obtener_config_efectos()
 
-    def actualizar_desde_formato(self, fmt):
+    def actualizar_desde_formato_dict(self, d: dict):
         if not hasattr(self, 'btn_texto_bold'):
             return
         self.btn_texto_bold.blockSignals(True)
@@ -890,23 +894,34 @@ class TopToolBarWidget(QToolBar):
         self.btn_texto_strike.blockSignals(True)
         self.combo_texto_fuente.blockSignals(True)
         self.spin_texto_tam.blockSignals(True)
-        self._align_group.blockSignals(True)
+        if hasattr(self, '_align_group'):
+            self._align_group.blockSignals(True)
 
-        self.btn_texto_bold.setChecked(fmt.bold)
-        self.btn_texto_italic.setChecked(fmt.italic)
-        self.btn_texto_underline.setChecked(fmt.underline)
-        self.btn_texto_strike.setChecked(fmt.strike)
-        self.spin_texto_tam.setValue(fmt.font_size)
+        if "bold" in d:
+            self.btn_texto_bold.setChecked(bool(d["bold"]))
+        if "italic" in d:
+            self.btn_texto_italic.setChecked(bool(d["italic"]))
+        if "underline" in d:
+            self.btn_texto_underline.setChecked(bool(d["underline"]))
+        if "strike" in d:
+            self.btn_texto_strike.setChecked(bool(d["strike"]))
+        if "font_size" in d:
+            self.spin_texto_tam.setValue(int(d["font_size"]))
+        elif "size" in d:
+            self.spin_texto_tam.setValue(int(d["size"]))
 
-        font = QFont(fmt.font_family)
-        self.combo_texto_fuente.setCurrentFont(font)
+        if "font_family" in d:
+            font = QFont(str(d["font_family"]))
+            self.combo_texto_fuente.setCurrentFont(font)
 
-        if fmt.alignment == Qt.AlignmentFlag.AlignHCenter:
-            self.btn_texto_align_center.setChecked(True)
-        elif fmt.alignment == Qt.AlignmentFlag.AlignRight:
-            self.btn_texto_align_right.setChecked(True)
-        else:
-            self.btn_texto_align_left.setChecked(True)
+        if "alignment" in d:
+            align = d["alignment"]
+            if align == Qt.AlignmentFlag.AlignHCenter:
+                if hasattr(self, 'btn_texto_align_center'): self.btn_texto_align_center.setChecked(True)
+            elif align == Qt.AlignmentFlag.AlignRight:
+                if hasattr(self, 'btn_texto_align_right'): self.btn_texto_align_right.setChecked(True)
+            else:
+                if hasattr(self, 'btn_texto_align_left'): self.btn_texto_align_left.setChecked(True)
 
         self.btn_texto_bold.blockSignals(False)
         self.btn_texto_italic.blockSignals(False)
@@ -914,7 +929,22 @@ class TopToolBarWidget(QToolBar):
         self.btn_texto_strike.blockSignals(False)
         self.combo_texto_fuente.blockSignals(False)
         self.spin_texto_tam.blockSignals(False)
-        self._align_group.blockSignals(False)
+        if hasattr(self, '_align_group'):
+            self._align_group.blockSignals(False)
+
+    def actualizar_desde_formato(self, fmt):
+        if not hasattr(self, 'btn_texto_bold'):
+            return
+        d = {
+            "bold": fmt.bold,
+            "italic": fmt.italic,
+            "underline": fmt.underline,
+            "strike": fmt.strike,
+            "font_size": fmt.font_size,
+            "font_family": fmt.font_family,
+            "alignment": fmt.alignment
+        }
+        self.actualizar_desde_formato_dict(d)
 
     def retraducir_panel(self):
         pass

@@ -14,7 +14,7 @@ class TolerancePanelWidget(QWidget):
         l_hdr = QHBoxLayout()
         lbl_title = QLabel("Tolerancia:")
         lbl_title.setStyleSheet("font-size: 9px; font-weight: bold;")
-        self.lbl_val = QLabel("32%")
+        self.lbl_val = QLabel("50%")
         self.lbl_val.setStyleSheet("font-size: 9px; font-weight: bold; color: #64B4FF;")
 
         l_hdr.addWidget(lbl_title)
@@ -24,7 +24,7 @@ class TolerancePanelWidget(QWidget):
 
         self.slider = QSlider(Qt.Orientation.Horizontal)
         self.slider.setRange(0, 100)
-        self.slider.setValue(32)
+        self.slider.setValue(50)
         self.slider.setStyleSheet("QSlider { height: 16px; }")
 
         layout.addWidget(self.slider)

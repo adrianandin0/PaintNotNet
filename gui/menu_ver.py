@@ -30,8 +30,6 @@ class MenuVer:
 
         self._add_toggle(self.menu, t("Herramientas"),   'tools_dock',          "gui/iconos/tools.png")
         self._add_toggle(self.menu, t("Color"),           'color_dock',          "gui/iconos/color.png")
-        self._add_toggle(self.menu, t("Texto"),           'text_dock',           "gui/iconos/text.png")
-        self._add_toggle(self.menu, t("Efectos"),         'effects_dock',        "gui/iconos/effects.png")
         self._add_toggle(self.menu, t("Capas"),           'layers_dock',         "gui/iconos/layers.png")
         self._add_toggle(self.menu, t("Historial"),       'history_dock',        "gui/iconos/history.png")
         self._add_toggle(self.menu, t("Color avanzado"), 'advanced_color_dock',  "gui/iconos/color-plus.png")
@@ -53,8 +51,8 @@ class MenuVer:
     def _restablecer_paneles(self):
         """Muestra todos los paneles laterales."""
         docks = [
-            'tools_dock', 'color_dock', 'text_dock',
-            'effects_dock', 'layers_dock', 'history_dock', 'advanced_color_dock'
+            'tools_dock', 'color_dock',
+            'layers_dock', 'history_dock', 'advanced_color_dock'
         ]
         for attr in docks:
             if hasattr(self.main_window, attr):

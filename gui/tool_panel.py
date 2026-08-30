@@ -60,8 +60,9 @@ class ShortcutToolButton(QToolButton):
             p.setBrush(QBrush(bg_color))
             p.drawRoundedRect(bg_rect, 2.0, 2.0)
 
-            # Letra un poco más grande (7pt) y centrada
-            font = QFont("Arial", 7, QFont.Weight.Bold)
+            font = QFont()
+            font.setPointSize(7)
+            font.setBold(True)
             p.setFont(font)
             p.setPen(QPen(text_color))
             p.drawText(bg_rect, Qt.AlignmentFlag.AlignCenter, self.shortcut_char)
