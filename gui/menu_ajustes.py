@@ -71,6 +71,55 @@ def _get_orig(canvas, is_floating):
     return canvas.layer_mgr.buffer.copy()
 
 
+def _unpremultiply(arr):
+    """Des-premultiplica los canales BGRA (ARGB32_Premultiplied) a float32 Straight en el rango 0..255.
+    Retorna (b_straight, g_straight, r_straight, a_float, mask).
+    Píxeles con A == 0 se fijan rigurosamente a (0, 0, 0).
+    """
+    b = arr[:, :, 0].astype(np.float32)
+    g = arr[:, :, 1].astype(np.float32)
+    r = arr[:, :, 2].astype(np.float32)
+    a = arr[:, :, 3].astype(np.float32)
+
+    mask = a > 0
+    alpha_inv = np.zeros_like(a)
+    alpha_inv[mask] = 255.0 / a[mask]
+
+    b_straight = np.zeros_like(b)
+    g_straight = np.zeros_like(g)
+    r_straight = np.zeros_like(r)
+
+    b_straight[mask] = np.clip(b[mask] * alpha_inv[mask], 0.0, 255.0)
+    g_straight[mask] = np.clip(g[mask] * alpha_inv[mask], 0.0, 255.0)
+    r_straight[mask] = np.clip(r[mask] * alpha_inv[mask], 0.0, 255.0)
+
+    return b_straight, g_straight, r_straight, a, mask
+
+
+def _repremultiply(arr, b_straight, g_straight, r_straight, a, mask):
+    """Re-premultiplica los colores des-premultiplicados ajustados por el canal Alpha original.
+    Garantiza que ningún canal supere su límite de Alfa (0 <= R,G,B <= A) y que los floats
+    se recorten antes de convertirse a uint8, evitando desbordamientos y ruido de neón.
+    """
+    b_straight = np.clip(b_straight, 0.0, 255.0)
+    g_straight = np.clip(g_straight, 0.0, 255.0)
+    r_straight = np.clip(r_straight, 0.0, 255.0)
+
+    alpha_scale = a / 255.0
+
+    b_final = np.zeros_like(b_straight)
+    g_final = np.zeros_like(g_straight)
+    r_final = np.zeros_like(r_straight)
+
+    b_final[mask] = np.clip(b_straight[mask] * alpha_scale[mask], 0.0, a[mask])
+    g_final[mask] = np.clip(g_straight[mask] * alpha_scale[mask], 0.0, a[mask])
+    r_final[mask] = np.clip(r_straight[mask] * alpha_scale[mask], 0.0, a[mask])
+
+    arr[:, :, 0] = np.round(b_final).astype(np.uint8)
+    arr[:, :, 1] = np.round(g_final).astype(np.uint8)
+    arr[:, :, 2] = np.round(r_final).astype(np.uint8)
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 #  Slider con gradiente de color
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -345,9 +394,7 @@ class DialogoTonoSaturacion(_BaseAdjustDialog):
         ptr.setsize(img.height() * img.bytesPerLine())
         arr = np.frombuffer(ptr, dtype=np.uint8).reshape((img.height(), img.width(), 4)).copy()
 
-        b = arr[:, :, 0].astype(np.float32)
-        g = arr[:, :, 1].astype(np.float32)
-        r = arr[:, :, 2].astype(np.float32)
+        b, g, r, a, mask = _unpremultiply(arr)
 
         if s_shift != 0:
             lum = 0.299 * r + 0.587 * g + 0.114 * b
@@ -373,9 +420,7 @@ class DialogoTonoSaturacion(_BaseAdjustDialog):
             g = g + factor
             b = b + factor
 
-        arr[:, :, 0] = np.clip(b, 0, 255).astype(np.uint8)
-        arr[:, :, 1] = np.clip(g, 0, 255).astype(np.uint8)
-        arr[:, :, 2] = np.clip(r, 0, 255).astype(np.uint8)
+        _repremultiply(arr, b, g, r, a, mask)
 
         result = QImage(arr.tobytes(), img.width(), img.height(),
                         img.bytesPerLine(), QImage.Format.Format_ARGB32_Premultiplied)
@@ -417,20 +462,29 @@ class DialogoBrilloContraste(_BaseAdjustDialog):
 
         img = self.orig_image.copy()
 
+        if brillo == 0 and contraste == 0:
+            _apply_to_canvas(self.canvas, img, self.target_is_floating)
+            return
+
         ptr = img.bits()
         ptr.setsize(img.height() * img.bytesPerLine())
         arr = np.frombuffer(ptr, dtype=np.uint8).reshape((img.height(), img.width(), 4)).copy()
 
-        rgb = arr[:, :, :3].astype(np.float32)
+        b, g, r, a, mask = _unpremultiply(arr)
 
         if brillo != 0:
-            rgb += brillo / 100.0 * 128
+            shift = brillo / 100.0 * 128
+            r += shift
+            g += shift
+            b += shift
 
         if contraste != 0:
             factor = (259 * (contraste + 255)) / (255 * (259 - contraste))
-            rgb = factor * (rgb - 128) + 128
+            r = factor * (r - 128) + 128
+            g = factor * (g - 128) + 128
+            b = factor * (b - 128) + 128
 
-        arr[:, :, :3] = np.clip(rgb, 0, 255).astype(np.uint8)
+        _repremultiply(arr, b, g, r, a, mask)
 
         result = QImage(arr.tobytes(), img.width(), img.height(),
                         img.bytesPerLine(), QImage.Format.Format_ARGB32_Premultiplied)
@@ -493,31 +547,42 @@ class DialogoIluminacionSombras(_BaseAdjustDialog):
         clarity = self.row_clarity.value() / 100.0
 
         img = self.orig_image.copy()
+
+        if highlights == 0 and shadows == 0 and clarity == 0:
+            _apply_to_canvas(self.canvas, img, self.target_is_floating)
+            return
+
         ptr = img.bits()
         ptr.setsize(img.height() * img.bytesPerLine())
         arr = np.frombuffer(ptr, dtype=np.uint8).reshape((img.height(), img.width(), 4)).copy()
 
-        rgb = arr[:, :, :3].astype(np.float32)
+        b, g, r, a, mask = _unpremultiply(arr)
 
         if highlights != 0 or shadows != 0 or clarity != 0:
-            lum = (0.299 * rgb[:, :, 2] + 0.587 * rgb[:, :, 1] + 0.114 * rgb[:, :, 0]) / 255.0
+            lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0
 
             if highlights != 0:
-                hi_mask = np.clip((lum - 0.5) * 2, 0, 1)[:, :, np.newaxis]
-                rgb = rgb + hi_mask * highlights * 80
+                hi_mask = np.clip((lum - 0.5) * 2, 0, 1)
+                r += hi_mask * highlights * 80
+                g += hi_mask * highlights * 80
+                b += hi_mask * highlights * 80
 
             if shadows != 0:
-                sh_mask = np.clip((0.5 - lum) * 2, 0, 1)[:, :, np.newaxis]
-                rgb = rgb + sh_mask * shadows * 80
+                sh_mask = np.clip((0.5 - lum) * 2, 0, 1)
+                r += sh_mask * shadows * 80
+                g += sh_mask * shadows * 80
+                b += sh_mask * shadows * 80
 
             if clarity != 0:
-                # Clarity = microcontraste local
-                gray = 0.299 * rgb[:, :, 2] + 0.587 * rgb[:, :, 1] + 0.114 * rgb[:, :, 0]
+                gray = 0.299 * r + 0.587 * g + 0.114 * b
                 factor = 1.0 + clarity * 0.5
                 mid = 128.0
-                rgb = mid + (rgb - mid) * factor
+                r = mid + (r - mid) * factor
+                g = mid + (g - mid) * factor
+                b = mid + (b - mid) * factor
 
-        arr[:, :, :3] = np.clip(rgb, 0, 255).astype(np.uint8)
+        _repremultiply(arr, b, g, r, a, mask)
+
         result = QImage(arr.tobytes(), img.width(), img.height(),
                         img.bytesPerLine(), QImage.Format.Format_ARGB32_Premultiplied)
         _apply_to_canvas(self.canvas, result.copy(), self.target_is_floating)
@@ -782,38 +847,36 @@ class DialogoCurvas(_BaseAdjustDialog):
         ptr.setsize(img.height() * img.bytesPerLine())
         arr = np.frombuffer(ptr, dtype=np.uint8).reshape((img.height(), img.width(), 4)).copy()
 
+        b, g, r, a, mask = _unpremultiply(arr)
+
         def lut_for(ch):
             pts = sorted(self._curves[ch])
             xs = np.array([p[0] * 255 for p in pts], dtype=np.float64)
             ys = np.array([p[1] * 255 for p in pts], dtype=np.float64)
-            return np.interp(np.arange(256), xs, ys).astype(np.uint8)
+            return np.interp(np.arange(256), xs, ys).astype(np.float32)
 
         lut_rgb = lut_for("RGB")
+        b = lut_rgb[np.clip(b, 0, 255).astype(np.uint8)]
+        g = lut_rgb[np.clip(g, 0, 255).astype(np.uint8)]
+        r = lut_rgb[np.clip(r, 0, 255).astype(np.uint8)]
 
-        # Aplicar RGB global primero
-        arr[:, :, 0] = lut_rgb[arr[:, :, 0]]
-        arr[:, :, 1] = lut_rgb[arr[:, :, 1]]
-        arr[:, :, 2] = lut_rgb[arr[:, :, 2]]
-
-        # Canales individuales (BGRA en Qt)
         lut_b = lut_for("B")
         lut_g = lut_for("G")
         lut_r = lut_for("R")
-        arr[:, :, 0] = lut_b[arr[:, :, 0]]
-        arr[:, :, 1] = lut_g[arr[:, :, 1]]
-        arr[:, :, 2] = lut_r[arr[:, :, 2]]
+        b = lut_b[np.clip(b, 0, 255).astype(np.uint8)]
+        g = lut_g[np.clip(g, 0, 255).astype(np.uint8)]
+        r = lut_r[np.clip(r, 0, 255).astype(np.uint8)]
 
-        # Luminosidad
         lut_lum = lut_for("Lum")
-        b = arr[:, :, 0].astype(np.float32)
-        g = arr[:, :, 1].astype(np.float32)
-        r = arr[:, :, 2].astype(np.float32)
-        lum = (0.114 * b + 0.587 * g + 0.299 * r).astype(np.uint8)
-        lum_mapped = lut_lum[lum].astype(np.float32)
+        lum = np.clip(0.114 * b + 0.587 * g + 0.299 * r, 0, 255).astype(np.uint8)
+        lum_mapped = lut_lum[lum]
         with np.errstate(divide='ignore', invalid='ignore'):
-            ratio = np.where(lum > 0, lum_mapped / lum.astype(np.float32), 1.0)
-        ratio = ratio[:, :, np.newaxis]
-        arr[:, :, :3] = np.clip(arr[:, :, :3].astype(np.float32) * ratio, 0, 255).astype(np.uint8)
+            ratio = np.where(lum > 0, lum_mapped / np.maximum(lum.astype(np.float32), 1.0), 1.0)
+        b = b * ratio
+        g = g * ratio
+        r = r * ratio
+
+        _repremultiply(arr, b, g, r, a, mask)
 
         result = QImage(arr.tobytes(), img.width(), img.height(),
                         img.bytesPerLine(), QImage.Format.Format_ARGB32_Premultiplied)
@@ -913,17 +976,12 @@ class MenuAjustes:
         ptr.setsize(img.height() * img.bytesPerLine())
         arr = np.frombuffer(ptr, dtype=np.uint8).reshape((img.height(), img.width(), 4)).copy()
 
-        b = arr[:, :, 0].astype(np.float32)
-        g = arr[:, :, 1].astype(np.float32)
-        r = arr[:, :, 2].astype(np.float32)
-        gray = (0.299 * r + 0.587 * g + 0.114 * b).astype(np.uint8)
-        arr[:, :, 0] = gray
-        arr[:, :, 1] = gray
-        arr[:, :, 2] = gray
+        b, g, r, a, mask = _unpremultiply(arr)
+        gray = 0.299 * r + 0.587 * g + 0.114 * b
+        _repremultiply(arr, gray, gray, gray, a, mask)
 
-        # Reconstruir QImage desde el array modificado
         result = QImage(arr.tobytes(), img.width(), img.height(),
-                        img.bytesPerLine(), QImage.Format.Format_ARGB32)
+                        img.bytesPerLine(), QImage.Format.Format_ARGB32_Premultiplied)
         _apply_to_canvas(canvas, result.copy(), is_floating)
         if not is_floating:
             canvas.actualizar_historial_gui()
@@ -939,11 +997,15 @@ class MenuAjustes:
         ptr = img.bits()
         ptr.setsize(img.height() * img.bytesPerLine())
         arr = np.frombuffer(ptr, dtype=np.uint8).reshape((img.height(), img.width(), 4)).copy()
-        arr[:, :, :3] = 255 - arr[:, :, :3]
 
-        # Reconstruir QImage desde el array modificado
+        b, g, r, a, mask = _unpremultiply(arr)
+        b_inv = 255.0 - b
+        g_inv = 255.0 - g
+        r_inv = 255.0 - r
+        _repremultiply(arr, b_inv, g_inv, r_inv, a, mask)
+
         result = QImage(arr.tobytes(), img.width(), img.height(),
-                        img.bytesPerLine(), QImage.Format.Format_ARGB32)
+                        img.bytesPerLine(), QImage.Format.Format_ARGB32_Premultiplied)
         _apply_to_canvas(canvas, result.copy(), is_floating)
         if not is_floating:
             canvas.actualizar_historial_gui()

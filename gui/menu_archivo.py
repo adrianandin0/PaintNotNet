@@ -535,19 +535,23 @@ class MenuArchivo:
             contador += 1
 
     def _obtener_imagen_compuesta(self):
-        """Devuelve la imagen aplanada del canvas activo."""
-        canvas = self.ventana.canvas
+        """Devuelve la imagen aplanada del canvas activo compaginada correctamente."""
+        canvas = getattr(self.ventana, 'lienzo', getattr(self.ventana, 'canvas', None))
+        if not canvas or not hasattr(canvas, 'layer_mgr'):
+            from PyQt6.QtGui import QImage
+            return QImage()
+
+        img_capas = canvas.layer_mgr.get_qimage()
+
         from PyQt6.QtGui import QImage, QPainter
         from PyQt6.QtCore import Qt
-        img = QImage(canvas.layer_mgr.width, canvas.layer_mgr.height,
-                     QImage.Format.Format_ARGB32_Premultiplied)
-        img.fill(Qt.GlobalColor.white)
-        painter = QPainter(img)
-        for capa in canvas.layer_mgr.capas:
-            if capa.visible:
-                painter.drawImage(0, 0, capa.image)
+        img_final = QImage(img_capas.size(), QImage.Format.Format_ARGB32_Premultiplied)
+        img_final.fill(Qt.GlobalColor.white)
+
+        painter = QPainter(img_final)
+        painter.drawImage(0, 0, img_capas)
         painter.end()
-        return img
+        return img_final
 
     def imprimir_lienzo(self):
         from core.i18n import t
