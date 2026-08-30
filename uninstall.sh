@@ -15,4 +15,4 @@ fi
 if command -v gtk-update-icon-cache &> /dev/null; then
     gtk-update-icon-cache -f -t /usr/share/icons/hicolor &> /dev/null || true
 fi
-echo "PaintNotNet ha sido desinstalado por completo del sistema."
+echo "PaintNotNet has been completely uninstalled from the system."

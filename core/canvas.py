@@ -903,9 +903,8 @@ class CanvasWidget(QWidget):
             return
 
         self.push_document_state("Voltear Horizontal" if horizontal else "Voltear Vertical")
-        old_buffer = self.layer_mgr.buffer.copy()
-        mirrored = old_buffer.mirrored(horizontal, not horizontal)
-        self.layer_mgr.buffer = mirrored
+        for capa in self.layer_mgr.capas:
+            capa.image = capa.image.mirrored(horizontal, not horizontal)
         self.actualizar_historial_gui()
         self.update()
 
@@ -917,19 +916,20 @@ class CanvasWidget(QWidget):
             return
 
         self.push_document_state(f"Rotar {grados}°")
-        old_qimg = self.layer_mgr.get_qimage()
         t = QTransform().rotate(grados)
-        rotated = old_qimg.transformed(t, Qt.TransformationMode.SmoothTransformation)
 
-        nuevo_ancho = rotated.width()
-        nuevo_alto = rotated.height()
-        self._ajustar_tamano_widget(nuevo_ancho, nuevo_alto)
+        for capa in self.layer_mgr.capas:
+            capa.image = capa.image.transformed(t, Qt.TransformationMode.FastTransformation)
 
-        self.layer_mgr = LayerManager(nuevo_ancho, nuevo_alto)
-        self.layer_mgr.buffer = rotated
+        if self.layer_mgr.capas:
+            nuevo_ancho = self.layer_mgr.capas[0].image.width()
+            nuevo_alto = self.layer_mgr.capas[0].image.height()
+            self.layer_mgr.width = nuevo_ancho
+            self.layer_mgr.height = nuevo_alto
+            self._ajustar_tamano_widget(nuevo_ancho, nuevo_alto)
 
-        self.capa_trazo_temp = QImage(nuevo_ancho, nuevo_alto, QImage.Format.Format_ARGB32_Premultiplied)
-        self.capa_trazo_temp.fill(Qt.GlobalColor.transparent)
+            self.capa_trazo_temp = QImage(nuevo_ancho, nuevo_alto, QImage.Format.Format_ARGB32_Premultiplied)
+            self.capa_trazo_temp.fill(Qt.GlobalColor.transparent)
 
         self.actualizar_historial_gui()
         self.update()
