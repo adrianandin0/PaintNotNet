@@ -186,11 +186,22 @@ class ColorMuestraWidget(QWidget):
 
         # Borde
         if is_active:
-            painter.setPen(QPen(QColor(255, 255, 255), 2))
+            from core.theme import ThemeManager
+            tm = ThemeManager()
+            res_nombre = tm.resolver_nombre_tema(tm.current_theme)
+            pal = tm._palettes.get(res_nombre, tm._palettes["Oscuro"])
+            accent_hex = pal.get("accent_color", "#0078D7")
+            accent_col = QColor(accent_hex)
+
+            painter.setPen(QPen(accent_col, 2))
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawRect(x, y, w - 1, h - 1)
+            painter.setPen(QPen(QColor(255, 255, 255, 220), 1))
+            painter.drawRect(x + 1, y + 1, w - 3, h - 3)
         else:
             painter.setPen(QPen(QColor(40, 40, 40), 1))
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.drawRect(x, y, w - 1, h - 1)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawRect(x, y, w - 1, h - 1)
 
     def paintEvent(self, event):
         painter = QPainter(self)

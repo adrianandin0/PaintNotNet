@@ -257,7 +257,7 @@ class TextPanelWidget(QWidget):
                 from tools.text import TextTool
                 tool = getattr(canvas, 'active_tool_obj', None)
                 if isinstance(tool, TextTool) and tool.is_editing:
-                    tool.apply_format_to_selection(fmt_dict)
+                    tool.on_format_changed(canvas, fmt_dict)
 
     def actualizar_desde_formato_dict(self, d: dict):
         self.blockSignals(True)

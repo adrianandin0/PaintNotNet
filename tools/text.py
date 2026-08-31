@@ -19,7 +19,7 @@ from PyQt6.QtGui import (
     QPainter, QFont, QPen, QColor, QFontMetrics,
     QPainterPath, QBrush, QCursor
 )
-from PyQt6.QtCore import Qt, QPoint, QRect, QObject, QEvent
+from PyQt6.QtCore import Qt, QPoint, QRect, QRectF, QObject, QEvent
 from tools.base_tool import BaseTool
 
 
@@ -56,13 +56,24 @@ class CharFormat:
     strike:      bool             = False
     color:       QColor           = field(default_factory=lambda: QColor(0, 0, 0))
     alignment:   Qt.AlignmentFlag = Qt.AlignmentFlag.AlignLeft
+    borde_enabled:  bool          = False
+    borde_width:    int           = 4
+    borde_color:    QColor        = field(default_factory=lambda: QColor(255, 255, 255))
+    glow_enabled:   bool          = False
+    glow_width:     int           = 10
+    glow_color:     QColor        = field(default_factory=lambda: QColor(255, 200, 0))
+    shadow_enabled: bool          = False
+    shadow_width:   int           = 10
+    shadow_color:   QColor        = field(default_factory=lambda: QColor(0, 0, 0, 180))
+    shadow_dx:      float         = 0.5
+    shadow_dy:      float         = 0.5
 
     def build_font(self) -> QFont:
         f = QFont(self.font_family, self.font_size)
         f.setBold(self.bold)
         f.setItalic(self.italic)
-        f.setUnderline(self.underline)
-        f.setStrikeOut(self.strike)
+        f.setUnderline(False)
+        f.setStrikeOut(False)
         return f
 
     def build_base_font(self) -> QFont:
@@ -76,6 +87,10 @@ class CharFormat:
             bold=self.bold, italic=self.italic,
             underline=self.underline, strike=self.strike,
             color=QColor(self.color), alignment=self.alignment,
+            borde_enabled=self.borde_enabled, borde_width=self.borde_width, borde_color=QColor(self.borde_color),
+            glow_enabled=self.glow_enabled, glow_width=self.glow_width, glow_color=QColor(self.glow_color),
+            shadow_enabled=self.shadow_enabled, shadow_width=self.shadow_width, shadow_color=QColor(self.shadow_color),
+            shadow_dx=self.shadow_dx, shadow_dy=self.shadow_dy,
         )
 
     def eq(self, other: "CharFormat") -> bool:
@@ -86,7 +101,18 @@ class CharFormat:
                 self.underline   == other.underline    and
                 self.strike      == other.strike       and
                 self.color.rgba()== other.color.rgba() and
-                self.alignment   == other.alignment)
+                self.alignment   == other.alignment   and
+                self.borde_enabled == other.borde_enabled and
+                self.borde_width   == other.borde_width and
+                self.borde_color.rgba() == other.borde_color.rgba() and
+                self.glow_enabled  == other.glow_enabled and
+                self.glow_width    == other.glow_width and
+                self.glow_color.rgba() == other.glow_color.rgba() and
+                self.shadow_enabled == other.shadow_enabled and
+                self.shadow_width   == other.shadow_width and
+                self.shadow_color.rgba() == other.shadow_color.rgba() and
+                self.shadow_dx     == other.shadow_dx and
+                self.shadow_dy     == other.shadow_dy)
 
 
 @dataclass
@@ -137,6 +163,17 @@ def _apply_dict_to_fmt(fmt: CharFormat, d: dict):
     if "strike"      in d: fmt.strike      = bool(d["strike"])
     if "alignment"   in d: fmt.alignment   = d["alignment"]
     if "color"       in d: fmt.color       = QColor(d["color"])
+    if "borde_enabled"  in d: fmt.borde_enabled  = bool(d["borde_enabled"])
+    if "borde_width"    in d: fmt.borde_width    = max(1, int(d["borde_width"]))
+    if "borde_color"    in d: fmt.borde_color    = QColor(d["borde_color"])
+    if "glow_enabled"   in d: fmt.glow_enabled   = bool(d["glow_enabled"])
+    if "glow_width"     in d: fmt.glow_width     = max(1, int(d["glow_width"]))
+    if "glow_color"     in d: fmt.glow_color     = QColor(d["glow_color"])
+    if "shadow_enabled" in d: fmt.shadow_enabled = bool(d["shadow_enabled"])
+    if "shadow_width"   in d: fmt.shadow_width   = max(1, int(d["shadow_width"]))
+    if "shadow_color"   in d: fmt.shadow_color   = QColor(d["shadow_color"])
+    if "shadow_dx"      in d: fmt.shadow_dx      = float(d["shadow_dx"])
+    if "shadow_dy"      in d: fmt.shadow_dy      = float(d["shadow_dy"])
 
 
 def _apply_fmt_to_range(line: RichLine, col_start: int, col_end: int, fmt_dict: dict):
@@ -365,21 +402,15 @@ class TextTool(BaseTool, QObject):
 
         if alignment == Qt.AlignmentFlag.AlignLeft:
             return ox
-        if not self.text_rect:
-            return ox
 
-        max_w = self.text_rect.width()
-        # Medir ancho del segmento
-        seg_txt = _line_text(line)[seg_start:seg_end]
+        container_w = max(self.text_rect.width(), self._max_line_width()) if self.text_rect else self._max_line_width()
         lw = self._measure_text_width(li, seg_start, seg_end)
 
         if alignment == Qt.AlignmentFlag.AlignHCenter:
-            return ox + (max_w - lw) // 2
+            return ox + max(0, (container_w - lw) // 2)
         if alignment == Qt.AlignmentFlag.AlignRight:
-            return ox + max_w - lw
+            return ox + max(0, container_w - lw)
         if alignment == Qt.AlignmentFlag.AlignJustify:
-            if is_last_visual:
-                return ox  # última línea → alinear izq
             return ox
         return ox
 
@@ -442,14 +473,16 @@ class TextTool(BaseTool, QObject):
 
     def apply_format_to_selection(self, fmt_dict: dict):
         _apply_dict_to_fmt(self._default_fmt, fmt_dict)
-        if not self._has_selection():
-            return
-        sl, sc, el, ec = self._sel_range()
-        for li in range(sl, el + 1):
-            line = self.rich_lines[li]
-            cs   = sc if li == sl else 0
-            ce   = ec if li == el else len(_line_text(line))
-            _apply_fmt_to_range(line, cs, ce, fmt_dict)
+        if self._has_selection():
+            sl, sc, el, ec = self._sel_range()
+            for li in range(sl, el + 1):
+                line = self.rich_lines[li]
+                cs   = sc if li == sl else 0
+                ce   = ec if li == el else len(_line_text(line))
+                _apply_fmt_to_range(line, cs, ce, fmt_dict)
+        else:
+            for line in self.rich_lines:
+                _apply_fmt_to_range(line, 0, len(_line_text(line)), fmt_dict)
         if self.current_canvas:
             self.current_canvas.update()
 
@@ -1039,8 +1072,13 @@ class TextTool(BaseTool, QObject):
 
         self._render(painter, canvas, is_commit=False)
 
-        # Contorno delimitador del cuadro de texto
+    def draw_handles(self, painter: QPainter, canvas):
+        if not self.is_editing:
+            return
+
+        # Contorno delimitador del cuadro de texto y tiradores (visibles en primer plano fuera del lienzo)
         rect = self._get_content_rect()
+        painter.save()
         painter.setPen(QPen(QColor(0, 120, 215), 1, Qt.PenStyle.DashLine))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawRect(rect)
@@ -1048,7 +1086,7 @@ class TextTool(BaseTool, QObject):
         # Dibujar tiradores 0..7 (Resize) y 8 (Move)
         for idx, hr in self._handle_rects():
             if idx == 8:
-                # Handle de mover: Cuadradito de mover un poco más grande (azul con borde blanco)
+                # Handle de mover: Cuadradito de mover azul con borde blanco
                 painter.setPen(QPen(QColor(255, 255, 255), 1.5))
                 painter.setBrush(QBrush(QColor(26, 95, 168)))
                 painter.drawRect(hr)
@@ -1057,26 +1095,17 @@ class TextTool(BaseTool, QObject):
                 painter.setPen(QPen(QColor(0, 120, 215), 1))
                 painter.setBrush(QBrush(QColor(255, 255, 255)))
                 painter.drawRect(hr)
+        painter.restore()
 
     def _render(self, painter: QPainter, canvas, is_commit: bool = False):
-        eff       = self._get_effects_cfg(canvas)
-        borde_en  = eff.get("borde_enabled",  False)
-        borde_w   = max(1, int(eff.get("borde_width", 4)))
-        borde_col = eff.get("borde_color",  QColor(255, 255, 255))
-        glow_en   = eff.get("glow_enabled",  False)
-        glow_r    = max(1, int(eff.get("glow_width", 10)))
-        glow_col  = eff.get("glow_color",   QColor(255, 200, 0))
-        shadow_en = eff.get("shadow_enabled", False)
-        shadow_w  = max(1, int(eff.get("shadow_width", 10)))
-        shadow_col= eff.get("shadow_color", QColor(0, 0, 0, 180))
-        off_x     = int(float(eff.get("shadow_dx", 0.5)) * shadow_w * 0.5)
-        off_y     = int(float(eff.get("shadow_dy", 0.5)) * shadow_w * 0.5)
-
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         oy = self._origin().y()
 
-        # Clipear al text_rect solo si NO hay efectos activos (borde, resplandor, sombra)
-        has_effects = (borde_en or glow_en or shadow_en)
+        # Clipear al text_rect solo si ninguna línea/span tiene efectos activos
+        has_effects = any(
+            span.fmt.borde_enabled or span.fmt.glow_enabled or span.fmt.shadow_enabled
+            for line in self.rich_lines for span in line
+        )
         clip_applied = False
         if self.text_rect and not has_effects:
             painter.setClipRect(self.text_rect)
@@ -1093,11 +1122,9 @@ class TextTool(BaseTool, QObject):
                 for vi, (seg_s, seg_e) in enumerate(segs):
                     is_last_v = (vi == len(segs) - 1)
                     txt_len   = len(_line_text(self.rich_lines[li]))
-                    # Comprobar si este segmento está (parcialmente) seleccionado
                     if sl <= li <= el:
                         cs2 = sc if li == sl else 0
                         ce2 = ec if li == el else txt_len
-                        # Intersección del segmento con la selección
                         hs  = max(cs2, seg_s)
                         he  = min(ce2, seg_e)
                         if hs < he:
@@ -1119,7 +1146,6 @@ class TextTool(BaseTool, QObject):
                 bx = self._visual_line_x(li, seg_s, seg_e, is_last_v)
                 baseline = y + asc
 
-                # Calcular justify extra_space_per_gap si aplica
                 alignment = rich_line[0].fmt.alignment if rich_line else Qt.AlignmentFlag.AlignLeft
                 extra_per_space = 0.0
                 if (alignment == Qt.AlignmentFlag.AlignJustify and not is_last_v and
@@ -1130,7 +1156,6 @@ class TextTool(BaseTool, QObject):
                     if n_spaces > 0:
                         extra_per_space = (self.text_rect.width() - lw) / n_spaces
 
-                # Renderizar spans dentro del segmento
                 x_acc = 0.0
                 pos   = 0
                 for span in rich_line:
@@ -1146,29 +1171,55 @@ class TextTool(BaseTool, QObject):
                     sub  = span.text[t_s:t_e]
                     painter.setFont(font)
 
+                    b_en  = span.fmt.borde_enabled
+                    b_w   = span.fmt.borde_width
+                    b_col = span.fmt.borde_color
+                    g_en  = span.fmt.glow_enabled
+                    g_r   = span.fmt.glow_width
+                    g_col = span.fmt.glow_color
+                    s_en  = span.fmt.shadow_enabled
+                    s_w   = span.fmt.shadow_width
+                    s_col = span.fmt.shadow_color
+                    s_dx  = int(span.fmt.shadow_dx * s_w * 0.5)
+                    s_dy  = int(span.fmt.shadow_dy * s_w * 0.5)
+
+                    def _build_span_path(text_str, x_pos):
+                        path = QPainterPath()
+                        path.addText(x_pos, baseline, font, text_str)
+
+                        sw = m.horizontalAdvance(text_str)
+                        line_w = max(1, m.lineWidth())
+
+                        if span.fmt.strike:
+                            strike_y = baseline - max(1, m.strikeOutPos())
+                            path.addRect(QRectF(x_pos, strike_y, sw, line_w))
+
+                        if span.fmt.underline:
+                            under_y = baseline + max(1, m.underlinePos())
+                            path.addRect(QRectF(x_pos, under_y, sw, line_w))
+
+                        path.setFillRule(Qt.FillRule.WindingFill)
+                        return path
+
                     if extra_per_space > 0:
                         for ch in sub:
-                            path = QPainterPath()
-                            path.addText(bx + x_acc, baseline, font, ch)
+                            path = _build_span_path(ch, bx + x_acc)
                             self._draw_path(painter, path, span.fmt.color,
-                                            borde_en, borde_w, borde_col,
-                                            glow_en, glow_r, glow_col,
-                                            shadow_en, shadow_w, shadow_col, off_x, off_y)
+                                            b_en, b_w, b_col,
+                                            g_en, g_r, g_col,
+                                            s_en, s_w, s_col, s_dx, s_dy)
                             cw = m.horizontalAdvance(ch)
                             x_acc += cw + (extra_per_space if ch == " " else 0)
                     else:
-                        path = QPainterPath()
-                        path.addText(bx + x_acc, baseline, font, sub)
+                        path = _build_span_path(sub, bx + x_acc)
                         self._draw_path(painter, path, span.fmt.color,
-                                        borde_en, borde_w, borde_col,
-                                        glow_en, glow_r, glow_col,
-                                        shadow_en, shadow_w, shadow_col, off_x, off_y)
+                                        b_en, b_w, b_col,
+                                        g_en, g_r, g_col,
+                                        s_en, s_w, s_col, s_dx, s_dy)
                         x_acc += m.horizontalAdvance(sub)
                     pos += l
 
-                # Cursor
                 if not is_commit and li == self.cursor_line:
-                    # ¿El cursor está en este segmento?
                     cur_in_seg = seg_s <= self.cursor_col <= seg_e
                     if cur_in_seg:
                         cx  = bx + self._col_x_offset(li, self.cursor_col, seg_s, seg_e)
@@ -1177,7 +1228,6 @@ class TextTool(BaseTool, QObject):
 
                 y += lh
 
-        # Restaurar clip
         if clip_applied:
             painter.setClipping(False)
 

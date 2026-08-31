@@ -862,7 +862,12 @@ class TopToolBarWidget(QToolBar):
 
     def _emitir_cambio_efectos(self, *_):
         if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
-            self.main_window.lienzo.update()
+            canvas = self.main_window.lienzo
+            from tools.text import TextTool
+            if hasattr(canvas, 'active_tool_obj') and isinstance(canvas.active_tool_obj, TextTool) and canvas.active_tool_obj.is_editing:
+                canvas.active_tool_obj.on_format_changed(canvas, self.obtener_config_efectos())
+            else:
+                canvas.update()
 
     def obtener_config_efectos(self) -> dict:
         from PyQt6.QtGui import QColor

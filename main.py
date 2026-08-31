@@ -807,8 +807,74 @@ class PaintNotNet(QMainWindow):
 
         event.accept()
 
+from PyQt6.QtNetwork import QLocalServer, QLocalSocket
+
+
+def obtener_nombre_servidor_unico() -> str:
+    import getpass
+    try:
+        usuario = getpass.getuser()
+    except Exception:
+        usuario = "default_user"
+    return f"PaintNotNet_SingleInstance_Server_{usuario}"
+
+
+def verificar_instancia_unica(files_to_open: list) -> bool:
+    socket = QLocalSocket()
+    server_name = obtener_nombre_servidor_unico()
+    socket.connectToServer(server_name)
+    if socket.waitForConnected(500):
+        payload = "\n".join(files_to_open) if files_to_open else "__FOCUS__"
+        socket.write(payload.encode('utf-8'))
+        socket.waitForBytesWritten(1000)
+        socket.disconnectFromServer()
+        return True
+    return False
+
+
+def iniciar_servidor_instancia_unica(ventana: PaintNotNet):
+    server_name = obtener_nombre_servidor_unico()
+    QLocalServer.removeServer(server_name)
+
+    server = QLocalServer()
+    if not server.listen(server_name):
+        return server
+
+    def _on_new_connection():
+        client_socket = server.nextPendingConnection()
+        if not client_socket:
+            return
+        if client_socket.waitForReadyRead(1000):
+            raw_data = client_socket.readAll().data().decode('utf-8', errors='ignore')
+            lines = [line.strip() for line in raw_data.split('\n') if line.strip()]
+            for line in lines:
+                if line != "__FOCUS__" and os.path.exists(line):
+                    ventana.menu_archivo.abrir_ruta_especifica(os.path.abspath(line))
+
+        if ventana.isMinimized():
+            ventana.showNormal()
+        ventana.show()
+        ventana.raise_()
+        ventana.activateWindow()
+
+    server.newConnection.connect(_on_new_connection)
+    return server
+
+
 if __name__ == '__main__':
     app = QApplication(sys.argv)
+
+    # Filtrar argumentos de la línea de comandos para obtener rutas de archivos válidas
+    archivos_args = []
+    if len(sys.argv) > 1:
+        for arg in sys.argv[1:]:
+            if arg and not arg.startswith("-") and os.path.exists(arg):
+                archivos_args.append(os.path.abspath(arg))
+
+    # Comprobar si ya existe una instancia activa ejecutándose
+    if verificar_instancia_unica(archivos_args):
+        # Ya había una instancia abierta: se le notificaron los archivos y se finaliza este proceso secundario.
+        sys.exit(0)
 
     from core.theme import ThemeManager
     from core.i18n import I18nManager
@@ -819,13 +885,15 @@ if __name__ == '__main__':
     ventana = PaintNotNet()
     ThemeManager().establecer_tema(ThemeManager().current_theme, ventana)
 
+    # Iniciar servidor IPC para recibir solicitudes de apertura de archivos de futuras instancias
+    ventana._single_instance_server = iniciar_servidor_instancia_unica(ventana)
+
     # Re-traducir toda la UI para que coincida con el idioma cargado.
-    # Necesario porque los widgets se construyeron con el idioma por defecto.
     ventana.retraducir_ui()
 
-    if len(sys.argv) > 1:
-        ruta_arg = sys.argv[1]
-        if os.path.exists(ruta_arg) and not ruta_arg.startswith("-"):
-            ventana.menu_archivo.abrir_ruta_especifica(os.path.abspath(ruta_arg))
+    if archivos_args:
+        for ruta in archivos_args:
+            ventana.menu_archivo.abrir_ruta_especifica(ruta)
+
     ventana.show()
     sys.exit(app.exec())
