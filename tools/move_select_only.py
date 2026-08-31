@@ -9,6 +9,10 @@ class MoveSelectOnlyTool(BaseTool):
         super().__init__("Mover Selección", "gui/iconos/move_select_only.png")
 
     def mouse_press(self, canvas, event, color_activo=None):
+        from tools.move_select_pixels import MoveSelectPixelsTool
+        if canvas.selection_engine.floating_image is not None:
+            MoveSelectPixelsTool.commit_floating_image(canvas)
+
         engine = canvas.selection_engine
         if not engine.has_selection():
             return

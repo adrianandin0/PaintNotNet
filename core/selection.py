@@ -132,27 +132,26 @@ class SelectionEngine:
         directamente desde la imagen original pura sin ninguna pérdida acumulada de calidad.
         """
         raw = self.original_raw_image or self.unscaled_floating_image
-        if not raw or raw.isNull():
-            return
+        if raw and not raw.isNull():
+            t_img = QTransform()
+            t_img.scale(self.scale_x, self.scale_y)
+            t_img.rotate(self.total_rotation)
 
-        t_img = QTransform()
-        t_img.scale(self.scale_x, self.scale_y)
-        t_img.rotate(self.total_rotation)
+            # Renderizado suavizado directo desde el original de alta calidad
+            self.floating_image = raw.transformed(t_img, Qt.TransformationMode.SmoothTransformation)
+            self.unscaled_floating_image = raw.copy()
 
-        # Renderizado suavizado directo desde el original de alta calidad
-        self.floating_image = raw.transformed(t_img, Qt.TransformationMode.SmoothTransformation)
-        self.unscaled_floating_image = raw.copy()
+            new_w = float(self.floating_image.width())
+            new_h = float(self.floating_image.height())
 
-        new_w = float(self.floating_image.width())
-        new_h = float(self.floating_image.height())
-
-        cx, cy = self.rotation_center.x(), self.rotation_center.y()
-        top_left = QPointF(cx - new_w / 2.0, cy - new_h / 2.0)
-        self.original_image_pos = top_left
-        self.active_rect = QRectF(top_left.x(), top_left.y(), new_w, new_h)
+            cx, cy = self.rotation_center.x(), self.rotation_center.y()
+            top_left = QPointF(cx - new_w / 2.0, cy - new_h / 2.0)
+            self.original_image_pos = top_left
+            self.active_rect = QRectF(top_left.x(), top_left.y(), new_w, new_h)
 
         # Mapeo del path de selección
         if self.initial_unrotated_path and not self.initial_unrotated_path.isEmpty() and self.initial_unrotated_rect:
+            cx, cy = self.rotation_center.x(), self.rotation_center.y()
             orig_cx = self.initial_unrotated_rect.center().x()
             orig_cy = self.initial_unrotated_rect.center().y()
 
@@ -164,6 +163,7 @@ class SelectionEngine:
                 .translate(-orig_cx, -orig_cy)
             )
             self.active_path = t_path.map(self.initial_unrotated_path)
+            self.active_rect = self.active_path.boundingRect()
 
     def get_handles(self):
         if not self.has_selection():
@@ -297,11 +297,18 @@ class SelectionEngine:
             self.init_raw_image(self.floating_image)
 
         raw = self.original_raw_image or self.unscaled_floating_image
-        if not raw or raw.isNull():
-            return
+        if raw and not raw.isNull():
+            raw_w = float(raw.width())
+            raw_h = float(raw.height())
+        else:
+            if not self.initial_unrotated_rect or self.initial_unrotated_rect.isEmpty():
+                self.initial_unrotated_rect = QRectF(self.active_rect)
+                self.initial_unrotated_path = QPainterPath(self.active_path)
+            raw_w = float(self.initial_unrotated_rect.width())
+            raw_h = float(self.initial_unrotated_rect.height())
 
-        raw_w = float(raw.width())
-        raw_h = float(raw.height())
+        if raw_w <= 0 or raw_h <= 0:
+            return
 
         # Dimensiones en espacio local des-rotado al inicio del arrastre
         W0 = raw_w * getattr(self, 'initial_scale_x_drag', self.scale_x)
