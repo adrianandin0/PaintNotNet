@@ -221,23 +221,17 @@ class CanvasWidget(QWidget):
 
         self.actualizar_cursor_herramienta(tool_object)
 
-    def actualizar_cursor_herramienta(self, tool_object=None):
+    def obtener_cursor_custom_herramienta(self, tool_object=None):
+        """Genera y devuelve el QCursor personalizado (32x32 con cruz y la insignia en escala de grises)."""
         if tool_object is None:
             tool_object = getattr(self, 'active_tool_obj', None)
 
         if not tool_object:
-            self.unsetCursor()
-            return
-
-        from tools.text import TextTool
-        if isinstance(tool_object, TextTool):
-            self.setCursor(Qt.CursorShape.IBeamCursor)
-            return
+            return None
 
         badge_pixmap = self._obtener_icono_herramienta_gris(tool_object)
         if not badge_pixmap or badge_pixmap.isNull():
-            self.setCursor(Qt.CursorShape.CrossCursor)
-            return
+            return QCursor(Qt.CursorShape.CrossCursor)
 
         # Crear cursor de hardware compuesto (32x32) con la cruz fija en (6,6) y la insignia en (14,14) SIN RECUADRO
         pm = QPixmap(32, 32)
@@ -252,12 +246,25 @@ class CanvasWidget(QWidget):
         painter.setPen(QPen(QColor(255, 255, 255, 255), 1))
         painter.drawPoint(6, 6)
 
-        # 2. Dibujar directamente la insignia de 16x16 (SIN NINGÚN RECUADRO BORDENADO)
+        # 2. Dibujar directamente la insignia de 16x16
         painter.drawPixmap(14, 14, badge_pixmap)
         painter.end()
 
-        cursor = QCursor(pm, 6, 6)
-        self.setCursor(cursor)
+        return QCursor(pm, 6, 6)
+
+    def actualizar_cursor_herramienta(self, tool_object=None):
+        if tool_object is None:
+            tool_object = getattr(self, 'active_tool_obj', None)
+
+        if not tool_object:
+            self.unsetCursor()
+            return
+
+        cursor = self.obtener_cursor_custom_herramienta(tool_object)
+        if cursor:
+            self.setCursor(cursor)
+        else:
+            self.setCursor(Qt.CursorShape.CrossCursor)
 
     def actualizar_config_texto(self, config):
         self.config_texto = config
@@ -777,6 +784,7 @@ class CanvasWidget(QWidget):
         """Recorta el lienzo al bounding rect de la selección activa."""
         from PyQt6.QtCore import QRectF
         from PyQt6.QtGui import QImage, QPainter
+        from tools.move_select_pixels import MoveSelectPixelsTool
 
         if not self.selection_engine.has_selection():
             return False
@@ -791,6 +799,10 @@ class CanvasWidget(QWidget):
         rect = rect.intersected(canvas_rect)
         if rect.isEmpty():
             return False
+
+        # Si hay una imagen flotante (insertada o pegada), fijarla sobre la capa activa ANTES de recortar
+        if self.selection_engine.floating_image and not self.selection_engine.floating_image.isNull():
+            MoveSelectPixelsTool.commit_floating_image(self)
 
         x, y = int(rect.x()), int(rect.y())
         w, h = max(1, int(rect.width())), max(1, int(rect.height()))

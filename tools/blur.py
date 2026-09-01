@@ -9,7 +9,6 @@ class BlurTool(BaseTool):
     def __init__(self):
         super().__init__("Difuminar", "gui/iconos/blur.png")
         self.is_drawing = False
-        self.show_cursor_badge = False
 
     def mouse_press(self, canvas, event, color_activo=None):
         if event.button() in (Qt.MouseButton.LeftButton, Qt.MouseButton.RightButton):

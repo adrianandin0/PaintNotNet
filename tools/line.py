@@ -269,14 +269,8 @@ class LineTool(BaseTool):
                     self.p2 = QPointF(pos)
                 canvas.update()
             else:
-                # Sin arrastre activo: actualizar cursor según hover
-                hit = self.hit_test(pos)
-                if hit == self.HANDLE_BODY:
-                    canvas.setCursor(QCursor(Qt.CursorShape.SizeAllCursor))
-                elif hit != self.HANDLE_NONE:
-                    canvas.setCursor(QCursor(Qt.CursorShape.CrossCursor))
-                else:
-                    canvas.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
+                # Mantener cursor personalizado de la herramienta
+                canvas.actualizar_cursor_herramienta(self)
 
     def mouse_release(self, canvas, event, color_activo=None):
         if self.state == 1:

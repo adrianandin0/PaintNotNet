@@ -677,19 +677,12 @@ class TextTool(BaseTool, QObject):
                 return idx
         return None
 
-    def _get_cursor_for_handle(self, handle: int) -> Qt.CursorShape:
-        cursors = {
-            0: Qt.CursorShape.SizeFDiagCursor, # TL
-            1: Qt.CursorShape.SizeVerCursor,   # TC
-            2: Qt.CursorShape.SizeBDiagCursor, # TR
-            3: Qt.CursorShape.SizeHorCursor,   # RC
-            4: Qt.CursorShape.SizeFDiagCursor, # BR
-            5: Qt.CursorShape.SizeVerCursor,   # BC
-            6: Qt.CursorShape.SizeBDiagCursor, # BL
-            7: Qt.CursorShape.SizeHorCursor,   # LC
-            8: Qt.CursorShape.CrossCursor,     # MV -> Cruz limpia
-        }
-        return cursors.get(handle, Qt.CursorShape.IBeamCursor)
+    def _get_cursor_for_handle(self, handle: int, canvas=None):
+        if canvas is not None and hasattr(canvas, 'obtener_cursor_custom_herramienta'):
+            custom_cursor = canvas.obtener_cursor_custom_herramienta(self)
+            if custom_cursor:
+                return custom_cursor
+        return Qt.CursorShape.CrossCursor
 
     def _resize_or_move_by_handle(self, handle: int, pt: QPoint):
         if not hasattr(self, '_drag_start_rect') or not self._drag_start_rect:
@@ -756,7 +749,7 @@ class TextTool(BaseTool, QObject):
             self._drag_click_pos = click
             self._drag_start_pos = QPoint(self.pos)
             self._drag_start_rect = QRect(self._get_content_rect())
-            canvas.setCursor(self._get_cursor_for_handle(h))
+            canvas.setCursor(self._get_cursor_for_handle(h, canvas))
             return
 
         # ¿Clic dentro del bounding rect?
@@ -789,7 +782,7 @@ class TextTool(BaseTool, QObject):
         # Resize / Move de text_rect
         if self._drag_handle is not None:
             self._resize_or_move_by_handle(self._drag_handle, click)
-            canvas.setCursor(self._get_cursor_for_handle(self._drag_handle))
+            canvas.setCursor(self._get_cursor_for_handle(self._drag_handle, canvas))
             canvas.update()
             return
 
@@ -821,13 +814,19 @@ class TextTool(BaseTool, QObject):
             canvas.update()
             return
 
-        # Hovering cursor feedback (siempre IBeam excepto sobre tiradores)
+        # Hovering cursor feedback (IBeam SOLO cuando se está dentro del recuadro de texto para editar)
         if self.is_editing:
             h_hover = self._hit_handle(click)
             if h_hover is not None:
-                canvas.setCursor(self._get_cursor_for_handle(h_hover))
+                canvas.setCursor(self._get_cursor_for_handle(h_hover, canvas))
             else:
-                canvas.setCursor(Qt.CursorShape.IBeamCursor)
+                br = self._get_content_rect()
+                if br and br.contains(click):
+                    canvas.setCursor(Qt.CursorShape.IBeamCursor)
+                else:
+                    canvas.actualizar_cursor_herramienta(self)
+        else:
+            canvas.actualizar_cursor_herramienta(self)
 
     def mouse_release(self, canvas, event, color_activo):
         click = event.position().toPoint()
@@ -835,7 +834,13 @@ class TextTool(BaseTool, QObject):
         self._mouse_selecting = False
 
         if self.is_editing:
-            canvas.setCursor(Qt.CursorShape.IBeamCursor)
+            br = self._get_content_rect()
+            if br and br.contains(click):
+                canvas.setCursor(Qt.CursorShape.IBeamCursor)
+            else:
+                canvas.actualizar_cursor_herramienta(self)
+        else:
+            canvas.actualizar_cursor_herramienta(self)
 
         if not self._has_selection():
             self._clear_sel()
