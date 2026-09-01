@@ -25,12 +25,9 @@
 ## Índice / Table of Contents
 - [Acerca del Proyecto (Español)](#acerca-del-proyecto-español)
 - [About the Project (English)](#about-the-project-english)
-- [Requisitos Previos del Sistema / System Prerequisites](#requisitos-previos-del-sistema--system-prerequisites)
-  - [Linux: Instalación de Dependencias por Distribución](#linux-instalación-de-dependencias-por-distribución)
-  - [Windows: Instalación de Dependencias con Winget](#windows-instalación-de-dependencias-con-winget)
-- [Guía de Instalación y Uso / Installation & Usage Guide](#guía-de-instalación-y-uso--installation--usage-guide)
-  - [Instalación en Linux](#instalación-en-linux)
-  - [Instalación en Windows](#instalación-en-windows)
+- [Guía Paso a Paso de Instalación / Step-by-Step Installation Guide](#guía-paso-a-paso-de-instalación--step-by-step-installation-guide)
+  - [Instalación en Linux (Paso a Paso)](#instalación-en-linux-paso-a-paso)
+  - [Instalación en Windows (Paso a Paso)](#instalación-en-windows-paso-a-paso)
   - [Ejecución Directa desde Código Fuente](#ejecución-directa-desde-código-fuente)
 - [Resolución de Problemas Frecuentes / Troubleshooting](#resolución-de-problemas-frecuentes--troubleshooting)
 - [Colaboración / Contributing](#colaboración--contributing)
@@ -118,123 +115,99 @@
 
 ---
 
-## Requisitos Previos del Sistema / System Prerequisites
+## Guía Paso a Paso de Instalación / Step-by-Step Installation Guide
 
-Para ejecutar o instalar PaintNotNet desde los scripts (`install.sh` en Linux o `install.bat` en Windows), el sistema requiere contar con **Python 3**, **Pip**, **Git**, **PyInstaller** y las librerías gráficas de la plataforma. Si nunca has usado Python o consolas de comandos, sigue estas instrucciones paso a paso antes de ejecutar los instaladores.
+Para que los instaladores y el programa funcionen sin errores, es indispensable contar primero con **Python 3** y **Git** en tu sistema. Sigue las instrucciones ordenadas paso a paso para tu sistema operativo.
 
-### Linux: Instalación de Dependencias por Distribución
+---
 
-Abre una terminal (marcada como `Terminal` o `Konsole` en el menú de tu sistema) y ejecuta los comandos correspondientes a tu distribución de Linux.
+### Instalación en Linux (Paso a Paso)
 
-#### Debian / Ubuntu / Linux Mint / Pop!_OS
+#### Paso 1: Instalar Python, Git y dependencias del sistema (Obligatorio)
+Abre la terminal de tu distribución y ejecuta el comando correspondiente a tu sistema antes de descargar nada:
+
+- **Debian / Ubuntu / Linux Mint / Pop!_OS**:
+  ```bash
+  sudo apt update
+  sudo apt install -y python3 python3-pip python3-venv git build-essential libxcb-cursor0 libegl1 libgl1 libdbus-1-3
+  ```
+
+- **Fedora / RedHat / RHEL / CentOS / AlmaLinux**:
+  ```bash
+  sudo dnf install -y python3 python3-pip git gcc gcc-c++ libxcb mesa-libEGL mesa-libGL dbus-libs
+  ```
+
+- **Arch Linux / Manjaro / EndeavourOS**:
+  ```bash
+  sudo pacman -Sy --needed --noconfirm python python-pip git base-devel libxcb libegl libgl dbus
+  ```
+
+- **openSUSE / SUSE Linux Enterprise**:
+  ```bash
+  sudo zypper install -y python3 python3-pip git gcc libxcb-cursor0 libEGL1 libGL1 libdbus-1-3
+  ```
+
+#### Paso 2: Clonar el repositorio
+Una vez instalado Python y Git en el Paso 1, descarga el código del programa:
 ```bash
-sudo apt update
-sudo apt install -y python3 python3-pip python3-venv git build-essential libxcb-cursor0 libegl1 libgl1 libdbus-1-3
+git clone https://github.com/adrianandin0/PaintNotNet.git
+cd PaintNotNet
 ```
 
-#### Fedora / RedHat / RHEL / CentOS / AlmaLinux
+#### Paso 3: Ejecutar el instalador automático (`install.sh`)
+El instalador `install.sh` se encargará de crear el entorno virtual, instalar PyInstaller y compilar el binario instalando el acceso directo en el menú de aplicaciones:
 ```bash
-sudo dnf install -y python3 python3-pip git gcc gcc-c++ libxcb mesa-libEGL mesa-libGL dbus-libs
+sudo ./install.sh
 ```
-
-#### Arch Linux / Manjaro / EndeavourOS
+Selecciona tu idioma (01 - Español / 02 - English). Al finalizar, podrás abrir PaintNotNet desde tu menú de aplicaciones o escribiendo en la terminal:
 ```bash
-sudo pacman -Sy --needed --noconfirm python python-pip git base-devel libxcb libegl libgl dbus
-```
-
-#### openSUSE / SUSE Linux Enterprise
-```bash
-sudo zypper install -y python3 python3-pip git gcc libxcb-cursor0 libEGL1 libGL1 libdbus-1-3
+paintnotnet
 ```
 
 ---
 
-### Windows: Instalación de Dependencias con Winget
+### Instalación en Windows (Paso a Paso)
 
-En Windows 10 y Windows 11, puedes instalar todas las herramientas necesarias de forma automática utilizando el Administrador de Paquetes de Windows (`winget`).
+#### Paso 1: Instalar Python y Git con Winget (Obligatorio)
+Antes de ejecutar cualquier script o comando de Python en Windows, debes instalar Python y Git.
 
-#### Paso 1: Instalación Automática desde Consola
-Abre **Símbolo del sistema (CMD)** o **PowerShell** y copia el siguiente comando:
+1. Abre **Símbolo del sistema (CMD)** o **PowerShell** y ejecuta:
+   ```cmd
+   winget install --id Python.Python.3.12 -e & winget install --id Git.Git -e
+   ```
 
+2. **MUY IMPORTANTE**: Una vez terminada la instalación con `winget`, **cierra la consola actual y abre una nueva**. Si no cierras la consola, Windows no reconocerá las variables de entorno de `python` ni de `git` y fallará.
+
+*Nota alternativa (Sin Winget)*: Puedes descargar e instalar Python manualmente desde [python.org/downloads](https://www.python.org/downloads/). En la primera pantalla del instalador, **marca obligatoriamente la casilla "Add python.exe to PATH"** antes de presionar *Install Now*. Descarga Git desde [git-scm.com](https://git-scm.com/).
+
+#### Paso 2: Clonar el repositorio
+En la **nueva ventana de CMD o PowerShell**, ejecuta:
 ```cmd
-winget install --id Python.Python.3.12 -e & winget install --id Git.Git -e
+git clone https://github.com/adrianandin0/PaintNotNet.git
+cd PaintNotNet
 ```
 
-#### Paso 2: Importante - Reiniciar la Consola
-Una vez finalizada la instalación de `winget`, **cierra la ventana de CMD/PowerShell actual y abre una nueva**. Esto es obligatorio para que Windows reconozca los nuevos comandos (`python`, `pip` y `git`) en el PATH del sistema.
+#### Paso 3: Preparar el entorno e instalar dependencias
+Copia y pega los siguientes comandos para crear el entorno virtual de Python e instalar PyInstaller:
+```cmd
+python -m venv venv
+call venv\Scripts\activate.bat
+pip install --upgrade pip
+pip install -r requirements_windows.txt pyinstaller
+```
 
-#### Alternativa Gráfica (Sin Winget)
-Si prefieres instalar las herramientas de manera tradicional:
-1. Descarga Python 3 desde [python.org/downloads](https://www.python.org/downloads/).
-2. **IMPORTANTE**: Durante la pantalla inicial del asistente de instalación, marca la casilla **"Add python.exe to PATH"** (Agregar python.exe al PATH) antes de hacer clic en *Install Now*.
-3. Descarga e instala Git para Windows desde [git-scm.com](https://git-scm.com/).
-
----
-
-## Guía de Instalación y Uso / Installation & Usage Guide
-
-### Instalación en Linux
-
-#### Opción A: Instalador Automático (`install.sh`) - Recomendado
-
-El script `install.sh` verifica el sistema, crea el entorno virtual, instala PyInstaller de forma automatizada si es necesario, compila el ejecutable binario nativo y registra la aplicación con su ícono en el menú del sistema.
-
-1. Abre la terminal y clona el repositorio:
-   ```bash
-   git clone https://github.com/adrianandin0/PaintNotNet.git
-   cd PaintNotNet
-   ```
-
-2. Ejecuta el instalador con permisos de administrador:
-   ```bash
-   sudo ./install.sh
-   ```
-
-3. Elige el idioma de la aplicación (01 - Español / 02 - English).
-
-4. **¡Listo!** Puedes iniciar PaintNotNet desde:
-   - El menú de aplicaciones de tu escritorio (**Gráficos -> PaintNotNet**).
-   - O escribiendo directamente en cualquier terminal:
-     ```bash
-     paintnotnet
-     ```
-
----
-
-### Instalación en Windows
-
-#### Opción A: Instalador Automático (`install.bat`)
-
-El script `install.bat` automatiza la creación del entorno virtual, la instalación de dependencias, la compilación del ejecutable `.exe` y la creación de accesos directos en tu Escritorio y Menú Inicio.
-
-1. Abre **Símbolo del sistema (CMD)** o **PowerShell** en la carpeta donde deseas descargar el programa.
-
-2. Clona el repositorio y entra a la carpeta:
-   ```cmd
-   git clone https://github.com/adrianandin0/PaintNotNet.git
-   cd PaintNotNet
-   ```
-
-3. Prepara el entorno virtual e instala PyInstaller:
-   ```cmd
-   python -m venv venv
-   call venv\Scriptsctivate.bat
-   pip install --upgrade pip
-   pip install -r requirements_windows.txt pyinstaller
-   ```
-
-4. Ejecuta el script instalador de Windows:
-   ```cmd
-   install.bat
-   ```
-
-5. **¡Listo!** Se creará un acceso directo en tu **Escritorio** y en el **Menú Inicio**. La aplicación se instalará en `%LOCALAPPDATA%\PaintNotNet`.
+#### Paso 4: Ejecutar el instalador de Windows (`install.bat`)
+Con el entorno virtual activo, ejecuta el instalador:
+```cmd
+install.bat
+```
+El script compilará el ejecutable nativo, lo instalará en `%LOCALAPPDATA%\PaintNotNet` y creará accesos directos automáticos en tu **Escritorio** y **Menú Inicio**.
 
 ---
 
 ### Ejecución Directa desde Código Fuente (Sin Compilar)
 
-Si prefieres ejecutar PaintNotNet en modo desarrollador directamente desde el código Python sin generar ejecutables de sistema ni requerir permisos de superusuario (`sudo`):
+Si no deseas instalar binarios en el sistema ni usar los scripts `install.sh` o `install.bat`, puedes ejecutar PaintNotNet directamente con Python (asegurándote de haber completado el **Paso 1** de tu sistema operativo):
 
 #### En Linux:
 ```bash
@@ -252,7 +225,7 @@ python main.py
 git clone https://github.com/adrianandin0/PaintNotNet.git
 cd PaintNotNet
 python -m venv venv
-venv\Scriptsctivate.bat
+call venv\Scripts\activate.bat
 pip install --upgrade pip
 pip install -r requirements_windows.txt
 python main.py
@@ -263,26 +236,29 @@ python main.py
 ## Resolución de Problemas Frecuentes / Troubleshooting
 
 ### 1. `python3: command not found` o `python no se reconoce como un comando interno`
-- **En Linux**: Instala Python ejecutando `sudo apt install python3` (Debian/Ubuntu) o `sudo dnf install python3` (Fedora).
-- **En Windows**: Vuelve a correr la instalación de Python asegurándote de marcar la casilla **"Add python.exe to PATH"**, o ejecuta `winget install --id Python.Python.3.12 -e` y **reinicia la consola de comandos**.
+- **Causa**: Python no está instalado en tu sistema o no se agregó a la variable PATH de Windows.
+- **Solución en Linux**: Completa el **Paso 1** ejecutando `sudo apt install python3 python3-pip python3-venv` (o el equivalente de tu distro).
+- **Solución en Windows**: Ejecuta `winget install --id Python.Python.3.12 -e` en tu consola. **Cierra la ventana de CMD y abre una nueva** para aplicar los cambios.
 
-### 2. `pip: command not found` o `No module named pip`
-- **En Linux**: Ejecuta `sudo apt install python3-pip` (Debian/Ubuntu) o `sudo dnf install python3-pip` (Fedora).
-- **En Windows**: Reinstala Python o ejecuta `python -m ensurepip --upgrade` en tu consola.
+### 2. `git no se reconoce como un comando interno o externo`
+- **Causa**: Git no está instalado o acabas de instalarlo con `winget` sin reiniciar la consola.
+- **Solución**: Instala Git (`winget install --id Git.Git -e` en Windows o `sudo apt install git` en Linux) y **reinicia la consola de comandos**.
 
-### 3. `pyinstaller: command not found` al ejecutar los instaladores
-- PyInstaller es necesario para compilar el paquete nativo. Puedes instalarlo manualmente en tu entorno con:
-  ```bash
-  pip install pyinstaller
-  ```
-  O permitir que los scripts `install.sh` / `install.bat` lo instalen automáticamente dentro de la carpeta `venv`.
+### 3. `pip: command not found` o `No module named pip`
+- **Solución en Linux**: Instala pip ejecutando `sudo apt install python3-pip` (Debian/Ubuntu) o `sudo dnf install python3-pip` (Fedora).
+- **Solución en Windows**: Ejecuta `python -m ensurepip --upgrade` en tu consola.
 
-### 4. Error `externally-managed-environment` en distribuciones Linux recientes (Debian 12, Ubuntu 23.04+, Arch)
-- Las distribuciones modernas protegen el Python del sistema impidiendo el uso de `pip install` global.
-- **Solución**: Utiliza siempre un entorno virtual (`python3 -m venv venv`) o ejecuta el instalador oficial `sudo ./install.sh`, el cual aísla las dependencias correctamente en un entorno controlado.
+### 4. Error `externally-managed-environment` en Linux reciente (Debian 12+, Ubuntu 23.04+, Arch)
+- **Causa**: Las distribuciones Linux modernas impiden la instalación global de paquetes de Python con `pip` fuera de entornos virtuales.
+- **Solución**: Usa siempre el entorno virtual (`python3 -m venv venv` y `source venv/bin/activate`) o ejecuta `sudo ./install.sh`, el cual maneja el entorno de forma aislada.
 
-### 5. `winget no se reconoce como un comando interno` en Windows
-- `winget` viene integrado por defecto en Windows 10 (versiones recientes) y Windows 11. Si no lo tienes disponible, puedes actualizar el **Instalador de Aplicaciones (App Installer)** desde la Microsoft Store o descargar Python y Git manualmente desde sus páginas oficiales.
+### 5. `pyinstaller: command not found` al compilar
+- **Causa**: PyInstaller no está instalado dentro del entorno virtual activo.
+- **Solución**: Con el entorno virtual activo (`source venv/bin/activate` en Linux o `call venv\Scripts\activate.bat` en Windows), ejecuta `pip install pyinstaller`.
+
+### 6. `winget no se reconoce como un comando interno` en Windows
+- **Causa**: Estás usando una versión antigua de Windows 10 sin la tienda o App Installer deshabilitado.
+- **Solución**: Descarga e instala Python manualmente desde [python.org](https://www.python.org/downloads/) marcando la casilla **"Add python.exe to PATH"**, y descarga Git desde [git-scm.com](https://git-scm.com/).
 
 ---
 
