@@ -25,7 +25,14 @@
 ## Índice / Table of Contents
 - [Acerca del Proyecto (Español)](#acerca-del-proyecto-español)
 - [About the Project (English)](#about-the-project-english)
-- [Instalación y Uso / Installation & Usage](#instalación-y-uso--installation--usage)
+- [Requisitos Previos del Sistema / System Prerequisites](#requisitos-previos-del-sistema--system-prerequisites)
+  - [Linux: Instalación de Dependencias por Distribución](#linux-instalación-de-dependencias-por-distribución)
+  - [Windows: Instalación de Dependencias con Winget](#windows-instalación-de-dependencias-con-winget)
+- [Guía de Instalación y Uso / Installation & Usage Guide](#guía-de-instalación-y-uso--installation--usage-guide)
+  - [Instalación en Linux](#instalación-en-linux)
+  - [Instalación en Windows](#instalación-en-windows)
+  - [Ejecución Directa desde Código Fuente](#ejecución-directa-desde-código-fuente)
+- [Resolución de Problemas Frecuentes / Troubleshooting](#resolución-de-problemas-frecuentes--troubleshooting)
 - [Colaboración / Contributing](#colaboración--contributing)
 - [Autor y Contacto / Author & Contact](#autor-y-contacto--author--contact)
 - [Créditos / Credits](#créditos--credits)
@@ -81,13 +88,6 @@
   - Formato de 11px uniforme para menús de ajustes (*Niveles*, *Posterizar*, *Ajustes de Color*), centrado de encabezados e inspección visual mejorada para botones de reinicio en tema claro.
   - Diálogo **Acerca de PaintNotNet** actualizado e integración del nuevo logo oficial de la aplicación en el instalador y sistema Freedesktop / KDE.
 
-### Novedades en Versiones Anteriores
-- **Autoguardado de Emergencia Multicapa (.pnn)**: Respaldo automático silencioso que guarda periódicamente los lienzos abiertos preservando todas las capas individuales con sus metadatos (nombre, visibilidad, opacidad) y contenido transparente.
-- **Motor de Transformación de Selección Compuesta**: Re-arquitectura del motor de selección (`SelectionEngine`) usando transformaciones afines compuestas de pasada única directamente desde la imagen original pura sin pérdida incremental de calidad.
-- **Suavizado de Trazo en Pincel**: Filtrado de puntos duplicados y configuración de `RoundJoin` con `miterLimit = 2.0` para eliminar cortes triangulares en giros cerrados.
-- **Nuevas Herramientas (Aerosol, Difuminar, Estampa)**: Pinceladas difuminadas, aerosoles regulables y estampa de muestras sobre el lienzo.
-- **Configuración de Lienzo y DPI**: Selector de espacio de color (*sRGB*, *Display P3*, *Adobe RGB*), densidad de píxeles (72, 96, 150, 300 DPI) y degradados con alfa transparente.
-
 ---
 
 ## About the Project (English)
@@ -116,68 +116,173 @@
 #### Customizable Keyboard Shortcuts
 - **Shortcut Configuration**: Customize keyboard shortcut keys for all tools from *Options -> Keyboard Shortcuts...* with real-time badge updates.
 
-### What's New in Version 1.0.6
-- **New Color & Image Adjustments**:
-  - **Exposure**: Fine luminance and overexposure control without clipping highlights.
-  - **Color Temperature**: Thermal white balance adjustment for warm or cool tones.
-  - **Color Levels (Input/Output Levels)**: Independent calibration of Input/Output Black/White points with real-time canvas preview.
-  - **Sepia Effect**: Vintage photographic sepia toning with adjustable intensity.
-  - **Posterize**: Color channel quantization level reduction for retro or pop-art styling.
-- **Dedicated Single Color Picker Dialog (`SingleColorPickerDialog`)**:
-  - Integrated color selection dialog for text effects (**Border**, **Glow**, and **Shadow**).
-  - Features alpha transparency preview swatch and slider (0 to 255), HSV Color Wheel (`ColorWheel`), 70-color standard palette grid (7x10), and RGB/Hex/HSV numeric inputs and sliders.
-  - Real-time persistent synchronization of 21 custom saved user slots across the side panel and text effect dialogs.
-  - Live canvas preview with **OK** and **Cancel** buttons (instant reversion to original color upon cancellation).
-- **Synchronized Selection Alignment & Handles**:
-  - Fixes `align_selection()` to shift the selection rect, floating content, vector clip path, rotation center, and all 8 control handles in unison.
-  - Resolves coordinate evaluation edge cases during sequential canvas alignments (*Top* -> *Left* -> *Bottom*).
-- **Keyboard Selection Movement & Undo Support**:
-  - Precise pixel-by-pixel arrow key movement for active selections and floating pixel content.
-  - Full integration with the Undo stack (`Ctrl+Z`) to revert step-by-step arrow key movements without dropping active selections.
-- **System Notifications & UI Polish**:
-  - Floating italic *"Autoguardado"* / *"Autosaved"* status bar notifications upon background emergency save completion.
-  - Standardized 11px font across all adjustment dialogs (*Levels*, *Posterize*, etc.), centered header titles, and improved hover contrast for slider reset buttons in light theme.
-  - Redesigned **About PaintNotNet** dialog and system-wide Freedesktop / KDE desktop integration with the new application logo.
+---
+
+## Requisitos Previos del Sistema / System Prerequisites
+
+Para ejecutar o instalar PaintNotNet desde los scripts (`install.sh` en Linux o `install.bat` en Windows), el sistema requiere contar con **Python 3**, **Pip**, **Git**, **PyInstaller** y las librerías gráficas de la plataforma. Si nunca has usado Python o consolas de comandos, sigue estas instrucciones paso a paso antes de ejecutar los instaladores.
+
+### Linux: Instalación de Dependencias por Distribución
+
+Abre una terminal (marcada como `Terminal` o `Konsole` en el menú de tu sistema) y ejecuta los comandos correspondientes a tu distribución de Linux.
+
+#### Debian / Ubuntu / Linux Mint / Pop!_OS
+```bash
+sudo apt update
+sudo apt install -y python3 python3-pip python3-venv git build-essential libxcb-cursor0 libegl1 libgl1 libdbus-1-3
+```
+
+#### Fedora / RedHat / RHEL / CentOS / AlmaLinux
+```bash
+sudo dnf install -y python3 python3-pip git gcc gcc-c++ libxcb mesa-libEGL mesa-libGL dbus-libs
+```
+
+#### Arch Linux / Manjaro / EndeavourOS
+```bash
+sudo pacman -Sy --needed --noconfirm python python-pip git base-devel libxcb libegl libgl dbus
+```
+
+#### openSUSE / SUSE Linux Enterprise
+```bash
+sudo zypper install -y python3 python3-pip git gcc libxcb-cursor0 libEGL1 libGL1 libdbus-1-3
+```
 
 ---
 
-## Instalación y Uso / Installation & Usage
+### Windows: Instalación de Dependencias con Winget
 
-### Linux (Recomendado / Recommended)
+En Windows 10 y Windows 11, puedes instalar todas las herramientas necesarias de forma automática utilizando el Administrador de Paquetes de Windows (`winget`).
 
-#### Opción A: Instalador Automático / Automatic Installer
-```bash
-git clone https://github.com/adrianandin0/PaintNotNet.git
-cd PaintNotNet
-sudo ./install.sh
-```
-Una vez instalado, inicia PaintNotNet desde el menú de aplicaciones (**Gráficos -> PaintNotNet**) o desde la terminal:
-```bash
-paintnotnet
+#### Paso 1: Instalación Automática desde Consola
+Abre **Símbolo del sistema (CMD)** o **PowerShell** y copia el siguiente comando:
+
+```cmd
+winget install --id Python.Python.3.12 -e & winget install --id Git.Git -e
 ```
 
-#### Opción B: Código Fuente en Linux / Source Code on Linux
+#### Paso 2: Importante - Reiniciar la Consola
+Una vez finalizada la instalación de `winget`, **cierra la ventana de CMD/PowerShell actual y abre una nueva**. Esto es obligatorio para que Windows reconozca los nuevos comandos (`python`, `pip` y `git`) en el PATH del sistema.
+
+#### Alternativa Gráfica (Sin Winget)
+Si prefieres instalar las herramientas de manera tradicional:
+1. Descarga Python 3 desde [python.org/downloads](https://www.python.org/downloads/).
+2. **IMPORTANTE**: Durante la pantalla inicial del asistente de instalación, marca la casilla **"Add python.exe to PATH"** (Agregar python.exe al PATH) antes de hacer clic en *Install Now*.
+3. Descarga e instala Git para Windows desde [git-scm.com](https://git-scm.com/).
+
+---
+
+## Guía de Instalación y Uso / Installation & Usage Guide
+
+### Instalación en Linux
+
+#### Opción A: Instalador Automático (`install.sh`) - Recomendado
+
+El script `install.sh` verifica el sistema, crea el entorno virtual, instala PyInstaller de forma automatizada si es necesario, compila el ejecutable binario nativo y registra la aplicación con su ícono en el menú del sistema.
+
+1. Abre la terminal y clona el repositorio:
+   ```bash
+   git clone https://github.com/adrianandin0/PaintNotNet.git
+   cd PaintNotNet
+   ```
+
+2. Ejecuta el instalador con permisos de administrador:
+   ```bash
+   sudo ./install.sh
+   ```
+
+3. Elige el idioma de la aplicación (01 - Español / 02 - English).
+
+4. **¡Listo!** Puedes iniciar PaintNotNet desde:
+   - El menú de aplicaciones de tu escritorio (**Gráficos -> PaintNotNet**).
+   - O escribiendo directamente en cualquier terminal:
+     ```bash
+     paintnotnet
+     ```
+
+---
+
+### Instalación en Windows
+
+#### Opción A: Instalador Automático (`install.bat`)
+
+El script `install.bat` automatiza la creación del entorno virtual, la instalación de dependencias, la compilación del ejecutable `.exe` y la creación de accesos directos en tu Escritorio y Menú Inicio.
+
+1. Abre **Símbolo del sistema (CMD)** o **PowerShell** en la carpeta donde deseas descargar el programa.
+
+2. Clona el repositorio y entra a la carpeta:
+   ```cmd
+   git clone https://github.com/adrianandin0/PaintNotNet.git
+   cd PaintNotNet
+   ```
+
+3. Prepara el entorno virtual e instala PyInstaller:
+   ```cmd
+   python -m venv venv
+   call venv\Scriptsctivate.bat
+   pip install --upgrade pip
+   pip install -r requirements_windows.txt pyinstaller
+   ```
+
+4. Ejecuta el script instalador de Windows:
+   ```cmd
+   install.bat
+   ```
+
+5. **¡Listo!** Se creará un acceso directo en tu **Escritorio** y en el **Menú Inicio**. La aplicación se instalará en `%LOCALAPPDATA%\PaintNotNet`.
+
+---
+
+### Ejecución Directa desde Código Fuente (Sin Compilar)
+
+Si prefieres ejecutar PaintNotNet en modo desarrollador directamente desde el código Python sin generar ejecutables de sistema ni requerir permisos de superusuario (`sudo`):
+
+#### En Linux:
 ```bash
 git clone https://github.com/adrianandin0/PaintNotNet.git
 cd PaintNotNet
 python3 -m venv venv
 source venv/bin/activate
+pip install --upgrade pip
 pip install -r requirements_linux.txt
+python main.py
+```
+
+#### En Windows:
+```cmd
+git clone https://github.com/adrianandin0/PaintNotNet.git
+cd PaintNotNet
+python -m venv venv
+venv\Scriptsctivate.bat
+pip install --upgrade pip
+pip install -r requirements_windows.txt
 python main.py
 ```
 
 ---
 
-### Windows
+## Resolución de Problemas Frecuentes / Troubleshooting
 
-```cmd
-git clone https://github.com/adrianandin0/PaintNotNet.git
-cd PaintNotNet
-python -m venv venv
-venv\Scripts\activate
-pip install -r requirements_windows.txt
-python main.py
-```
+### 1. `python3: command not found` o `python no se reconoce como un comando interno`
+- **En Linux**: Instala Python ejecutando `sudo apt install python3` (Debian/Ubuntu) o `sudo dnf install python3` (Fedora).
+- **En Windows**: Vuelve a correr la instalación de Python asegurándote de marcar la casilla **"Add python.exe to PATH"**, o ejecuta `winget install --id Python.Python.3.12 -e` y **reinicia la consola de comandos**.
+
+### 2. `pip: command not found` o `No module named pip`
+- **En Linux**: Ejecuta `sudo apt install python3-pip` (Debian/Ubuntu) o `sudo dnf install python3-pip` (Fedora).
+- **En Windows**: Reinstala Python o ejecuta `python -m ensurepip --upgrade` en tu consola.
+
+### 3. `pyinstaller: command not found` al ejecutar los instaladores
+- PyInstaller es necesario para compilar el paquete nativo. Puedes instalarlo manualmente en tu entorno con:
+  ```bash
+  pip install pyinstaller
+  ```
+  O permitir que los scripts `install.sh` / `install.bat` lo instalen automáticamente dentro de la carpeta `venv`.
+
+### 4. Error `externally-managed-environment` en distribuciones Linux recientes (Debian 12, Ubuntu 23.04+, Arch)
+- Las distribuciones modernas protegen el Python del sistema impidiendo el uso de `pip install` global.
+- **Solución**: Utiliza siempre un entorno virtual (`python3 -m venv venv`) o ejecuta el instalador oficial `sudo ./install.sh`, el cual aísla las dependencias correctamente en un entorno controlado.
+
+### 5. `winget no se reconoce como un comando interno` en Windows
+- `winget` viene integrado por defecto en Windows 10 (versiones recientes) y Windows 11. Si no lo tienes disponible, puedes actualizar el **Instalador de Aplicaciones (App Installer)** desde la Microsoft Store o descargar Python y Git manualmente desde sus páginas oficiales.
 
 ---
 
