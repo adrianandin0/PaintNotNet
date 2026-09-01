@@ -14,9 +14,7 @@ from core.i18n import t
 from core.pexels import PexelsAPIClient
 
 
-# ---------------------------------------------------------------------------
 # Workers asíncronos para búsquedas y descargas con cancelación segura
-# ---------------------------------------------------------------------------
 
 class _SearchWorker(QThread):
     results_ready = pyqtSignal(list, str)
@@ -66,9 +64,7 @@ class _DownloadWorker(QThread):
                 self.download_finished.emit(b"", str(e))
 
 
-# ---------------------------------------------------------------------------
 # Tarjeta de Imagen limpia con cancelación de hilo
-# ---------------------------------------------------------------------------
 
 class _ImageCardWidget(QPushButton):
     selected_changed = pyqtSignal(object)
@@ -181,9 +177,7 @@ class _ImageCardWidget(QPushButton):
             painter.drawText(QRect(0, 0, w, h), Qt.AlignmentFlag.AlignCenter, "...")
 
 
-# ---------------------------------------------------------------------------
 # Diálogo Principal
-# ---------------------------------------------------------------------------
 
 class DialogoBusquedaPexels(QDialog):
     def __init__(self, main_window=None):

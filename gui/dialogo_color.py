@@ -328,9 +328,7 @@ class SingleColorPickerDialog(QDialog):
         layout_btns.addWidget(btn_cancel)
         main_layout.addLayout(layout_btns)
 
-    # -----------------------------------------------------------------------
     # Lógica de Actualización y Cambio de Color
-    # -----------------------------------------------------------------------
 
     def set_color(self, color: QColor, emit_preview=True):
         if self._updating:
@@ -429,9 +427,7 @@ class SingleColorPickerDialog(QDialog):
         c = QColor.fromHsv(h, s, v, self.slider_alpha.value())
         self.set_color(c)
 
-    # -----------------------------------------------------------------------
     # Sincronización de Custom Slots
-    # -----------------------------------------------------------------------
 
     def actualizar_custom_slots_ui(self):
         self.custom_colors = cargar_custom_colors()
@@ -456,9 +452,7 @@ class SingleColorPickerDialog(QDialog):
         else:
             self.set_color(QColor(color_existente))
 
-    # -----------------------------------------------------------------------
     # Cierre y Aceptar / Cancelar
-    # -----------------------------------------------------------------------
 
     def _on_accept(self):
         desregistrar_listener_custom(self)

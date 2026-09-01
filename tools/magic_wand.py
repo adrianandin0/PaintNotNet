@@ -83,7 +83,8 @@ class MagicWandTool(BaseTool):
 
         if not path.isEmpty():
             canvas.selection_engine.set_path(path)
+            canvas.push_document_state("Varita Mágica", force=True)
         else:
-            canvas.selection_engine.clear_selection()
+            canvas.cancelar_o_deseleccionar()
 
         canvas.update()

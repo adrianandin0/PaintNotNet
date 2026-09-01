@@ -92,6 +92,14 @@ class LineTool(BaseTool):
         self.active_handle = self.HANDLE_NONE
         self.is_rotating = False
 
+    def cancel_or_reset(self, canvas=None):
+        if self.state in (1, 2):
+            self.reset()
+            if canvas:
+                canvas.update()
+            return True
+        return False
+
     def _init_points(self, p0, p3):
         self.p0 = QPointF(p0)
         self.p3 = QPointF(p3)
@@ -369,6 +377,6 @@ class LineTool(BaseTool):
             if blue_pt:
                 sb = self.HANDLE_SIZE + 2
                 sb2 = sb / 2.0
-                painter.setPen(QPen(QColor(0, 50, 160), 1.5))
+                painter.setPen(QPen(QColor(0, 50, 160), 1))
                 painter.setBrush(QBrush(QColor(0, 120, 215)))
-                painter.drawRect(QRectF(blue_pt.x() - sb2, blue_pt.y() - sb2, sb, sb))
+                painter.drawRect(QRectF(int(blue_pt.x() - sb2) + 0.5, int(blue_pt.y() - sb2) + 0.5, sb - 1, sb - 1))

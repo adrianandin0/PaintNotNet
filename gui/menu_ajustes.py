@@ -57,9 +57,7 @@ def _make_reset_btn(tooltip="Reset"):
 
 def _apply_to_canvas(canvas, img, is_floating):
     if is_floating:
-        canvas.selection_engine.floating_image = img
-        if canvas.selection_engine.unscaled_floating_image:
-            canvas.selection_engine.unscaled_floating_image = img.copy()
+        canvas.selection_engine.update_floating_image(img)
     else:
         canvas.layer_mgr.buffer = img
     canvas.update()

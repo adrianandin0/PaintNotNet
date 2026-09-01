@@ -12,6 +12,26 @@ class ShapesTool(BaseTool):
         self.current_point = None
         self.is_drawing = False
 
+    def get_icon_path(self, canvas):
+        tipo = "Rectángulo"
+        if hasattr(canvas, 'main_window') and canvas.main_window and hasattr(canvas.main_window, 'top_toolbar'):
+            tb = canvas.main_window.top_toolbar
+            if hasattr(tb, 'combo_forma_tipo'):
+                tipo = tb.combo_forma_tipo.currentData() or "Rectángulo"
+
+        mapa_iconos = {
+            "Rectángulo": "gui/iconos/shape_rectangle.png",
+            "Triángulo": "gui/iconos/shape_triangle.png",
+            "Elipse": "gui/iconos/shape_circle.png",
+            "Nube": "gui/iconos/shape_cloud.png",
+            "Corazón": "gui/iconos/shape_heart.png",
+            "Chat": "gui/iconos/shape_chat.png",
+            "Estrella": "gui/iconos/shape_star.png",
+            "Flor": "gui/iconos/shape_flower.png",
+            "Mano": "gui/iconos/hand.png",
+        }
+        return mapa_iconos.get(tipo, "gui/iconos/shapes.png")
+
     def mouse_press(self, canvas, event, color_activo=None):
         if event.button() == Qt.MouseButton.LeftButton:
             self.is_drawing = True

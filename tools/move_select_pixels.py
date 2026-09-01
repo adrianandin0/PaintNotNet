@@ -7,6 +7,7 @@ from tools.base_tool import BaseTool
 class MoveSelectPixelsTool(BaseTool):
     def __init__(self):
         super().__init__("Mover Contenido", "gui/iconos/move_select_pixels.png")
+        self.show_cursor_badge = False
 
     def mouse_press(self, canvas, event, color_activo=None):
         engine = canvas.selection_engine
@@ -16,6 +17,7 @@ class MoveSelectPixelsTool(BaseTool):
         pos = event.position()
         hit = engine.hit_test(pos)
         if hit == engine.HANDLE_NONE:
+            canvas.cancelar_o_deseleccionar()
             return
 
         if engine.floating_image is None:

@@ -194,8 +194,12 @@ class CanvasWidget(QWidget):
 
     def set_active_tool(self, tool_object):
         from tools.text import TextTool
-        if hasattr(self, 'active_tool_obj') and isinstance(self.active_tool_obj, TextTool):
-            self.active_tool_obj.commit_text(self, self.color_primario)
+        from tools.line import LineTool
+        if hasattr(self, 'active_tool_obj'):
+            if isinstance(self.active_tool_obj, TextTool):
+                self.active_tool_obj.commit_text(self, self.color_primario)
+            elif isinstance(self.active_tool_obj, LineTool):
+                self.active_tool_obj.commit_line(self)
         self.active_tool_obj = tool_object
         # Habilitar input method para composición de caracteres (dead keys, IME)
         enable_ime = isinstance(tool_object, TextTool)
@@ -215,19 +219,45 @@ class CanvasWidget(QWidget):
         if hasattr(self, 'main_window') and self.main_window and hasattr(self.main_window, 'top_toolbar'):
             self.main_window.top_toolbar.update_tool_states(tool_object)
 
+        self.actualizar_cursor_herramienta(tool_object)
+
+    def actualizar_cursor_herramienta(self, tool_object=None):
+        if tool_object is None:
+            tool_object = getattr(self, 'active_tool_obj', None)
+
+        if not tool_object:
+            self.unsetCursor()
+            return
+
+        from tools.text import TextTool
         if isinstance(tool_object, TextTool):
             self.setCursor(Qt.CursorShape.IBeamCursor)
-        elif hasattr(tool_object, 'icon_path') and tool_object.icon_path:
-            self.actualizar_cursor_herramienta(tool_object.icon_path)
-        else:
-            self.unsetCursor()
-
-    def actualizar_cursor_herramienta(self, icon_path):
-        from tools.text import TextTool
-        if isinstance(self.active_tool_obj, TextTool):
-            self.setCursor(Qt.CursorShape.IBeamCursor)
             return
-        self.unsetCursor()
+
+        badge_pixmap = self._obtener_icono_herramienta_gris(tool_object)
+        if not badge_pixmap or badge_pixmap.isNull():
+            self.setCursor(Qt.CursorShape.CrossCursor)
+            return
+
+        # Crear cursor de hardware compuesto (32x32) con la cruz fija en (6,6) y la insignia en (14,14) SIN RECUADRO
+        pm = QPixmap(32, 32)
+        pm.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pm)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
+
+        # 1. Puntero en cruz limpio con bordes de contraste
+        painter.setPen(QPen(QColor(0, 0, 0, 220), 1))
+        painter.drawLine(1, 6, 11, 6)
+        painter.drawLine(6, 1, 6, 11)
+        painter.setPen(QPen(QColor(255, 255, 255, 255), 1))
+        painter.drawPoint(6, 6)
+
+        # 2. Dibujar directamente la insignia de 16x16 (SIN NINGÚN RECUADRO BORDENADO)
+        painter.drawPixmap(14, 14, badge_pixmap)
+        painter.end()
+
+        cursor = QCursor(pm, 6, 6)
+        self.setCursor(cursor)
 
     def actualizar_config_texto(self, config):
         self.config_texto = config
@@ -429,15 +459,19 @@ class CanvasWidget(QWidget):
             for handle_rect in handles.values():
                 painter.drawRect(handle_rect)
 
-        # 5. Previsualización del cursor del pincel (forma, tamaño real y color)
-        if hasattr(self, 'cursor_pos') and self.cursor_pos is not None:
-            tool_name = getattr(self.active_tool_obj, 'nombre', '')
-            if tool_name in ("Pincel", "Lápiz", "Goma de Borrar", "Línea"):
-                w = max(1, getattr(self, 'grosor_pincel', getattr(self, 'ancho_pincel', 3)))
-                w2 = w / 2.0
-                cx, cy = self.cursor_pos.x(), self.cursor_pos.y()
-                rect = QRectF(cx - w2, cy - w2, w, w)
+        painter.restore()
 
+        # 5. Previsualización del tamaño de trazo pegada 1:1 al puntero del mouse (en coordenadas de pantalla del widget)
+        if hasattr(self, 'widget_cursor_pos') and self.widget_cursor_pos is not None and getattr(self, 'active_tool_obj', None):
+            tool_name = getattr(self.active_tool_obj, 'name', getattr(self.active_tool_obj, 'nombre', ''))
+            if tool_name in ("Pincel", "Lápiz", "Goma de Borrar", "Línea"):
+                w_doc = max(1, getattr(self, 'grosor_pincel', getattr(self, 'ancho_pincel', 3)))
+                w_screen = w_doc * self.scale_factor
+                w2 = w_screen / 2.0
+                wx, wy = self.widget_cursor_pos.x(), self.widget_cursor_pos.y()
+                rect = QRectF(wx - w2, wy - w2, w_screen, w_screen)
+
+                painter.save()
                 color_stroke = QColor(0, 0, 0, 180) if tool_name != "Goma de Borrar" else QColor(255, 255, 255, 220)
                 pen_preview = QPen(color_stroke, 1, Qt.PenStyle.DashLine)
                 painter.setPen(pen_preview)
@@ -453,8 +487,43 @@ class CanvasWidget(QWidget):
                     painter.drawRect(rect)
                 else:
                     painter.drawEllipse(rect)
+                painter.restore()
 
-        painter.restore()
+    def _obtener_icono_herramienta_gris(self, tool_obj):
+        """Devuelve un QPixmap de 16x16 en escala de grises para la herramienta activa."""
+        if not tool_obj or not getattr(tool_obj, 'show_cursor_badge', True):
+            return None
+
+        if hasattr(tool_obj, 'get_icon_path'):
+            icon_path = tool_obj.get_icon_path(self)
+        else:
+            icon_path = getattr(tool_obj, 'icon_path', getattr(tool_obj, 'icono', None))
+
+        if not icon_path or not os.path.exists(icon_path):
+            return None
+
+        cache_key = f"_cached_gray_pix_{icon_path}"
+        if hasattr(tool_obj, cache_key):
+            return getattr(tool_obj, cache_key)
+
+        img = QImage(icon_path)
+        if img.isNull():
+            return None
+
+        img_scaled = img.scaled(16, 16, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+        img_gray = QImage(img_scaled.size(), QImage.Format.Format_ARGB32)
+        for y in range(img_scaled.height()):
+            for x in range(img_scaled.width()):
+                col = img_scaled.pixelColor(x, y)
+                if col.alpha() == 0:
+                    img_gray.setPixelColor(x, y, QColor(0, 0, 0, 0))
+                else:
+                    gray = int(0.299 * col.red() + 0.587 * col.green() + 0.114 * col.blue())
+                    img_gray.setPixelColor(x, y, QColor(gray, gray, gray, col.alpha()))
+
+        pix = QPixmap.fromImage(img_gray)
+        setattr(tool_obj, cache_key, pix)
+        return pix
 
     def _notificar_posicion_cursor(self):
         if hasattr(self, 'main_window') and self.main_window and hasattr(self.main_window, 'bottom_bar') and self.main_window.bottom_bar:
@@ -467,17 +536,17 @@ class CanvasWidget(QWidget):
             else:
                 self.main_window.bottom_bar.actualizar_posicion_cursor(None, None)
 
-    # ==========================================
-    # MANEJO DE MOUSE Y DESPACHO A HERRAMIENTAS
-    # ==========================================
+    # Manejo de mouse y despacho a herramientas
     def leaveEvent(self, event):
         self.cursor_pos = None
+        self.widget_cursor_pos = None
         self._notificar_posicion_cursor()
         self.update()
         super().leaveEvent(event)
 
     def mousePressEvent(self, event):
         self.setFocus()
+        self.widget_cursor_pos = event.position()
         ev = self._canvas_event(event)
         self.cursor_pos = ev.position()
         self._notificar_posicion_cursor()
@@ -500,20 +569,20 @@ class CanvasWidget(QWidget):
             self.update()
 
     def mouseMoveEvent(self, event):
+        self.widget_cursor_pos = event.position()
         ev = self._canvas_event(event)
         self.cursor_pos = ev.position()
         self._notificar_posicion_cursor()
-        if self.drawing:
-            color_activo = self.color_primario if (ev.buttons() & Qt.MouseButton.LeftButton) else self.color_secundario
+        color_activo = self.color_primario if (ev.buttons() & Qt.MouseButton.LeftButton) else self.color_secundario
 
-            if hasattr(self.active_tool_obj, 'mouse_move'):
-                try:
-                    self.active_tool_obj.mouse_move(self, ev, color_activo)
-                except TypeError:
-                    self.active_tool_obj.mouse_move(self, ev)
+        if hasattr(self.active_tool_obj, 'mouse_move'):
+            try:
+                self.active_tool_obj.mouse_move(self, ev, color_activo)
+            except TypeError:
+                self.active_tool_obj.mouse_move(self, ev)
 
-            if self.callback_modificado:
-                self.callback_modificado()
+        if self.drawing and self.callback_modificado:
+            self.callback_modificado()
 
         self.update()
 
@@ -530,14 +599,18 @@ class CanvasWidget(QWidget):
                     self.active_tool_obj.mouse_release(self, ev)
 
             self.drawing = False
-            tool_name = getattr(self.active_tool_obj, 'name', None) or getattr(self.active_tool_obj, 'nombre', None) or getattr(self, 'herramienta_actual', 'Trazo')
-            self.push_document_state(tool_name)
+            from tools.bucket import BucketTool
+            from tools.eyedropper import EyedropperTool
+            from tools.zoom import ZoomTool
+            from tools.placeholder import PlaceholderTool
+
+            if not isinstance(self.active_tool_obj, (BucketTool, EyedropperTool, ZoomTool, PlaceholderTool)):
+                tool_name = getattr(self.active_tool_obj, 'name', None) or getattr(self.active_tool_obj, 'nombre', None) or getattr(self, 'herramienta_actual', 'Trazo')
+                self.push_document_state(tool_name)
+
             self.update()
 
-
-    # ==========================================
-    # FUNCIONES DE MENÚS (ARCHIVO, EDITAR, IMAGEN)
-    # ==========================================
+    # Funciones de Menús (Archivo, Editar, Imagen)
     def crear_nuevo_lienzo(self, ancho, alto, es_transparente=False):
         self._ajustar_tamano_widget(ancho, alto)
 
@@ -557,6 +630,7 @@ class CanvasWidget(QWidget):
         self.floating_sub_index = -1
 
         self.history_mgr.clear()
+        self.push_document_state("Lienzo inicial")
         if hasattr(self, 'main_window') and self.main_window and hasattr(self.main_window, 'layers_panel'):
             self.main_window.layers_panel.reconstruir_lista_capas()
         self.update()
@@ -632,9 +706,6 @@ class CanvasWidget(QWidget):
         self.update()
         return True
 
-    def borrar_todo(self):
-        self.layer_mgr.get_qimage().fill(Qt.GlobalColor.transparent)
-        self.update()
 
     def redimensionar_lienzo(self, nuevo_ancho, nuevo_alto, anchor="top-left"):
         """Redimensiona el lienzo expandiendo con fondo transparente en todas las capas y registrando en el historial."""
@@ -894,10 +965,7 @@ class CanvasWidget(QWidget):
 
     def voltear_contenido(self, horizontal=True):
         if self.asegurar_imagen_flotante():
-            mirrored_fl = self.selection_engine.floating_image.mirrored(horizontal, not horizontal)
-            self.selection_engine.floating_image = mirrored_fl
-            if self.selection_engine.unscaled_floating_image and not self.selection_engine.unscaled_floating_image.isNull():
-                self.selection_engine.unscaled_floating_image = self.selection_engine.unscaled_floating_image.mirrored(horizontal, not horizontal)
+            self.selection_engine.flip_floating_image(horizontal=horizontal, vertical=not horizontal)
             self.push_floating_sub_state("Voltear Horizontal" if horizontal else "Voltear Vertical")
             self.update()
             return
@@ -1014,11 +1082,11 @@ class CanvasWidget(QWidget):
         elif hasattr(self, 'main_window') and self.main_window:
             self.main_window.actualizar_titulo_ventana()
 
-    def push_document_state(self, action_name="Acción"):
-        """Guarda un estado completo del documento en el historial únicamente si se generaron cambios reales."""
+    def push_document_state(self, action_name="Acción", force=False):
+        """Guarda un estado completo del documento en el historial únicamente si se generaron cambios reales o si se fuerza."""
         snap = self.obtener_snapshot_documento()
 
-        if self.history_mgr.history_stack and self.history_mgr.current_index >= 0:
+        if not force and self.history_mgr.history_stack and self.history_mgr.current_index >= 0:
             last_snap, _ = self.history_mgr.history_stack[self.history_mgr.current_index]
             if self._snapshots_son_iguales(last_snap, snap):
                 return
@@ -1098,6 +1166,18 @@ class CanvasWidget(QWidget):
     def rehacer(self): self.redo()
 
     def undo(self):
+        # Si la herramienta activa tiene una edición interactiva en curso (ej. Línea con tiradores activos)
+        if hasattr(self, 'active_tool_obj') and self.active_tool_obj:
+            if hasattr(self.active_tool_obj, 'cancel_or_reset'):
+                if self.active_tool_obj.cancel_or_reset(self):
+                    self.update()
+                    return
+            elif getattr(self.active_tool_obj, 'state', 0) in (1, 2):
+                if hasattr(self.active_tool_obj, 'reset'):
+                    self.active_tool_obj.reset()
+                    self.update()
+                    return
+
         prev_state = self.history_mgr.undo()
         if prev_state is not None:
             self.restaurar_snapshot_documento(prev_state)
@@ -1109,36 +1189,15 @@ class CanvasWidget(QWidget):
 
     def cancelar_o_deseleccionar(self):
         engine = self.selection_engine
-        if engine.floating_image and not engine.floating_image.isNull():
-            pkg = None
-            if hasattr(self, 'floating_initial_canvas') and self.floating_initial_canvas:
-                pkg = {
-                    'initial_canvas': self.floating_initial_canvas.copy(),
-                    'sub_history': [
-                        {
-                            'floating_image': snap['floating_image'].copy(),
-                            'unscaled_floating_image': snap['unscaled_floating_image'].copy(),
-                            'active_rect': QRectF(snap['active_rect']),
-                            'active_path': QPainterPath(snap['active_path']),
-                            'rotation_angle': float(snap['rotation_angle']),
-                            'original_image_pos': QPointF(snap['original_image_pos']),
-                            'label': snap['label']
-                        } for snap in getattr(self, 'floating_sub_history', [])
-                    ],
-                    'sub_index': getattr(self, 'floating_sub_index', 0)
-                }
-                base_canvas = self.floating_initial_canvas.copy()
-            else:
-                base_canvas = self.layer_mgr.buffer.copy()
+        tenia_flotante = bool(engine.floating_image and not engine.floating_image.isNull())
+        tenia_seleccion = engine.has_selection() or tenia_flotante
 
+        if not tenia_seleccion:
+            return False
+
+        if tenia_flotante:
             from tools.move_select_pixels import MoveSelectPixelsTool
             MoveSelectPixelsTool.commit_floating_image(self)
-
-            if pkg:
-                self.history_mgr.push_state((base_canvas, pkg), "Mover Contenido")
-            else:
-                self.history_mgr.push_state(self.layer_mgr.buffer.copy(), "Mover Contenido")
-
             self.floating_initial_canvas = None
             if hasattr(self, 'floating_sub_history'):
                 self.floating_sub_history.clear()
@@ -1146,51 +1205,12 @@ class CanvasWidget(QWidget):
 
         if engine.has_selection():
             engine.clear_selection()
-            self.actualizar_historial_gui()
-            self.update()
 
-    def mouseReleaseEvent(self, event):
-        ev = self._canvas_event(event)
-        if self.drawing:
-            color_activo = self.color_primario if ev.button() == Qt.MouseButton.LeftButton else self.color_secundario
-
-            if hasattr(self.active_tool_obj, 'mouse_release'):
-                try:
-                    self.active_tool_obj.mouse_release(self, ev, color_activo)
-                except TypeError:
-                    self.active_tool_obj.mouse_release(self, ev)
-
-            self.drawing = False
-            from tools.bucket import BucketTool
-            from tools.eyedropper import EyedropperTool
-            from tools.zoom import ZoomTool
-            from tools.placeholder import PlaceholderTool
-
-            if not isinstance(self.active_tool_obj, (BucketTool, EyedropperTool, ZoomTool, PlaceholderTool)):
-                tool_name = getattr(self.active_tool_obj, 'name', None) or getattr(self.active_tool_obj, 'nombre', None) or getattr(self, 'herramienta_actual', 'Trazo')
-                self.push_document_state(tool_name)
-
-            self.update()
-
-
-    # ==========================================
-    # FUNCIONES DE MENÚS (ARCHIVO, EDITAR, IMAGEN)
-    # ==========================================
-    def crear_nuevo_lienzo(self, ancho, alto, es_transparente=False):
-        self._ajustar_tamano_widget(ancho, alto)
-
-        self.layer_mgr = LayerManager(ancho, alto)
-        if es_transparente:
-            self.layer_mgr.buffer.fill(Qt.GlobalColor.transparent)
-        else:
-            self.layer_mgr.buffer.fill(Qt.GlobalColor.white)
-
-        self.capa_trazo_temp = QImage(ancho, alto, QImage.Format.Format_ARGB32_Premultiplied)
-        self.capa_trazo_temp.fill(Qt.GlobalColor.transparent)
-        self.history_mgr.clear()
-
-        self.push_document_state("Lienzo inicial")
+        self.push_document_state("Cerrar selección", force=True)
         self.update()
+        return True
+
+
 
     def seleccionar_todo(self):
         from tools.move_select_pixels import MoveSelectPixelsTool

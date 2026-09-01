@@ -12,6 +12,7 @@ class TopToolBarWidget(QToolBar):
     def __init__(self, main_window=None):
         super().__init__("Barra de Herramientas General", main_window)
         self.main_window = main_window
+        self.settings = QSettings("PaintNotNet", "PaintNotNet")
         self.setMovable(False)
         self.setFloatable(False)
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.PreventContextMenu)
@@ -347,11 +348,10 @@ class TopToolBarWidget(QToolBar):
         self.lbl_blur.setContentsMargins(4, 0, 2, 0)
         self.act_lbl_blur = self.addWidget(self.lbl_blur)
 
-        settings = QSettings("PaintNotNet", "PaintNotNet")
-        saved_mode = settings.value("blur_modo", "Pixelado")
+        saved_mode = self.settings.value("blur_modo", "Pixelado")
         if saved_mode == "Gausiano":
             saved_mode = "Gaussiano"
-        saved_val = int(settings.value("blur_val", 0))
+        saved_val = int(self.settings.value("blur_val", 0))
 
         self.combo_blur_modo = QComboBox()
         self.combo_blur_modo.setStyleSheet("font-size: 11px; padding: 1px;")
@@ -378,10 +378,8 @@ class TopToolBarWidget(QToolBar):
         self.lbl_blur_val.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.act_lbl_blur_val = self.addWidget(self.lbl_blur_val)
 
-        # ==========================================================
-        # CONTROL DE INTENSIDAD DE DIFUMINADO (DEDO)
-        # ==========================================================
-        saved_smudge = settings.value("smudge_intensidad", 50, type=int)
+        # Control de intensidad de difuminado (Dedo)
+        saved_smudge = self.settings.value("smudge_intensidad", 50, type=int)
 
         self.lbl_smudge_intensidad = QLabel(t("Intensidad:"))
         self.lbl_smudge_intensidad.setStyleSheet("font-size: 11px; font-weight: normal;")
@@ -402,9 +400,7 @@ class TopToolBarWidget(QToolBar):
 
         self.sep_smudge = self.addSeparator()
 
-        # ==========================================================
-        # CONTEXTO DE TEXTO Y EFECTOS DE TEXTO (1 sola línea)
-        # ==========================================================
+        # Contexto de texto y efectos de texto
         self.sep_texto = self.addSeparator()
 
         # 1. Fuente
@@ -621,9 +617,8 @@ class TopToolBarWidget(QToolBar):
         modo = self.combo_blur_modo.currentData() or "Pixelado"
         self.lbl_blur_val.setText(f"{val}%")
 
-        settings = QSettings("PaintNotNet", "PaintNotNet")
-        settings.setValue("blur_modo", modo)
-        settings.setValue("blur_val", val)
+        self.settings.setValue("blur_modo", modo)
+        self.settings.setValue("blur_val", val)
 
         if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
             canvas = self.main_window.lienzo
@@ -635,8 +630,7 @@ class TopToolBarWidget(QToolBar):
     def _on_smudge_intensidad_changed(self, val):
         if hasattr(self, 'lbl_smudge_val'):
             self.lbl_smudge_val.setText(f"{val}%")
-        settings = QSettings("PaintNotNet", "PaintNotNet")
-        settings.setValue("smudge_intensidad", val)
+        self.settings.setValue("smudge_intensidad", val)
 
     def _on_forma_pincel_changed(self, forma_name):
         if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
@@ -646,6 +640,7 @@ class TopToolBarWidget(QToolBar):
     def _on_modo_degradado_changed(self, modo_name):
         if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
             self.main_window.lienzo.modo_degradado = modo_name
+            self.main_window.lienzo.actualizar_cursor_herramienta()
             self.main_window.lienzo.update()
 
     def _set_group_visible(self, group_items, visible: bool):
@@ -1058,6 +1053,8 @@ class TopToolBarWidget(QToolBar):
         from core.i18n import t
         val = self.combo_forma_tipo.itemData(idx) or "Rectángulo"
         self.combo_forma_tipo.setToolTip(f"{t('Tipo de Forma:')} {t(val)}")
+        if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
+            self.main_window.lienzo.actualizar_cursor_herramienta()
 
     def _on_forma_estilo_changed(self, idx):
         from core.i18n import t

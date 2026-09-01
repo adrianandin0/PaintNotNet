@@ -17,12 +17,12 @@ class DialogoNuevoArchivo(QDialog):
         self.setFixedWidth(290)
 
         # Cargar valores guardados como predeterminados si existen
-        settings = QSettings("PaintNotNet", "PaintNotNet")
-        saved_w = settings.value("default_canvas_w", None, type=int)
-        saved_h = settings.value("default_canvas_h", None, type=int)
-        saved_trans = settings.value("default_canvas_transparent", False, type=bool)
-        saved_dpi = settings.value("default_canvas_dpi", 300, type=int)
-        saved_profile = settings.value("default_canvas_profile", "sRGB", type=str)
+        self.settings = QSettings("PaintNotNet", "PaintNotNet")
+        saved_w = self.settings.value("default_canvas_w", None, type=int)
+        saved_h = self.settings.value("default_canvas_h", None, type=int)
+        saved_trans = self.settings.value("default_canvas_transparent", False, type=bool)
+        saved_dpi = self.settings.value("default_canvas_dpi", 300, type=int)
+        saved_profile = self.settings.value("default_canvas_profile", "sRGB", type=str)
 
         cb = QApplication.clipboard()
         cb_img = cb.image() if cb else None
@@ -157,14 +157,13 @@ class DialogoNuevoArchivo(QDialog):
 
     def accept(self):
         if hasattr(self, 'chk_default') and self.chk_default.isChecked():
-            settings = QSettings("PaintNotNet", "PaintNotNet")
-            settings.setValue("default_canvas_w", self.spin_ancho.value())
-            settings.setValue("default_canvas_h", self.spin_alto.value())
-            settings.setValue("default_canvas_transparent", self.rad_transparente.isChecked())
-            settings.setValue("default_canvas_dpi", self.spin_dpi.value())
+            self.settings.setValue("default_canvas_w", self.spin_ancho.value())
+            self.settings.setValue("default_canvas_h", self.spin_alto.value())
+            self.settings.setValue("default_canvas_transparent", self.rad_transparente.isChecked())
+            self.settings.setValue("default_canvas_dpi", self.spin_dpi.value())
             profile_idx = self.combo_color_profile.currentIndex()
             raw_profile = self.color_profiles[profile_idx][0] if 0 <= profile_idx < len(self.color_profiles) else "sRGB"
-            settings.setValue("default_canvas_profile", raw_profile)
+            self.settings.setValue("default_canvas_profile", raw_profile)
         super().accept()
 
     def keyPressEvent(self, event):
@@ -188,10 +187,10 @@ class DialogoNuevoArchivo(QDialog):
 class MenuArchivo:
     def __init__(self, ventana_principal):
         self.ventana = ventana_principal
+        self.settings = QSettings("PaintNotNet", "PaintNotNet")
 
     def obtener_home_real(self):
-        settings = QSettings("PaintNotNet", "PaintNotNet")
-        dir_guardado = settings.value("default_dir", None)
+        dir_guardado = self.settings.value("default_dir", None)
         if dir_guardado and os.path.isdir(str(dir_guardado)):
             return str(dir_guardado)
 
@@ -437,8 +436,7 @@ class MenuArchivo:
         else:
             base_nombre = "sin_titulo"
 
-        settings = QSettings("PaintNotNet", "PaintNotNet")
-        fmt_config = settings.value("default_format", None)
+        fmt_config = self.settings.value("default_format", None)
 
         if num_capas > 1:
             ext_defecto = ".pnn"

@@ -41,10 +41,11 @@ class SelectRectTool(BaseTool):
             rect = self._get_rect(event.modifiers())
             if rect.width() > 2 and rect.height() > 2:
                 canvas.selection_engine.set_rectangle(rect)
+                canvas.push_document_state("Selección Rectangular", force=True)
                 if hasattr(canvas, 'main_window') and canvas.main_window:
                     canvas.main_window.activar_herramienta_mover()
             else:
-                canvas.selection_engine.clear_selection()
+                canvas.cancelar_o_deseleccionar()
             self.is_selecting = False
             canvas.update()
 

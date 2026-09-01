@@ -167,9 +167,8 @@ class MenuEditar:
 
     def desechar_seleccion(self):
         c = self._get_canvas()
-        if c and hasattr(c, 'selection_engine'):
-            c.selection_engine.clear_selection()
-            c.update()
+        if c and hasattr(c, 'cancelar_o_deseleccionar'):
+            c.cancelar_o_deseleccionar()
 
     def invertir_seleccion(self):
         c = self._get_canvas()

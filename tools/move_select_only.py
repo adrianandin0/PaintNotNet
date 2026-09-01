@@ -7,6 +7,7 @@ from tools.base_tool import BaseTool
 class MoveSelectOnlyTool(BaseTool):
     def __init__(self):
         super().__init__("Mover Selección", "gui/iconos/move_select_only.png")
+        self.show_cursor_badge = False
 
     def mouse_press(self, canvas, event, color_activo=None):
         from tools.move_select_pixels import MoveSelectPixelsTool
@@ -20,6 +21,7 @@ class MoveSelectOnlyTool(BaseTool):
         pos = event.position()
         hit = engine.hit_test(pos)
         if hit == engine.HANDLE_NONE:
+            canvas.cancelar_o_deseleccionar()
             return
 
         engine.begin_transform(pos, event.button(), hit)

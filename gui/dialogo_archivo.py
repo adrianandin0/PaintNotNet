@@ -17,9 +17,7 @@ from PyQt6.QtGui import QPixmap, QIcon, QFont, QColor
 from core.i18n import t
 
 
-# ---------------------------------------------------------------------------
 # Rutas de iconos
-# ---------------------------------------------------------------------------
 
 _BASE = "gui/iconos"
 
@@ -27,9 +25,7 @@ def _ico(nombre):
     return QIcon(os.path.join(_BASE, nombre))
 
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 def _lugares_rapidos():
     """Devuelve lista de (etiqueta, ruta, icono_nombre) para el panel izquierdo."""
@@ -95,26 +91,11 @@ def _lugares_rapidos():
     return lugares
 
 
-def _icono_archivo(ruta, thumb_size=24):
-    """Devuelve QIcon: miniatura para imágenes, pnn.png para .pnn, folder para dirs, picture para el resto."""
-    if os.path.isdir(ruta):
-        return _ico('folder.png')
-
-    ext = os.path.splitext(ruta)[1].lower()
-
-    if ext == '.pnn':
-        return _ico('pnn.png')
-
-    if ext in ('.png', '.jpg', '.jpeg', '.bmp', '.webp', '.gif'):
-        pix = QPixmap(ruta)
-        if not pix.isNull():
-            pix = pix.scaled(thumb_size, thumb_size,
-                             Qt.AspectRatioMode.KeepAspectRatio,
-                             Qt.TransformationMode.SmoothTransformation)
-            return QIcon(pix)
-        return _ico('picture.png')
-
-    return _ico('picture.png')
+def _icono_archivo(ruta, size=24):
+    info = QFileInfo(ruta)
+    provider = QFileIconProvider()
+    icon = provider.icon(info)
+    return icon
 
 
 def _formato_tamano(bytes_):
@@ -126,9 +107,7 @@ def _formato_tamano(bytes_):
         return f"{bytes_ / (1024*1024):.1f} MB"
 
 
-# ---------------------------------------------------------------------------
 # Botón de navegación con icono
-# ---------------------------------------------------------------------------
 
 def _nav_btn(icono_nombre, tooltip, size=28):
     from core.theme import ThemeManager
@@ -158,9 +137,7 @@ def _nav_btn(icono_nombre, tooltip, size=28):
     return btn
 
 
-# ---------------------------------------------------------------------------
 # Clase principal
-# ---------------------------------------------------------------------------
 
 class DialogoArchivo(QDialog):
     """
@@ -184,6 +161,7 @@ class DialogoArchivo(QDialog):
         self._ruta_seleccionada = None
         self._historial = []
         self._pos_historial = -1
+        self.settings = QSettings("PaintNotNet", "PaintNotNet")
 
         # Título
         if titulo:
@@ -213,16 +191,12 @@ class DialogoArchivo(QDialog):
         self._poblar_lugares()
         self._navegar(self._directorio, agregar_historial=False)
 
-    # ------------------------------------------------------------------
-    # UI
-    # ------------------------------------------------------------------
-
     def _construir_ui(self, nombre_sugerido):
         root = QVBoxLayout(self)
         root.setSpacing(6)
         root.setContentsMargins(10, 10, 10, 10)
 
-        # ── Barra de navegación ──────────────────────────────────────────
+        # Barra de navegación
         barra = QHBoxLayout()
         barra.setSpacing(3)
 
@@ -245,12 +219,10 @@ class DialogoArchivo(QDialog):
         sep.setStyleSheet("color: #686868;")
 
         self.edit_ruta = QLineEdit()
-        self.edit_ruta.setPlaceholderText(t("Ruta o nombre de carpeta…"))
+        self.edit_ruta.setPlaceholderText(t("Ingresá una ruta…"))
         self.edit_ruta.returnPressed.connect(self._navegar_ruta_manual)
 
-        self.btn_ir = QPushButton(t("Ir"))
-        self.btn_ir.setFixedWidth(40)
-        self.btn_ir.setFixedHeight(28)
+        self.btn_ir = _nav_btn('arrow_right.png', 'Ir a la ruta')
         self.btn_ir.clicked.connect(self._navegar_ruta_manual)
 
         barra.addWidget(self.btn_atras)
@@ -258,95 +230,71 @@ class DialogoArchivo(QDialog):
         barra.addWidget(self.btn_arriba)
         barra.addWidget(self.btn_home)
         barra.addWidget(sep)
-        barra.addWidget(self.edit_ruta, stretch=1)
+        barra.addWidget(self.edit_ruta)
         barra.addWidget(self.btn_ir)
+
         root.addLayout(barra)
 
-        # ── Splitter central ─────────────────────────────────────────────
+        # Splitter principal
         splitter = QSplitter(Qt.Orientation.Horizontal)
 
-        # Panel izquierdo – Lugares rápidos
+        # Panel izquierdo: lugares rápidos
         self.lista_lugares = QListWidget()
-        self.lista_lugares.setFixedWidth(170)
-        self.lista_lugares.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.lista_lugares.setIconSize(QSize(16, 16))
+        self.lista_lugares.setIconSize(QSize(20, 20))
         self.lista_lugares.itemClicked.connect(self._lugar_clickado)
         splitter.addWidget(self.lista_lugares)
 
-        # Panel derecho – Contenido
+        # Panel derecho: lista de archivos del directorio activo
         self.lista_archivos = QListWidget()
-        self.lista_archivos.setViewMode(QListWidget.ViewMode.ListMode)
         self.lista_archivos.setIconSize(QSize(24, 24))
-        self.lista_archivos.setSpacing(1)
-        self.lista_archivos.setUniformItemSizes(True)
-        self.lista_archivos.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        self.lista_archivos.itemDoubleClicked.connect(self._item_doble_clic)
         self.lista_archivos.itemClicked.connect(self._item_clic)
+        self.lista_archivos.itemDoubleClicked.connect(self._item_doble_clic)
         self.lista_archivos.keyPressEvent = self._tecla_lista
         splitter.addWidget(self.lista_archivos)
 
-        splitter.setStretchFactor(0, 0)
-        splitter.setStretchFactor(1, 1)
-        root.addWidget(splitter, stretch=1)
+        # Proporciones del splitter (220px lugares, resto archivos)
+        splitter.setSizes([220, 740])
+        root.addWidget(splitter, 1)
 
-        # ── Fila nombre + filtro ─────────────────────────────────────────
+        # Fila de nombre y filtro
         fila_nombre = QHBoxLayout()
         fila_nombre.setSpacing(6)
 
         lbl_nombre = QLabel(t("Nombre:"))
-        lbl_nombre.setFixedWidth(60)
+        self.edit_nombre = QLineEdit()
+        self.edit_nombre.setText(nombre_sugerido)
+        self.edit_nombre.returnPressed.connect(self._confirmar)
+
+        self.combo_filtro = QComboBox()
+        self.combo_filtro.setMinimumWidth(220)
+        for desc, _ in self._filtros:
+            self.combo_filtro.addItem(desc)
+        self.combo_filtro.currentIndexChanged.connect(self._cambiar_filtro)
+
         fila_nombre.addWidget(lbl_nombre)
-
-        self.edit_nombre = QLineEdit(nombre_sugerido)
-        self.edit_nombre.setPlaceholderText(t("nombre del archivo…"))
-        if self._modo == "abrir":
-            self.edit_nombre.setReadOnly(True)
-        # Solo en modos abrir/guardar, Enter en el nombre confirma.
-        # En modo directorio, Enter nunca confirma (sólo el botón lo hace).
-        if self._modo != "directorio":
-            self.edit_nombre.returnPressed.connect(self._confirmar)
-        fila_nombre.addWidget(self.edit_nombre, stretch=1)
-
-        if self._modo != "directorio":
-            lbl_tipo = QLabel(t("Tipo:"))
-            lbl_tipo.setFixedWidth(36)
-            fila_nombre.addWidget(lbl_tipo)
-
-            self.combo_filtro = QComboBox()
-            self.combo_filtro.setMinimumWidth(210)
-            for desc, _ in self._filtros:
-                self.combo_filtro.addItem(desc)
-            self.combo_filtro.currentIndexChanged.connect(self._cambiar_filtro)
-            fila_nombre.addWidget(self.combo_filtro)
+        fila_nombre.addWidget(self.edit_nombre, 1)
+        fila_nombre.addWidget(self.combo_filtro)
 
         root.addLayout(fila_nombre)
 
-        # ── Botones de acción ────────────────────────────────────────────
+        # Botones de acción
         fila_btns = QHBoxLayout()
-        fila_btns.setSpacing(6)
-        fila_btns.addStretch()
+        fila_btns.setSpacing(8)
 
-        self.btn_cancelar = QPushButton(t("  Cancelar"))
-        self.btn_cancelar.setIcon(_ico('cancel.png'))
-        self.btn_cancelar.setIconSize(QSize(16, 16))
-        self.btn_cancelar.setFixedHeight(32)
-        self.btn_cancelar.setMinimumWidth(110)
+        self.btn_cancelar = QPushButton(t("Cancelar"))
         self.btn_cancelar.setAutoDefault(False)
         self.btn_cancelar.setDefault(False)
         self.btn_cancelar.clicked.connect(self.reject)
 
         if self._modo == "guardar":
-            etiq_ok, ico_ok = t("  Guardar"), 'save.png'
+            texto_ok = t("Guardar")
         elif self._modo == "directorio":
-            etiq_ok, ico_ok = t("  Seleccionar"), 'open.png'
+            texto_ok = t("Seleccionar")
         else:
-            etiq_ok, ico_ok = t("  Abrir"), 'open.png'
+            texto_ok = t("Abrir")
 
-        self.btn_ok = QPushButton(etiq_ok)
-        self.btn_ok.setIcon(_ico(ico_ok))
-        self.btn_ok.setIconSize(QSize(16, 16))
+        self.btn_ok = QPushButton(texto_ok)
         self.btn_ok.setObjectName("btn_ok")
-        self.btn_ok.setFixedHeight(32)
         self.btn_ok.setMinimumWidth(110)
         self.btn_ok.setAutoDefault(False)
         self.btn_ok.setDefault(False)
@@ -356,9 +304,7 @@ class DialogoArchivo(QDialog):
         fila_btns.addWidget(self.btn_ok)
         root.addLayout(fila_btns)
 
-    # ------------------------------------------------------------------
     # Estilos
-    # ------------------------------------------------------------------
 
     def _aplicar_estilos(self):
         from core.theme import ThemeManager
@@ -523,9 +469,7 @@ class DialogoArchivo(QDialog):
                 }
             """)
 
-    # ------------------------------------------------------------------
     # Lugares rápidos
-    # ------------------------------------------------------------------
 
     def _poblar_lugares(self):
         self.lista_lugares.clear()
@@ -542,9 +486,7 @@ class DialogoArchivo(QDialog):
         if idx < len(self._rutas_lugares):
             self._navegar(self._rutas_lugares[idx])
 
-    # ------------------------------------------------------------------
     # Navegación
-    # ------------------------------------------------------------------
 
     def _navegar(self, directorio, agregar_historial=True):
         if not os.path.isdir(directorio):
@@ -599,9 +541,7 @@ class DialogoArchivo(QDialog):
             QMessageBox.warning(self, t("Ruta inválida"), t("La ruta no existe:") + f"\n{ruta}")
 
 
-    # ------------------------------------------------------------------
     # Carga del directorio
-    # ------------------------------------------------------------------
 
     def _parsear_filtros(self, filtros):
         if not filtros:
@@ -669,9 +609,7 @@ class DialogoArchivo(QDialog):
         self._filtro_activo = idx
         self._cargar_directorio(self._directorio)
 
-    # ------------------------------------------------------------------
     # Interacción con la lista
-    # ------------------------------------------------------------------
 
     def _item_clic(self, item):
         tipo = item.data(Qt.ItemDataRole.UserRole + 1)
@@ -707,15 +645,12 @@ class DialogoArchivo(QDialog):
         else:
             QListWidget.keyPressEvent(self.lista_archivos, event)
 
-    # ------------------------------------------------------------------
     # Confirmación
-    # ------------------------------------------------------------------
 
     def _confirmar(self):
         if self._modo == "directorio":
             self._ruta_seleccionada = self._directorio
-            settings = QSettings("PaintNotNet", "PaintNotNet")
-            settings.setValue("default_dir", self._directorio)
+            self.settings.setValue("default_dir", self._directorio)
             self.accept()
             return
 
@@ -754,23 +689,18 @@ class DialogoArchivo(QDialog):
                 if resp != QMessageBox.StandardButton.Yes:
                     return
 
-        settings = QSettings("PaintNotNet", "PaintNotNet")
-        settings.setValue("default_dir", self._directorio)
+        self.settings.setValue("default_dir", self._directorio)
 
         self._ruta_seleccionada = ruta
         self.accept()
 
-    # ------------------------------------------------------------------
     # API pública
-    # ------------------------------------------------------------------
 
     def ruta_seleccionada(self):
         """Devuelve la ruta completa seleccionada, o None si se canceló."""
         return self._ruta_seleccionada
 
-    # ------------------------------------------------------------------
     # Teclado global
-    # ------------------------------------------------------------------
 
     def keyPressEvent(self, event):
         key = event.key()

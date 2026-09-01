@@ -13,6 +13,13 @@ class GradientTool(BaseTool):
         self.is_dragging = False
         self.active_button = Qt.MouseButton.LeftButton
 
+    def get_icon_path(self, canvas):
+        if hasattr(canvas, 'main_window') and canvas.main_window and hasattr(canvas.main_window, 'top_toolbar'):
+            tb = canvas.main_window.top_toolbar
+            if hasattr(tb, 'btn_degradado_transparencia') and tb.btn_degradado_transparencia.isChecked():
+                return "gui/iconos/transparency.png"
+        return "gui/iconos/gradient.png"
+
     def mouse_press(self, canvas, event, color_activo=None):
         if event.button() in (Qt.MouseButton.LeftButton, Qt.MouseButton.RightButton):
             self.active_button = event.button()

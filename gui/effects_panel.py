@@ -18,9 +18,7 @@ from PyQt6.QtCore import Qt, QPointF, pyqtSignal, QSettings
 from core.i18n import t
 
 
-# ---------------------------------------------------------------------------
 # Clase auxiliar: botón de slot de color (1 slot por efecto)
-# ---------------------------------------------------------------------------
 
 class _EffectColorSlot(QPushButton):
     """
@@ -34,6 +32,7 @@ class _EffectColorSlot(QPushButton):
         super().__init__()
         self._panel = parent_panel
         self._key   = settings_key
+        self.settings = QSettings("PaintNotNet", "EffectsPanel")
         self._color: QColor | None = None
         self.setFixedSize(20, 20)
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.PreventContextMenu)
@@ -46,19 +45,17 @@ class _EffectColorSlot(QPushButton):
     # ---- persistencia --------------------------------------------------
 
     def _cargar(self):
-        settings = QSettings("PaintNotNet", "EffectsPanel")
-        val = settings.value(self._key, None)
+        val = self.settings.value(self._key, None)
         if val:
             c = QColor(val)
             if c.isValid():
                 self._color = c
 
     def _guardar(self):
-        settings = QSettings("PaintNotNet", "EffectsPanel")
         if self._color and self._color.isValid():
-            settings.setValue(self._key, self._color.name(QColor.NameFormat.HexArgb))
+            self.settings.setValue(self._key, self._color.name(QColor.NameFormat.HexArgb))
         else:
-            settings.remove(self._key)
+            self.settings.remove(self._key)
 
     def mousePressEvent(self, event):
         if event.button() not in (Qt.MouseButton.LeftButton, Qt.MouseButton.RightButton):
@@ -150,9 +147,7 @@ class _EffectColorSlot(QPushButton):
         self.update()
 
 
-# ---------------------------------------------------------------------------
 # Clase auxiliar: rueda de dirección de luz (igual a la del antiguo text_panel)
-# ---------------------------------------------------------------------------
 
 class _LightDirectionWidget(QWidget):
     """Control circular 2D compacto para la dirección de la sombra."""
@@ -220,9 +215,7 @@ class _LightDirectionWidget(QWidget):
         self.update()
 
 
-# ---------------------------------------------------------------------------
 # Panel principal
-# ---------------------------------------------------------------------------
 
 class EffectsPanelWidget(QWidget):
     """Panel lateral de Efectos: Borde, Resplandor, Sombra."""
@@ -387,9 +380,7 @@ class EffectsPanelWidget(QWidget):
 
         self.light_widget.update()
 
-    # ------------------------------------------------------------------ #
-    #  Config                                                              #
-    # ------------------------------------------------------------------ #
+    # Config
 
     def obtener_config(self) -> dict:
         """Devuelve la configuración actual de todos los efectos."""
@@ -412,9 +403,7 @@ class EffectsPanelWidget(QWidget):
     def _emit(self, *_):
         self.effects_changed.emit(self.obtener_config())
 
-    # ------------------------------------------------------------------ #
-    #  I18n                                                                #
-    # ------------------------------------------------------------------ #
+    # I18n
 
     def retraducir_panel(self):
         if hasattr(self, 'group_borde'):

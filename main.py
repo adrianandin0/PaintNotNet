@@ -42,6 +42,14 @@ def obtener_ruta_icono_app() -> str:
 
 
 class PaintNotNet(QMainWindow):
+    @property
+    def lienzo(self):
+        return getattr(self, 'canvas', None)
+
+    @lienzo.setter
+    def lienzo(self, val):
+        self.canvas = val
+
     def __init__(self):
         super().__init__()
         self.settings = QSettings("PaintNotNet", "PaintNotNet")
@@ -50,15 +58,12 @@ class PaintNotNet(QMainWindow):
             self.restoreGeometry(geometry)
         else:
             self.resize(1500, 800)
-        self.setWindowIcon(QIcon(obtener_ruta_icono_app()))
         self.archivo_actual = None
         self.lienzo_modificado = False
 
         self.setDockOptions(QMainWindow.DockOption.AnimatedDocks)
 
-        # ==========================================
-        # DOCKS LATERALES IZQUIERDOS: Herramientas / Pinceles / Colores
-        # ==========================================
+        # Docks laterales izquierdos: Herramientas, Pinceles, Colores
         self.tools_dock = QDockWidget(self)
         self.tools_dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
         self.tool_panel = ToolPanelWidget(main_window=self)
@@ -77,9 +82,7 @@ class PaintNotNet(QMainWindow):
         self.color_dock.setFixedWidth(120)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.color_dock)
 
-        # ==========================================
-        # DOCKS LATERALES DERECHOS: Texto / Colores / Efectos de Texto / Historial / Capas
-        # ==========================================
+        # Docks laterales derechos: Texto, Colores, Historial, Capas
         # 1. Dock de Color avanzado
         self.advanced_color_dock = QDockWidget(self)
         self.advanced_color_dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
@@ -112,9 +115,7 @@ class PaintNotNet(QMainWindow):
 
         self.setWindowIcon(QIcon(obtener_ruta_icono_app()))
 
-        # ==========================================
-        # ÁREA CENTRAL MULTI-PESTAÑA (TABBED MDI)
-        # ==========================================
+        # Área central multi-pestaña (Tabbed MDI)
         self.tab_widget = QTabWidget()
         self.tab_widget.setTabsClosable(True)
         self.tab_widget.setMovable(True)
@@ -135,16 +136,14 @@ class PaintNotNet(QMainWindow):
 
         self.setCentralWidget(central_container)
 
-        # --- CONEXIONES DIRECTAS: PANELES -> CANVAS ---
+        # Conexiones directas: Paneles -> Canvas
         self.color_panel.color_primario_cambiado.connect(self._on_color_primario_changed)
         self.color_panel.color_secundario_cambiado.connect(self._on_color_secundario_changed)
 
         self.advanced_color_panel.color_primario_cambiado.connect(self._on_color_primario_changed)
         self.advanced_color_panel.color_secundario_cambiado.connect(self._on_color_secundario_changed)
 
-        # ==========================================
-        # MENÚS Y ATAJOS GLOBALES
-        # ==========================================
+        # Menús y atajos globales
         self.crear_menus()
         self.text_panel = self.top_toolbar
         self.effects_panel = self.top_toolbar
@@ -154,28 +153,23 @@ class PaintNotNet(QMainWindow):
         self.emergency_mgr = EmergencySaveManager(main_window=self)
 
         from core.i18n import t
-        settings = QSettings("PaintNotNet", "PaintNotNet")
-        init_w = settings.value("default_canvas_w", 800, type=int)
-        init_h = settings.value("default_canvas_h", 600, type=int)
-        init_trans = settings.value("default_canvas_transparent", False, type=bool)
-        init_dpi = settings.value("default_canvas_dpi", 300, type=int)
-        init_profile = settings.value("default_canvas_profile", "sRGB", type=str)
+        init_w = self.settings.value("default_canvas_w", 800, type=int)
+        init_h = self.settings.value("default_canvas_h", 600, type=int)
+        init_trans = self.settings.value("default_canvas_transparent", False, type=bool)
+        init_dpi = self.settings.value("default_canvas_dpi", 300, type=int)
+        init_profile = self.settings.value("default_canvas_profile", "sRGB", type=str)
 
         # Crear primera pestaña por defecto
         self.crear_nueva_pestana(init_w, init_h, transparent=init_trans, dpi=init_dpi, perfil_color=init_profile, titulo=t("Sin Título"))
 
         # Set active tool state on top toolbar
-        if hasattr(self, 'left_toolbar') and hasattr(self.left_toolbar, 'active_tool_obj'):
-            self.top_toolbar.update_tool_states(self.left_toolbar.active_tool_obj)
+        if hasattr(self, 'tool_panel') and hasattr(self.tool_panel, 'active_tool_obj'):
+            self.top_toolbar.update_tool_states(self.tool_panel.active_tool_obj)
 
-        # ==========================================
-        # RESTAURAR PERFIL DE USUARIO SI EXISTE
-        # ==========================================
+        # Restaurar perfil de usuario si existe
         self._cargar_perfil_usuario()
 
-        # ==========================================
-        # APLICAR TEMA DE INTERFAZ (CLARO / OSCURO / SISTEMA)
-        # ==========================================
+        # Aplicar tema de interfaz (Claro / Oscuro / Sistema)
         from core.theme import ThemeManager
         ThemeManager().establecer_tema(ThemeManager().current_theme, self)
 
@@ -701,7 +695,7 @@ class PaintNotNet(QMainWindow):
 
     def activar_herramienta_mover(self):
         from tools.move_select_pixels import MoveSelectPixelsTool
-        panel = getattr(self, 'tools_panel', getattr(self, 'tool_panel', getattr(self, 'panel_herramientas', None)))
+        panel = getattr(self, 'tool_panel', None)
         if panel:
             for btn in panel.button_group.buttons():
                 tool = btn.property("tool_obj")
@@ -718,10 +712,12 @@ class PaintNotNet(QMainWindow):
     def _ejecutar_escape_global(self):
         if hasattr(self, 'canvas') and self.canvas:
             canvas = self.canvas
+            if hasattr(canvas.active_tool_obj, 'is_editing') and getattr(canvas.active_tool_obj, 'is_editing', False):
+                if hasattr(canvas.active_tool_obj, 'commit_text'):
+                    canvas.active_tool_obj.commit_text(canvas, canvas.color_primario)
+                    return
             if hasattr(canvas.active_tool_obj, 'commit_line'):
                 canvas.active_tool_obj.commit_line(canvas)
-            if hasattr(canvas.active_tool_obj, 'commit_text'):
-                canvas.active_tool_obj.commit_text(canvas, canvas.color_primario)
             canvas.cancelar_o_deseleccionar()
 
     def createPopupMenu(self):
@@ -782,17 +778,16 @@ class PaintNotNet(QMainWindow):
                 event.ignore()
                 return
 
-        settings = QSettings("PaintNotNet", "PaintNotNet")
-        settings.setValue("geometry", self.saveGeometry())
+        self.settings.setValue("geometry", self.saveGeometry())
 
         docks_attr = [
             'tools_dock', 'color_dock',
             'layers_dock', 'history_dock', 'advanced_color_dock'
         ]
         docks_visibles = {attr: getattr(self, attr).isVisible() for attr in docks_attr if hasattr(self, attr)}
-        settings.setValue("docks_visible", docks_visibles)
+        self.settings.setValue("docks_visible", docks_visibles)
 
-        if settings.value("save_on_close", True, type=bool):
+        if self.settings.value("save_on_close", True, type=bool):
             if hasattr(self, 'color_panel'):
                 custom_hexs = []
                 for c in self.color_panel.custom_colors:
@@ -800,7 +795,7 @@ class PaintNotNet(QMainWindow):
                         custom_hexs.append(c.name(QColor.NameFormat.HexArgb))
                     else:
                         custom_hexs.append("")
-                settings.setValue("custom_colors", custom_hexs)
+                self.settings.setValue("custom_colors", custom_hexs)
 
         if hasattr(self, 'emergency_mgr') and self.emergency_mgr:
             self.emergency_mgr.limpiar_todos()
@@ -883,7 +878,6 @@ if __name__ == '__main__':
     I18nManager().cargar_idioma_configurado()
 
     ventana = PaintNotNet()
-    ThemeManager().establecer_tema(ThemeManager().current_theme, ventana)
 
     # Iniciar servidor IPC para recibir solicitudes de apertura de archivos de futuras instancias
     ventana._single_instance_server = iniciar_servidor_instancia_unica(ventana)

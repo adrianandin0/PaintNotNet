@@ -76,6 +76,7 @@ class SelectFreeTool(BaseTool):
             path.closeSubpath()
 
             canvas.selection_engine.set_path(path)
+            canvas.push_document_state("Selección Libre", force=True)
             if hasattr(canvas, 'main_window') and canvas.main_window:
                 canvas.main_window.activar_herramienta_mover()
 

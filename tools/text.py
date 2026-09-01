@@ -663,16 +663,17 @@ class TextTool(BaseTool, QObject):
         ]
         resizes = [(i, QRect(p.x() - hs, p.y() - hs, _HANDLE_SIZE, _HANDLE_SIZE)) for i, p in enumerate(pts)]
 
-        # Handle 8: Cuadradito de Mover (12x12px) al centro arriba del cuadro de texto
-        move_sz = 12
-        move_rect = QRect(cx - move_sz // 2, r.top() - move_sz - 4, move_sz, move_sz)
+        # Handle 8: Cuadradito de Mover (10x10px, idéntico al de la herramienta Línea)
+        move_sz = 10
+        move_rect = QRect(cx - move_sz // 2, r.top() - move_sz - 5, move_sz, move_sz)
         resizes.append((8, move_rect))
 
         return resizes
 
     def _hit_handle(self, pt: QPoint) -> int | None:
         for idx, hr in self._handle_rects():
-            if hr.contains(pt):
+            hit_area = hr.adjusted(-4, -4, 4, 4) if idx == 8 else hr.adjusted(-2, -2, 2, 2)
+            if hit_area.contains(pt):
                 return idx
         return None
 
@@ -686,7 +687,7 @@ class TextTool(BaseTool, QObject):
             5: Qt.CursorShape.SizeVerCursor,   # BC
             6: Qt.CursorShape.SizeBDiagCursor, # BL
             7: Qt.CursorShape.SizeHorCursor,   # LC
-            8: Qt.CursorShape.SizeAllCursor,   # MV
+            8: Qt.CursorShape.CrossCursor,     # MV -> Cruz limpia
         }
         return cursors.get(handle, Qt.CursorShape.IBeamCursor)
 
@@ -774,9 +775,9 @@ class TextTool(BaseTool, QObject):
             self._drag_handle     = None
             self._update_panel_ui(canvas)
         else:
-            # Clic fuera → confirmar texto actual e iniciar nuevo
+            # Clic fuera → confirmar y cerrar texto actual
             self.commit_text(canvas, color_activo)
-            self._drag_start      = click
+            self._drag_start      = None
             self._mouse_selecting = False
             self._drag_handle     = None
 
@@ -1086,10 +1087,10 @@ class TextTool(BaseTool, QObject):
         # Dibujar tiradores 0..7 (Resize) y 8 (Move)
         for idx, hr in self._handle_rects():
             if idx == 8:
-                # Handle de mover: Cuadradito de mover azul con borde blanco
-                painter.setPen(QPen(QColor(255, 255, 255), 1.5))
-                painter.setBrush(QBrush(QColor(26, 95, 168)))
-                painter.drawRect(hr)
+                # Handle de mover: Cuadradito celeste con borde azul delgado de 1px (idéntico al de Línea)
+                painter.setPen(QPen(QColor(0, 50, 160), 1))
+                painter.setBrush(QBrush(QColor(0, 120, 215)))
+                painter.drawRect(QRectF(hr.x() + 0.5, hr.y() + 0.5, hr.width() - 1, hr.height() - 1))
             else:
                 # Tiradores de redimensión (cuadritos blancos con borde azul)
                 painter.setPen(QPen(QColor(0, 120, 215), 1))
@@ -1258,19 +1259,21 @@ class TextTool(BaseTool, QObject):
 
     def commit_text(self, canvas, color_activo):
         if not self.is_editing: return
-        if any(any(s.text.strip() for s in line) for line in self.rich_lines):
+        tenia_texto = any(any(s.text.strip() for s in line) for line in self.rich_lines)
+        if tenia_texto:
             qimg    = canvas.layer_mgr.buffer
             painter = QPainter(qimg)
             canvas.aplicar_clip_seleccion(painter)
             self._render(painter, canvas, is_commit=True)
             painter.end()
-            canvas.actualizar_historial_gui()
+
         if self.current_canvas:
             self.current_canvas.removeEventFilter(self)
         self.is_editing = False
         self.text_rect  = None
         self.rich_lines = [_empty_line(self._default_fmt)]
         self._clear_sel()
+        canvas.push_document_state("Cerrar texto", force=True)
         canvas.update()
 
     def _get_bounding_rect(self, canvas) -> QRect:

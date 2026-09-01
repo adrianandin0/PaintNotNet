@@ -9,27 +9,7 @@ class BlurTool(BaseTool):
     def __init__(self):
         super().__init__("Difuminar", "gui/iconos/blur.png")
         self.is_drawing = False
-
-    def draw_handles(self, painter, canvas):
-        if canvas.cursor_pos is None:
-            return
-        pos = canvas.cursor_pos
-        size = max(1, getattr(canvas, 'grosor_pincel', 15))
-        radius = size / 2.0
-
-        painter.save()
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-
-        pen_outer = QPen(QColor(0, 0, 0, 200), 1.5)
-        painter.setPen(pen_outer)
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.drawEllipse(pos, radius + 0.5, radius + 0.5)
-
-        pen_inner = QPen(QColor(0, 180, 255, 255), 1.0)
-        painter.setPen(pen_inner)
-        painter.setBrush(QBrush(QColor(0, 180, 255, 40)))
-        painter.drawEllipse(pos, radius, radius)
-        painter.restore()
+        self.show_cursor_badge = False
 
     def mouse_press(self, canvas, event, color_activo=None):
         if event.button() in (Qt.MouseButton.LeftButton, Qt.MouseButton.RightButton):

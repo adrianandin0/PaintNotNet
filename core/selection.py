@@ -129,10 +129,14 @@ class SelectionEngine:
     def _apply_compound_transform(self):
         """
         Aplica la matriz de transformación compuesta (escalado + rotación) en un solo paso
-        directamente desde la imagen original pura sin ninguna pérdida acumulada de calidad.
+        directamente desde la imagen original pura sin ninguna pérdida acumulada de calidad,
+        garantizando alineación subpíxel absoluta entre la imagen flotante y la máscara de selección.
         """
         raw = self.original_raw_image or self.unscaled_floating_image
         if raw and not raw.isNull():
+            raw_w = float(raw.width())
+            raw_h = float(raw.height())
+
             t_img = QTransform()
             t_img.scale(self.scale_x, self.scale_y)
             t_img.rotate(self.total_rotation)
@@ -141,13 +145,13 @@ class SelectionEngine:
             self.floating_image = raw.transformed(t_img, Qt.TransformationMode.SmoothTransformation)
             self.unscaled_floating_image = raw.copy()
 
-            new_w = float(self.floating_image.width())
-            new_h = float(self.floating_image.height())
-
+            # Posicionamiento exacto por mapeo del centro transformado para evitar desviaciones subpíxel
             cx, cy = self.rotation_center.x(), self.rotation_center.y()
-            top_left = QPointF(cx - new_w / 2.0, cy - new_h / 2.0)
-            self.original_image_pos = top_left
-            self.active_rect = QRectF(top_left.x(), top_left.y(), new_w, new_h)
+            mapped_center = t_img.map(QPointF(raw_w / 2.0, raw_h / 2.0))
+            mapped_rect = t_img.mapRect(QRectF(0, 0, raw_w, raw_h))
+            center_in_img = mapped_center - mapped_rect.topLeft()
+
+            self.original_image_pos = QPointF(cx - center_in_img.x(), cy - center_in_img.y())
 
         # Mapeo del path de selección
         if self.initial_unrotated_path and not self.initial_unrotated_path.isEmpty() and self.initial_unrotated_rect:
@@ -216,6 +220,56 @@ class SelectionEngine:
         if self.active_rect.contains(point_f):
             return self.HANDLE_MOVE
 
+        return self.HANDLE_NONE
+
+    def update_floating_image(self, new_img: QImage):
+        """Actualiza la imagen de la selección flotante en todos sus buffers (floating, unscaled, original_raw)."""
+        if not new_img or new_img.isNull():
+            return
+        self.floating_image = new_img.copy()
+        self.unscaled_floating_image = new_img.copy()
+        self.original_raw_image = new_img.copy()
+
+    def flip_floating_image(self, horizontal: bool = True, vertical: bool = False):
+        """
+        Voltea la selección flotante manteniendo intactos los buffers de alta resolución,
+        escala, rotación y máscaras de selección.
+        """
+        if not self.has_selection() or (not horizontal and not vertical):
+            return
+
+        # 1. Voltear todos los buffers de imagen almacenados
+        if self.floating_image and not self.floating_image.isNull():
+            self.floating_image = self.floating_image.mirrored(horizontal, vertical)
+
+        if self.unscaled_floating_image and not self.unscaled_floating_image.isNull():
+            self.unscaled_floating_image = self.unscaled_floating_image.mirrored(horizontal, vertical)
+
+        if self.original_raw_image and not self.original_raw_image.isNull():
+            self.original_raw_image = self.original_raw_image.mirrored(horizontal, vertical)
+
+        # 2. Espejar los trazados (paths) de la máscara de selección respecto al centro del rectángulo
+        if self.active_rect and self.active_rect.isValid():
+            cx = self.active_rect.center().x()
+            cy = self.active_rect.center().y()
+            sx = -1.0 if horizontal else 1.0
+            sy = -1.0 if vertical else 1.0
+
+            t_mirror = QTransform().translate(cx, cy).scale(sx, sy).translate(-cx, -cy)
+
+            if self.active_path and not self.active_path.isEmpty():
+                self.active_path = t_mirror.map(self.active_path)
+
+            if self.initial_unrotated_path and not self.initial_unrotated_path.isEmpty():
+                self.initial_unrotated_path = t_mirror.map(self.initial_unrotated_path)
+
+            if self.initial_unrotated_rect and self.initial_unrotated_rect.isValid():
+                self.initial_unrotated_rect = t_mirror.map(self.initial_unrotated_path).boundingRect()
+
+        # 3. Si hay rotación previa, invertir el ángulo total de rotación
+        if getattr(self, 'total_rotation', 0.0) != 0.0 and (horizontal != vertical):
+            self.total_rotation = (-self.total_rotation) % 360.0
+
     def rotate_floating_image(self, degrees):
         if not self.has_selection():
             return
@@ -236,9 +290,25 @@ class SelectionEngine:
         if not self.rotation_center or self.rotation_center.isNull():
             self.rotation_center = QPointF(self.active_rect.center())
 
-        if not self.initial_unrotated_rect or self.initial_unrotated_rect.isEmpty():
-            self.initial_unrotated_rect = QRectF(self.active_rect)
-            self.initial_unrotated_path = QPainterPath(self.active_path)
+        if not self.initial_unrotated_rect or self.initial_unrotated_rect.isEmpty() or not self.initial_unrotated_path or self.initial_unrotated_path.isEmpty():
+            cx, cy = self.rotation_center.x(), self.rotation_center.y()
+            if self.total_rotation != 0.0 or self.scale_x != 1.0 or self.scale_y != 1.0:
+                t_inv, ok = (
+                    QTransform()
+                    .translate(cx, cy)
+                    .rotate(self.total_rotation)
+                    .scale(self.scale_x, self.scale_y)
+                    .translate(-cx, -cy)
+                ).inverted()
+                if ok:
+                    self.initial_unrotated_path = t_inv.map(self.active_path)
+                    self.initial_unrotated_rect = self.initial_unrotated_path.boundingRect()
+                else:
+                    self.initial_unrotated_rect = QRectF(self.active_rect)
+                    self.initial_unrotated_path = QPainterPath(self.active_path)
+            else:
+                self.initial_unrotated_rect = QRectF(self.active_rect)
+                self.initial_unrotated_path = QPainterPath(self.active_path)
 
         if button == Qt.MouseButton.RightButton and hit in (
             self.HANDLE_TOP_LEFT, self.HANDLE_TOP_RIGHT,
