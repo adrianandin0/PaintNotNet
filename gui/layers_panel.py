@@ -63,6 +63,7 @@ class AlphaMenuAction(QWidgetAction):
 
         canvas = self.panel.obtener_canvas()
         if canvas:
+            canvas.push_document_state(t("Cambiar Opacidad"))
             canvas.update()
 
 

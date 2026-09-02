@@ -1038,6 +1038,7 @@ class CanvasWidget(QWidget):
             capas_copy.append({
                 'name': c.name,
                 'visible': c.visible,
+                'opacity': float(getattr(c, 'opacity', 1.0)),
                 'image': c.image.copy()
             })
         path = QPainterPath(self.selection_engine.active_path) if (hasattr(self.selection_engine, 'active_path') and self.selection_engine.has_selection()) else None
@@ -1087,14 +1088,16 @@ class CanvasWidget(QWidget):
             if pkg1.get('floating_image') != pkg2.get('floating_image'):
                 return False
 
-        # Comparar capas (visibilidad, nombre e imagen)
+        # Comparar capas (visibilidad, opacidad, nombre e imagen)
         l1 = s1.get('layers', [])
         l2 = s2.get('layers', [])
         if len(l1) != len(l2):
             return False
 
         for lay1, lay2 in zip(l1, l2):
-            if lay1.get('name') != lay2.get('name') or lay1.get('visible') != lay2.get('visible'):
+            if (lay1.get('name') != lay2.get('name') or
+                lay1.get('visible') != lay2.get('visible') or
+                lay1.get('opacity') != lay2.get('opacity')):
                 return False
             img1 = lay1.get('image')
             img2 = lay2.get('image')
@@ -1157,6 +1160,7 @@ class CanvasWidget(QWidget):
             for l_info in snap['layers']:
                 capa = Layer(l_info['name'], snap_w, snap_h, transparent=True)
                 capa.visible = l_info.get('visible', True)
+                capa.opacity = float(l_info.get('opacity', 1.0))
                 capa.image = l_info['image'].copy()
                 nuevas_capas.append(capa)
 
