@@ -3,6 +3,7 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QToolBut
                              QMessageBox, QMenu, QInputDialog, QWidgetAction, QSpinBox)
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QIcon, QPixmap, QImage, QPainter, QColor, QPen
+from core.i18n import t
 
 
 class AlphaMenuAction(QWidgetAction):
@@ -57,9 +58,7 @@ class AlphaMenuAction(QWidgetAction):
                 row_widget = rw
                 break
         if row_widget:
-            op_pct = int(round(self.capa.opacity * 100))
-            nombre_display = f"{self.capa.name} ({op_pct}%)" if op_pct < 100 else self.capa.name
-            row_widget.lbl_name.setText(nombre_display)
+            row_widget.actualizar_textos()
 
         canvas = self.panel.obtener_canvas()
         if canvas:
@@ -84,12 +83,22 @@ class LayerRowWidget(QWidget):
         self.actualizar_thumb()
         layout.addWidget(self.lbl_thumb)
 
-        # 2. Nombre de la Capa (con indicador de Opacidad / Alfa si es menor al 100%)
+        # 2. Contenedor vertical para Nombre (arriba) y Alfa/Opacidad (debajo)
+        text_container = QWidget()
+        text_container.setStyleSheet("background: transparent;")
+        text_layout = QVBoxLayout(text_container)
+        text_layout.setContentsMargins(0, 0, 0, 0)
+        text_layout.setSpacing(1)
+
+        self.lbl_name = QLabel(capa.name)
+        
         op_pct = int(round(getattr(capa, 'opacity', 1.0) * 100))
-        nombre_display = f"{capa.name} ({op_pct}%)" if op_pct < 100 else capa.name
-        self.lbl_name = QLabel(nombre_display)
-        self.lbl_name.setStyleSheet("font-size: 11px;")
-        layout.addWidget(self.lbl_name)
+        self.lbl_alpha_text = QLabel(f"{t('Alfa:')} {op_pct}%")
+
+        text_layout.addWidget(self.lbl_name)
+        text_layout.addWidget(self.lbl_alpha_text)
+
+        layout.addWidget(text_container)
 
         layout.addStretch()
 
@@ -110,6 +119,11 @@ class LayerRowWidget(QWidget):
         pix = thumb_icon.pixmap(tw, th)
         self.lbl_thumb.setFixedSize(tw, th)
         self.lbl_thumb.setPixmap(pix)
+
+    def actualizar_textos(self):
+        op_pct = int(round(getattr(self.capa, 'opacity', 1.0) * 100))
+        self.lbl_name.setText(self.capa.name)
+        self.lbl_alpha_text.setText(f"{t('Alfa:')} {op_pct}%")
 
     def toggle_visibility(self):
         self.capa.visible = not self.capa.visible
@@ -135,14 +149,19 @@ class LayerRowWidget(QWidget):
 
         if not self.capa.visible:
             color_str = "#D0D0D0" if is_selected else ("#777777" if is_light else "#AAAAAA")
+            alpha_color_str = "#B0B0B0" if is_selected else ("#888888" if is_light else "#888888")
             self.lbl_name.setStyleSheet(f"font-size: 11px; color: {color_str}; text-decoration: line-through; background: transparent;")
+            self.lbl_alpha_text.setStyleSheet(f"font-size: 9px; color: {alpha_color_str}; background: transparent;")
             self.btn_eye.setStyleSheet("QToolButton { opacity: 0.3; background: transparent; border: none; }")
         else:
             if is_selected:
                 color_str = "#FFFFFF"
+                alpha_color_str = "#DDDDDD"
             else:
                 color_str = "#000000" if is_light else "#FFFFFF"
+                alpha_color_str = "#666666" if is_light else "#AAAAAA"
             self.lbl_name.setStyleSheet(f"font-size: 11px; color: {color_str}; background: transparent;")
+            self.lbl_alpha_text.setStyleSheet(f"font-size: 9px; color: {alpha_color_str}; background: transparent;")
             self.btn_eye.setStyleSheet("QToolButton { opacity: 1.0; background: transparent; border: none; }")
 
 
@@ -273,7 +292,7 @@ class LayersPanelWidget(QWidget):
             if row_widget and hasattr(row_widget, 'actualizar_thumb'):
                 row_widget.actualizar_thumb()
                 tw, th = self.calcular_tamano_thumbnail(row_widget.capa.image)
-                item.setSizeHint(QSize(0, max(30, th + 8)))
+                item.setSizeHint(QSize(0, max(36, th + 8)))
 
     def reconstruir_lista_capas(self):
         self.lista_capas.blockSignals(True)
@@ -288,7 +307,7 @@ class LayersPanelWidget(QWidget):
         for idx, capa in enumerate(mgr.capas):
             tw, th = self.calcular_tamano_thumbnail(capa.image)
             item = QListWidgetItem()
-            item.setSizeHint(QSize(0, max(30, th + 8)))
+            item.setSizeHint(QSize(0, max(36, th + 8)))
             item.setData(Qt.ItemDataRole.UserRole, idx)
             self.lista_capas.addItem(item)
 
