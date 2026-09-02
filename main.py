@@ -712,6 +712,10 @@ class PaintNotNet(QMainWindow):
     def _ejecutar_escape_global(self):
         if hasattr(self, 'canvas') and self.canvas:
             canvas = self.canvas
+            from tools.shapes import ShapesTool
+            if isinstance(canvas.active_tool_obj, ShapesTool) and canvas.active_tool_obj.active_shape_rect:
+                canvas.active_tool_obj.clear_active_shape(canvas)
+                return
             if hasattr(canvas.active_tool_obj, 'is_editing') and getattr(canvas.active_tool_obj, 'is_editing', False):
                 if hasattr(canvas.active_tool_obj, 'commit_text'):
                     canvas.active_tool_obj.commit_text(canvas, canvas.color_primario)

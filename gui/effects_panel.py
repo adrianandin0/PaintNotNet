@@ -61,9 +61,15 @@ class _EffectColorSlot(QPushButton):
         if event.button() not in (Qt.MouseButton.LeftButton, Qt.MouseButton.RightButton):
             return
 
+        # Si el usuario presiona Ctrl + Clic en el recuadro de color de efectos
+        if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+            self.set_color_external(None)
+            self.color_changed.emit(QColor(0, 0, 0, 0))
+            return
+
         initial = self.get_color()
         from gui.dialogo_color import SingleColorPickerDialog
-        dialog = SingleColorPickerDialog(initial_color=initial, parent=self)
+        dialog = SingleColorPickerDialog(initial_color=initial, parent=self, show_saved=False)
         dialog.color_preview_changed.connect(self._on_preview_color)
 
         from PyQt6.QtWidgets import QDialog

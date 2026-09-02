@@ -307,6 +307,7 @@ class TopToolBarWidget(QToolBar):
         self.chk_formas_redondeado = QCheckBox("Redondeado")
         self.chk_formas_redondeado.setStyleSheet("font-size: 11px;")
         self.chk_formas_redondeado.setToolTip("Esquinas redondeadas para Rectángulos y Triángulos")
+        self.chk_formas_redondeado.toggled.connect(self._on_forma_redondeado_toggled)
         self.act_chk_formas_red = self.addWidget(self.chk_formas_redondeado)
 
         self.combo_forma_estilo = QComboBox()
@@ -329,6 +330,9 @@ class TopToolBarWidget(QToolBar):
         self.combo_forma_tipo.addItem(QIcon("gui/iconos/shape_rectangle.png"), "", "Rectángulo")
         self.combo_forma_tipo.addItem(QIcon("gui/iconos/shape_triangle.png"), "", "Triángulo")
         self.combo_forma_tipo.addItem(QIcon("gui/iconos/shape_circle.png"), "", "Elipse")
+        self.combo_forma_tipo.addItem(QIcon("gui/iconos/shape_sparkle.png"), "", "Chispa")
+        self.combo_forma_tipo.addItem(QIcon("gui/iconos/shape_sun.png"), "", "Sol")
+        self.combo_forma_tipo.addItem(QIcon("gui/iconos/shape_diamond.png"), "", "Rombo")
         self.combo_forma_tipo.addItem(QIcon("gui/iconos/shape_cloud.png"), "", "Nube")
         self.combo_forma_tipo.addItem(QIcon("gui/iconos/shape_heart.png"), "", "Corazón")
         self.combo_forma_tipo.addItem(QIcon("gui/iconos/shape_chat.png"), "", "Chat")
@@ -1055,11 +1059,18 @@ class TopToolBarWidget(QToolBar):
         self.combo_forma_tipo.setToolTip(f"{t('Tipo de Forma:')} {t(val)}")
         if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
             self.main_window.lienzo.actualizar_cursor_herramienta()
+            self.main_window.lienzo.update()
 
     def _on_forma_estilo_changed(self, idx):
         from core.i18n import t
         val = self.combo_forma_estilo.itemData(idx) or "Solo Borde"
         self.combo_forma_estilo.setToolTip(f"{t('Estilo de Forma:')} {t(val)}")
+        if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
+            self.main_window.lienzo.update()
+
+    def _on_forma_redondeado_toggled(self, checked):
+        if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
+            self.main_window.lienzo.update()
 
     def retraducir_toolbar(self):
         from core.i18n import t

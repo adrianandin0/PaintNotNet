@@ -3,7 +3,7 @@ chcp 65001 > NUL
 setlocal enabledelayedexpansion
 
 echo ==============================================================
-echo         Instalador de PaintNotNet v1.0.6 para Windows
+echo         Instalador de PaintNotNet v1.0.7 para Windows
 echo ==============================================================
 echo.
 

@@ -62,6 +62,19 @@
 #### Atajos de Teclado Personalizables
 - **Configuración de Atajos**: Personaliza las teclas de acceso rápido para todas las herramientas desde *Opciones -> Atajos de teclado...* con actualización de insignias en tiempo real.
 
+### Novedades en la Versión 1.0.7
+- **Nuevas Formas Vectoriales**:
+  - Añadidas las formas **Sol**, **Chispa** y **Rombo** al catálogo de la herramienta de formas vectoriales.
+  - Correcciones geométricas y ajustes en el funcionamiento de la herramienta de formas.
+- **Seguimiento Visual de Herramientas y Cursores**:
+  - Modificación del cursor de lienzo con vista previa e icono flotante dinámico que indica la herramienta activa en uso.
+- **Ajustes en Efectos de Texto y Selector de Color**:
+  - Selector de color simplificado para el panel de efectos de texto y posibilidad de borrar el color con `Ctrl+Clic` directamente sobre los recuadros.
+- **Fixes en Redimensionado de Imagen y Lienzo**:
+  - Correcciones en el funcionamiento del redimensionado de imagen, escalado de lienzo y tiradores de transformación.
+- **Depuración de Código y Rendimiento**:
+  - Depuración general de código, eliminación de duplicados y optimización de estabilidad.
+
 ### Novedades en la Versión 1.0.6
 - **Nuevos Ajustes de Imagen y Color**:
   - **Exposición**: Control preciso de luminancia y sobreexposición sin saturar blancos.
@@ -112,6 +125,19 @@
 
 #### Customizable Keyboard Shortcuts
 - **Shortcut Configuration**: Customize keyboard shortcut keys for all tools from *Options -> Keyboard Shortcuts...* with real-time badge updates.
+
+### What's New in Version 1.0.7
+- **New Vector Shapes**:
+  - Added **Sun**, **Sparkle**, and **Diamond** shapes to the shape tool options.
+  - Geometry and stroke adjustments for shape drawing tools.
+- **Tool Cursor Tracking & Badges**:
+  - Updated canvas cursor displaying a dynamic tool icon badge indicating the active tool in use.
+- **Text Effects & Color Picker Enhancements**:
+  - Streamlined color picker dialog for text effects and instant color clearing via `Ctrl+Click` on color swatches.
+- **Image & Canvas Resizing Fixes**:
+  - Fixes and improvements to image resizing, canvas scaling, and bounding handles.
+- **Code Cleanup & Performance**:
+  - General code refactoring, duplicate cleanup, and stability improvements.
 
 ---
 

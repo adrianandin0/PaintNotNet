@@ -19,7 +19,7 @@ class DialogoAcerca(QDialog):
         lbl_titulo.setStyleSheet("font-size: 22px; font-weight: bold; color: #00AAFF;")
         layout.addWidget(lbl_titulo)
 
-        lbl_version = QLabel(t("Versión: 1.0.6"))
+        lbl_version = QLabel(t("Versión: 1.0.7"))
         lbl_version.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lbl_version.setStyleSheet("font-size: 13px; font-weight: normal; color: #999999;")
         layout.addWidget(lbl_version)

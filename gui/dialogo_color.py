@@ -66,12 +66,13 @@ class SingleColorPickerDialog(QDialog):
     """
     color_preview_changed = pyqtSignal(QColor)
 
-    def __init__(self, initial_color: QColor = QColor(255, 255, 255), parent=None):
+    def __init__(self, initial_color: QColor = QColor(255, 255, 255), parent=None, show_saved: bool = True):
         super().__init__(parent)
         self.setWindowTitle(t("Seleccionar color"))
         self.setFixedWidth(340)
         self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.WindowStaysOnTopHint)
 
+        self.show_saved = show_saved
         self.initial_color = QColor(initial_color) if (initial_color and initial_color.isValid()) else QColor(255, 255, 255)
         self.current_color = QColor(self.initial_color)
         self._updating = False
@@ -289,28 +290,29 @@ class SingleColorPickerDialog(QDialog):
         self.spin_v.valueChanged.connect(lambda v: self._on_hsv_changed())
 
         # --- SECCIÓN INFERIOR: Colores Guardados (21 slots) ---
-        self.lbl_saved = QLabel(t("Guardadas:"))
-        self.lbl_saved.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        main_layout.addWidget(self.lbl_saved)
-
-        grid_custom = QGridLayout()
-        grid_custom.setSpacing(1)
-        grid_custom.setContentsMargins(0, 0, 0, 0)
-        grid_custom.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
         self.botones_custom = []
-        for idx in range(21):
-            row = idx // 7
-            col = idx % 7
-            btn_slot = CustomSlotButton(idx)
-            btn_slot.setToolTip(t("Slot vacío: Clic para Guardar | Slot lleno: Clic para Usar (Shift+Clic Reemplazar, Ctrl+Clic Eliminar)"))
-            btn_slot.slot_interacted.connect(self._on_custom_slot_interacted)
+        if self.show_saved:
+            self.lbl_saved = QLabel(t("Guardadas:"))
+            self.lbl_saved.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            main_layout.addWidget(self.lbl_saved)
 
-            grid_custom.addWidget(btn_slot, row, col)
-            self.botones_custom.append(btn_slot)
+            grid_custom = QGridLayout()
+            grid_custom.setSpacing(1)
+            grid_custom.setContentsMargins(0, 0, 0, 0)
+            grid_custom.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        main_layout.addLayout(grid_custom)
-        self.actualizar_custom_slots_ui()
+            for idx in range(21):
+                row = idx // 7
+                col = idx % 7
+                btn_slot = CustomSlotButton(idx)
+                btn_slot.setToolTip(t("Slot vacío: Clic para Guardar | Slot lleno: Clic para Usar (Shift+Clic Reemplazar, Ctrl+Clic Eliminar)"))
+                btn_slot.slot_interacted.connect(self._on_custom_slot_interacted)
+
+                grid_custom.addWidget(btn_slot, row, col)
+                self.botones_custom.append(btn_slot)
+
+            main_layout.addLayout(grid_custom)
+            self.actualizar_custom_slots_ui()
 
         # --- BOTONES DE ACCIÓN: Aceptar / Cancelar ---
         layout_btns = QHBoxLayout()

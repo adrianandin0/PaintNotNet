@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# PaintNotNet v1.0.6 - Instalador Universal para Distribuciones Linux
+# PaintNotNet v1.0.7 - Instalador Universal para Distribuciones Linux
 # (Debian, Ubuntu, Linux Mint, Fedora, RHEL, CentOS, Arch, Manjaro, openSUSE, etc.)
 # ==============================================================================
 

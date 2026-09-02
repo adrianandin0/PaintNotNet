@@ -195,11 +195,14 @@ class CanvasWidget(QWidget):
     def set_active_tool(self, tool_object):
         from tools.text import TextTool
         from tools.line import LineTool
+        from tools.shapes import ShapesTool
         if hasattr(self, 'active_tool_obj'):
             if isinstance(self.active_tool_obj, TextTool):
                 self.active_tool_obj.commit_text(self, self.color_primario)
             elif isinstance(self.active_tool_obj, LineTool):
                 self.active_tool_obj.commit_line(self)
+            elif isinstance(self.active_tool_obj, ShapesTool):
+                self.active_tool_obj.commit_shape(self)
         self.active_tool_obj = tool_object
         # Habilitar input method para composición de caracteres (dead keys, IME)
         enable_ime = isinstance(tool_object, TextTool)
@@ -716,6 +719,9 @@ class CanvasWidget(QWidget):
 
     def redimensionar_lienzo(self, nuevo_ancho, nuevo_alto, anchor="top-left"):
         """Redimensiona el lienzo expandiendo con fondo transparente en todas las capas y registrando en el historial."""
+        from tools.move_select_pixels import MoveSelectPixelsTool
+        MoveSelectPixelsTool.commit_floating_image(self)
+
         old_w = self.layer_mgr.width
         old_h = self.layer_mgr.height
 
@@ -761,6 +767,9 @@ class CanvasWidget(QWidget):
 
     def escalar_imagen(self, nuevo_ancho, nuevo_alto):
         """Escala proporcional/suavemente el contenido de todas las capas al nuevo tamaño y lo registra en el historial."""
+        from tools.move_select_pixels import MoveSelectPixelsTool
+        MoveSelectPixelsTool.commit_floating_image(self)
+
         for capa in self.layer_mgr.capas:
             scaled = capa.image.scaled(
                 nuevo_ancho, nuevo_alto,
@@ -945,6 +954,11 @@ class CanvasWidget(QWidget):
             self.floating_initial_canvas = None
 
     def asegurar_imagen_flotante(self):
+        from tools.shapes import ShapesTool
+        if isinstance(self.active_tool_obj, ShapesTool) and self.active_tool_obj.active_shape_rect:
+            self.active_tool_obj.convert_to_selection(self)
+            return True
+
         engine = self.selection_engine
         if not engine.has_selection():
             return False
@@ -1131,12 +1145,11 @@ class CanvasWidget(QWidget):
             snap_w = snap.get('width', self.layer_mgr.width)
             snap_h = snap.get('height', self.layer_mgr.height)
 
-            if snap_w != self.layer_mgr.width or snap_h != self.layer_mgr.height:
-                self.layer_mgr.width = snap_w
-                self.layer_mgr.height = snap_h
-                self._ajustar_tamano_widget(snap_w, snap_h)
-                self.capa_trazo_temp = QImage(snap_w, snap_h, QImage.Format.Format_ARGB32_Premultiplied)
-                self.capa_trazo_temp.fill(Qt.GlobalColor.transparent)
+            self.layer_mgr.width = snap_w
+            self.layer_mgr.height = snap_h
+            self._ajustar_tamano_widget(snap_w, snap_h)
+            self.capa_trazo_temp = QImage(snap_w, snap_h, QImage.Format.Format_ARGB32_Premultiplied)
+            self.capa_trazo_temp.fill(Qt.GlobalColor.transparent)
 
             nuevas_capas = []
             for l_info in snap['layers']:
@@ -1233,6 +1246,11 @@ class CanvasWidget(QWidget):
 
     def copiar_seleccion(self):
         from PyQt6.QtWidgets import QApplication
+        from tools.shapes import ShapesTool
+        if isinstance(self.active_tool_obj, ShapesTool) and self.active_tool_obj.active_shape_rect:
+            self.active_tool_obj.copy_shape_to_clipboard(self)
+            return
+
         if self.selection_engine.floating_image and not self.selection_engine.floating_image.isNull():
             QApplication.clipboard().setImage(self.selection_engine.floating_image.copy())
         elif self.selection_engine.has_selection():
@@ -1255,6 +1273,13 @@ class CanvasWidget(QWidget):
             QApplication.clipboard().setImage(self.layer_mgr.buffer.copy())
 
     def cortar_seleccion(self):
+        from tools.shapes import ShapesTool
+        if isinstance(self.active_tool_obj, ShapesTool) and self.active_tool_obj.active_shape_rect:
+            self.push_document_state("Cortar")
+            self.active_tool_obj.copy_shape_to_clipboard(self)
+            self.active_tool_obj.clear_active_shape(self)
+            return
+
         if self.selection_engine.has_selection():
             self.push_document_state("Cortar")
             self.copiar_seleccion()
@@ -1442,6 +1467,10 @@ class CanvasWidget(QWidget):
         self.update()
 
     def pegar_portapapeles(self):
+        from tools.shapes import ShapesTool
+        if isinstance(self.active_tool_obj, ShapesTool) and self.active_tool_obj.active_shape_rect:
+            self.active_tool_obj.commit_shape(self)
+
         from PyQt6.QtWidgets import QApplication
         img = QApplication.clipboard().image()
         if not img.isNull():
