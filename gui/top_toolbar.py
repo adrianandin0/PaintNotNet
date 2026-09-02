@@ -188,6 +188,32 @@ class TopToolBarWidget(QToolBar):
 
         self.sep_suav = self.addSeparator()
 
+        # 8.5 Selector de Intensidad de Spray (Aerosol)
+        self.lbl_spray_intensidad = QLabel(" Intensidad: ")
+        self.lbl_spray_intensidad.setStyleSheet("font-size: 11px; font-weight: normal;")
+        self.act_lbl_spray_intensidad = self.addWidget(self.lbl_spray_intensidad)
+
+        self.slider_spray_intensidad = QSlider(Qt.Orientation.Horizontal)
+        self.slider_spray_intensidad.setRange(1, 100)
+        self.slider_spray_intensidad.setValue(50)
+        self.slider_spray_intensidad.setFixedWidth(65)
+        self.slider_spray_intensidad.valueChanged.connect(self._on_spray_intensidad_changed)
+        self.act_slider_spray_intensidad = self.addWidget(self.slider_spray_intensidad)
+
+        self.lbl_spray_intensidad_val = QLabel("50%")
+        self.lbl_spray_intensidad_val.setStyleSheet("font-size: 11px; font-weight: normal;")
+        self.lbl_spray_intensidad_val.setFixedWidth(36)
+        self.lbl_spray_intensidad_val.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self.act_lbl_spray_intensidad_val = self.addWidget(self.lbl_spray_intensidad_val)
+
+        self.chk_spray_goteo = QCheckBox(t("Goteo"))
+        self.chk_spray_goteo.setStyleSheet("font-size: 11px; font-weight: normal;")
+        self.chk_spray_goteo.setChecked(True)
+        self.chk_spray_goteo.toggled.connect(self._on_spray_goteo_toggled)
+        self.act_chk_spray_spray_goteo = self.addWidget(self.chk_spray_goteo)
+
+        self.sep_spray_intensidad = self.addSeparator()
+
         # 9. Selector de Zoom
         self.lbl_zoom = QLabel()
         self.lbl_zoom.setPixmap(QIcon("gui/iconos/zoom.png").pixmap(QSize(24, 24)))
@@ -675,6 +701,7 @@ class TopToolBarWidget(QToolBar):
         uses_forma = isinstance(tool_obj, (BrushTool, PencilTool, EraserTool))
         uses_tolerance = isinstance(tool_obj, (BucketTool, MagicWandTool))
         uses_smoothness = isinstance(tool_obj, (BrushTool, LineTool, EraserTool, ShapesTool, SprayTool, StampTool))
+        uses_spray = isinstance(tool_obj, SprayTool)
         uses_zoom = isinstance(tool_obj, ZoomTool)
         uses_line = isinstance(tool_obj, LineTool)
         uses_shapes = isinstance(tool_obj, ShapesTool)
@@ -748,6 +775,19 @@ class TopToolBarWidget(QToolBar):
             getattr(self, 'act_lbl_suav_val', None),
             getattr(self, 'sep_suav', None)
         ], uses_smoothness)
+
+        # Intensidad de Aerosol y Goteo
+        self._set_group_visible([
+            getattr(self, 'lbl_spray_intensidad', None),
+            getattr(self, 'slider_spray_intensidad', None),
+            getattr(self, 'lbl_spray_intensidad_val', None),
+            getattr(self, 'chk_spray_goteo', None),
+            getattr(self, 'act_lbl_spray_intensidad', None),
+            getattr(self, 'act_slider_spray_intensidad', None),
+            getattr(self, 'act_lbl_spray_intensidad_val', None),
+            getattr(self, 'act_chk_spray_spray_goteo', None),
+            getattr(self, 'sep_spray_intensidad', None)
+        ], uses_spray)
 
         # Zoom
         self._set_group_visible([
@@ -1010,6 +1050,27 @@ class TopToolBarWidget(QToolBar):
         elif self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
             self.main_window.lienzo.suavizado_pincel = suav_bool
 
+    def _on_spray_intensidad_changed(self, val):
+        self.lbl_spray_intensidad_val.setText(f"{val}%")
+        if self.main_window and hasattr(self.main_window, 'tab_widget'):
+            for i in range(self.main_window.tab_widget.count()):
+                area = self.main_window.tab_widget.widget(i)
+                canvas = area.widget() if (area and hasattr(area, 'widget')) else area
+                if canvas and hasattr(canvas, 'spray_intensidad'):
+                    canvas.spray_intensidad = val
+        elif self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
+            self.main_window.lienzo.spray_intensidad = val
+
+    def _on_spray_goteo_toggled(self, checked):
+        if self.main_window and hasattr(self.main_window, 'tab_widget'):
+            for i in range(self.main_window.tab_widget.count()):
+                area = self.main_window.tab_widget.widget(i)
+                canvas = area.widget() if (area and hasattr(area, 'widget')) else area
+                if canvas and hasattr(canvas, 'spray_goteo'):
+                    canvas.spray_goteo = checked
+        elif self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
+            self.main_window.lienzo.spray_goteo = checked
+
     def _on_zoom_changed(self):
         txt = self.combo_zoom.currentText().replace("%", "").strip()
         try:
@@ -1100,6 +1161,10 @@ class TopToolBarWidget(QToolBar):
             self.lbl_tol.setText(f" {t('Tolerancia:')} ")
         if hasattr(self, 'lbl_suav'):
             self.lbl_suav.setText(f" {t('Suavizado:')} ")
+        if hasattr(self, 'lbl_spray_intensidad'):
+            self.lbl_spray_intensidad.setText(f" {t('Intensidad:')} ")
+        if hasattr(self, 'chk_spray_goteo'):
+            self.chk_spray_goteo.setText(t("Goteo"))
         if hasattr(self, 'lbl_zoom'):
             self.lbl_zoom.setToolTip(t("Zoom"))
         if hasattr(self, 'lbl_linea'):

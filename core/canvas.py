@@ -83,6 +83,8 @@ class CanvasWidget(QWidget):
         self.grosor_pincel = 3
         self.opacidad_pincel = 255
         self.suavizado_pincel = True
+        self.spray_intensidad = 50
+        self.spray_goteo = True
         self.forma_pincel = "Redondo"
         self.tolerancia = 50
         from tools.text import obtener_fuente_predeterminada_sistema
