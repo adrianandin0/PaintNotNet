@@ -116,7 +116,7 @@ paintnotnet_*
 .flatpak-builder/
 builddir/
 repo/
-flatpak/
+*.flatpak/
 flatpak-builder-tools/
 flatpak-pip-generator
 flatpak_requirements.txt
