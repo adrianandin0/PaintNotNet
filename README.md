@@ -62,6 +62,22 @@
 #### Atajos de Teclado Personalizables
 - **Configuración de Atajos**: Personaliza las teclas de acceso rápido para todas las herramientas desde *Opciones -> Atajos de teclado...* con actualización de insignias en tiempo real.
 
+### Novedades en la Versión 1.0.8
+- **Mejoras en Herramientas de Dibujo y Vista**:
+  - **Aerosol (Spray)**: Nueva capacidad de goteo al saturar el área pintada.
+  - **Lápiz**: Añadido el modo "Realista", que permite configurar la dureza y el polvillo al realizar un trazo.
+  - **Zoom**: Ahora permite seleccionar un área específica del lienzo para centrar el acercamiento.
+- **Mejoras en el Gestor de Archivos**:
+  - Añadida la opción para marcar archivos como favoritos.
+  - Nuevas opciones de ordenamiento y modos de visualización (lista, detalle y miniaturas).
+  - **Nuevos Formatos de Guardado**: Soporte extendido para exportar en WEBP, GIF, TIFF, ICO, TGA y PPM (además de PNG, JPG, BMP y el formato nativo PNN).
+- **Actualización de Paneles y Preferencias**:
+  - Rediseño completo del Panel de Color Avanzado.
+  - Las Preferencias de Usuario ahora incluyen la opción de mostrar u ocultar los atajos de teclado de las herramientas.
+- **Ajustes Estéticos y Correcciones**:
+  - Ajustes estéticos menores aplicados a diferentes íconos de la interfaz.
+  - Corrección de algunas traducciones al inglés que no se aplicaban correctamente.
+
 ### Novedades en la Versión 1.0.7
 - **Nuevas Formas Vectoriales**:
   - Añadidas las formas **Sol**, **Chispa** y **Rombo** al catálogo de la herramienta de formas vectoriales.
@@ -125,6 +141,22 @@
 
 #### Customizable Keyboard Shortcuts
 - **Shortcut Configuration**: Customize keyboard shortcut keys for all tools from *Options -> Keyboard Shortcuts...* with real-time badge updates.
+
+### What's New in Version 1.0.8
+- **Drawing and View Tools Improvements**:
+  - **Spray Paint**: New dripping capability when the painted area becomes saturated.
+  - **Pencil**: Added a "Realistic" mode, allowing you to adjust hardness and dust while drawing.
+  - **Zoom**: You can now select a specific area on the canvas to center the zoom.
+- **File Manager Enhancements**:
+  - Added the ability to mark files as favorites.
+  - New sorting and view options (list, details, and thumbnails).
+  - **New Save Formats**: Extended support for exporting in WEBP, GIF, TIFF, ICO, TGA, and PPM formats (in addition to PNG, JPG, BMP, and the native PNN format).
+- **Panels and Preferences Updates**:
+  - Complete redesign of the Advanced Color Panel.
+  - User Preferences now include an option to show or hide tool keyboard shortcuts.
+- **Aesthetic Tweaks and Fixes**:
+  - Minor aesthetic adjustments applied to various interface icons.
+  - Fixed some English translations that were not working properly.
 
 ### What's New in Version 1.0.7
 - **New Vector Shapes**:
