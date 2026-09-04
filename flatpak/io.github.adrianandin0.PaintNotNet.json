@@ -34,7 +34,7 @@
             "sources": [
                 {
                     "type": "git",
-                    "url": "file:///home/adrian/.gemini/antigravity/scratch/PaintNotNet",
+                    "url": "https://github.com/adrianandin0/PaintNotNet.git",
                     "branch": "main"
                 },
                 {
