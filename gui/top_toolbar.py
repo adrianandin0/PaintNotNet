@@ -392,6 +392,7 @@ class TopToolBarWidget(QToolBar):
         self.combo_forma_tipo.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.combo_forma_tipo.setIconSize(QSize(18, 18))
         self.combo_forma_tipo.setFixedWidth(24)
+        self.combo_forma_tipo.setMaxVisibleItems(20)
         self.combo_forma_tipo.addItem(QIcon("gui/iconos/shape_rectangle.png"), "", "Rectángulo")
         self.combo_forma_tipo.addItem(QIcon("gui/iconos/shape_triangle.png"), "", "Triángulo")
         self.combo_forma_tipo.addItem(QIcon("gui/iconos/shape_circle.png"), "", "Elipse")
