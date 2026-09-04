@@ -90,7 +90,7 @@ class PaintNotNet(QMainWindow):
         self.advanced_color_dock.setWidget(self.advanced_color_panel)
         self.advanced_color_dock.setTitleBarWidget(self._hacer_titulo_dock("gui/iconos/color-plus.png", "Color"))
         self.advanced_color_dock.setFixedWidth(160)
-        self.advanced_color_dock.setFixedHeight(220)
+        self.advanced_color_dock.setFixedHeight(256)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.advanced_color_dock)
 
         # 4. Dock de Historial
@@ -100,7 +100,7 @@ class PaintNotNet(QMainWindow):
         self.history_dock.setWidget(self.history_panel)
         self.history_dock.setTitleBarWidget(self._hacer_titulo_dock("gui/iconos/history.png", "Historial"))
         self.history_dock.setFixedWidth(160)
-        self.history_dock.setFixedHeight(180)
+        self.history_dock.setFixedHeight(160)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.history_dock)
 
         # 5. Dock de Capas
@@ -110,7 +110,7 @@ class PaintNotNet(QMainWindow):
         self.layers_dock.setWidget(self.layers_panel)
         self.layers_dock.setTitleBarWidget(self._hacer_titulo_dock("gui/iconos/layers.png", "Capas"))
         self.layers_dock.setFixedWidth(160)
-        self.layers_dock.setFixedHeight(180)
+        self.layers_dock.setFixedHeight(200)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.layers_dock)
 
         self.setWindowIcon(QIcon(obtener_ruta_icono_app()))
@@ -350,6 +350,11 @@ class PaintNotNet(QMainWindow):
         area_scroll.viewport().installEventFilter(canvas)
         canvas._ajustar_tamano_widget(width, height)
 
+        from gui.canvas_container import CanvasContainerWidget
+        container = CanvasContainerWidget(area_scroll, canvas, main_window=self)
+        if hasattr(self, 'bottom_bar') and hasattr(self.bottom_bar, 'chk_rulers'):
+            container.set_rulers_visible(self.bottom_bar.chk_rulers.isChecked())
+
         if not titulo:
             if ruta:
                 titulo = os.path.basename(ruta)
@@ -359,13 +364,16 @@ class PaintNotNet(QMainWindow):
                 base_st = t("Sin Título")
                 titulo = f"{base_st} {num}" if self.tab_widget.count() > 0 else base_st
 
-        idx = self.tab_widget.addTab(area_scroll, titulo)
+        idx = self.tab_widget.addTab(container, titulo)
         # Reemplazar botón cierre nativo con widget propio (con margen derecho)
         btn_cerrar = self._hacer_boton_cerrar()
         self.tab_widget.tabBar().setTabButton(
             idx, self.tab_widget.tabBar().ButtonPosition.RightSide, btn_cerrar
         )
         self.tab_widget.setCurrentIndex(idx)
+
+        if hasattr(self, 'bottom_bar') and hasattr(self.bottom_bar, 'chk_grid'):
+            canvas.show_pixel_grid = self.bottom_bar.chk_grid.isChecked()
 
         if hasattr(self, 'emergency_mgr') and self.emergency_mgr:
             self.emergency_mgr.registrar_canvas(canvas, titulo=titulo)
@@ -461,6 +469,11 @@ class PaintNotNet(QMainWindow):
                 herramienta = getattr(self.tool_panel, 'herramienta_anterior', None)
                 if herramienta is not None:
                     canvas.set_active_tool(herramienta)
+
+            if hasattr(self, 'bottom_bar') and hasattr(self.bottom_bar, 'chk_grid'):
+                self.bottom_bar.chk_grid.blockSignals(True)
+                self.bottom_bar.chk_grid.setChecked(getattr(canvas, 'show_pixel_grid', False))
+                self.bottom_bar.chk_grid.blockSignals(False)
 
             self.actualizar_titulo_ventana()
 

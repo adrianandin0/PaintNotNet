@@ -519,7 +519,11 @@ class TextTool(BaseTool, QObject):
             target_y = 0.0
         elif alignment == "bottom":
             target_y = float(ch - h)
-        elif alignment == "center":
+        elif alignment == "center_h":
+            target_x = float(cw - w) / 2.0
+        elif alignment == "center_v":
+            target_y = float(ch - h) / 2.0
+        elif alignment in ("center", "center_both"):
             target_x = float(cw - w) / 2.0
             target_y = float(ch - h) / 2.0
         else:

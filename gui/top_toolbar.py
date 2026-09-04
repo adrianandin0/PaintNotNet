@@ -214,6 +214,45 @@ class TopToolBarWidget(QToolBar):
 
         self.sep_spray_intensidad = self.addSeparator()
 
+        # 8.6 Selector de Modo de Lápiz (Pixelado / Realista), Dureza y Polvo
+        self.lbl_pencil_modo = QLabel(f" {t('Modo:')} ")
+        self.lbl_pencil_modo.setStyleSheet("font-size: 11px; font-weight: normal;")
+        self.act_lbl_pencil_modo = self.addWidget(self.lbl_pencil_modo)
+
+        self.combo_pencil_modo = QComboBox()
+        self.combo_pencil_modo.setFixedWidth(85)
+        self.combo_pencil_modo.setFixedHeight(22)
+        self.combo_pencil_modo.setStyleSheet("font-size: 11px; padding: 1px;")
+        self.combo_pencil_modo.addItem(t("Pixelado"), "pixelado")
+        self.combo_pencil_modo.addItem(t("Realista"), "realista")
+        self.combo_pencil_modo.currentIndexChanged.connect(self._on_pencil_modo_changed)
+        self.act_combo_pencil_modo = self.addWidget(self.combo_pencil_modo)
+
+        self.lbl_pencil_dureza = QLabel(f" {t('Dureza:')} ")
+        self.lbl_pencil_dureza.setStyleSheet("font-size: 11px; font-weight: normal;")
+        self.act_lbl_pencil_dureza = self.addWidget(self.lbl_pencil_dureza)
+
+        self.slider_pencil_dureza = QSlider(Qt.Orientation.Horizontal)
+        self.slider_pencil_dureza.setRange(1, 100)
+        self.slider_pencil_dureza.setValue(50)
+        self.slider_pencil_dureza.setFixedWidth(65)
+        self.slider_pencil_dureza.valueChanged.connect(self._on_pencil_dureza_changed)
+        self.act_slider_pencil_dureza = self.addWidget(self.slider_pencil_dureza)
+
+        self.lbl_pencil_dureza_val = QLabel("50%")
+        self.lbl_pencil_dureza_val.setStyleSheet("font-size: 11px; font-weight: normal;")
+        self.lbl_pencil_dureza_val.setFixedWidth(36)
+        self.lbl_pencil_dureza_val.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self.act_lbl_pencil_dureza_val = self.addWidget(self.lbl_pencil_dureza_val)
+
+        self.chk_pencil_polvo = QCheckBox(t("Polvo"))
+        self.chk_pencil_polvo.setStyleSheet("font-size: 11px; font-weight: normal;")
+        self.chk_pencil_polvo.setChecked(True)
+        self.chk_pencil_polvo.toggled.connect(self._on_pencil_polvo_toggled)
+        self.act_chk_pencil_polvo = self.addWidget(self.chk_pencil_polvo)
+
+        self.sep_pencil = self.addSeparator()
+
         # 9. Selector de Zoom
         self.lbl_zoom = QLabel()
         self.lbl_zoom.setPixmap(QIcon("gui/iconos/zoom.png").pixmap(QSize(24, 24)))
@@ -789,6 +828,33 @@ class TopToolBarWidget(QToolBar):
             getattr(self, 'sep_spray_intensidad', None)
         ], uses_spray)
 
+        # Opciones de Lápiz (Pixelado / Realista, Dureza, Polvo)
+        uses_pencil = isinstance(tool_obj, PencilTool)
+        self._set_group_visible([
+            getattr(self, 'lbl_pencil_modo', None),
+            getattr(self, 'combo_pencil_modo', None),
+            getattr(self, 'act_lbl_pencil_modo', None),
+            getattr(self, 'act_combo_pencil_modo', None),
+            getattr(self, 'sep_pencil', None)
+        ], uses_pencil)
+
+        is_realista = (self.combo_pencil_modo.currentData() == "realista") if hasattr(self, 'combo_pencil_modo') else False
+        self._set_group_visible([
+            getattr(self, 'lbl_pencil_dureza', None),
+            getattr(self, 'slider_pencil_dureza', None),
+            getattr(self, 'lbl_pencil_dureza_val', None),
+            getattr(self, 'chk_pencil_polvo', None),
+            getattr(self, 'act_lbl_pencil_dureza', None),
+            getattr(self, 'act_slider_pencil_dureza', None),
+            getattr(self, 'act_lbl_pencil_dureza_val', None),
+            getattr(self, 'act_chk_pencil_polvo', None)
+        ], uses_pencil and is_realista)
+
+        if uses_pencil and self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
+            self.main_window.lienzo.pencil_modo = self.combo_pencil_modo.currentData() or "pixelado"
+            self.main_window.lienzo.pencil_dureza = self.slider_pencil_dureza.value()
+            self.main_window.lienzo.pencil_polvo = self.chk_pencil_polvo.isChecked()
+
         # Zoom
         self._set_group_visible([
             getattr(self, 'lbl_zoom', None),
@@ -1071,6 +1137,56 @@ class TopToolBarWidget(QToolBar):
         elif self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
             self.main_window.lienzo.spray_goteo = checked
 
+    def _on_pencil_modo_changed(self, index):
+        modo = self.combo_pencil_modo.itemData(index) or "pixelado"
+        is_realista = (modo == "realista")
+
+        self._set_group_visible([
+            getattr(self, 'lbl_pencil_dureza', None),
+            getattr(self, 'slider_pencil_dureza', None),
+            getattr(self, 'lbl_pencil_dureza_val', None),
+            getattr(self, 'chk_pencil_polvo', None),
+            getattr(self, 'act_lbl_pencil_dureza', None),
+            getattr(self, 'act_slider_pencil_dureza', None),
+            getattr(self, 'act_lbl_pencil_dureza_val', None),
+            getattr(self, 'act_chk_pencil_polvo', None)
+        ], is_realista)
+
+        self.settings.setValue("pencil_modo", modo)
+        if self.main_window and hasattr(self.main_window, 'tab_widget'):
+            for i in range(self.main_window.tab_widget.count()):
+                area = self.main_window.tab_widget.widget(i)
+                canvas = area.widget() if (area and hasattr(area, 'widget')) else area
+                if canvas and hasattr(canvas, 'pencil_modo'):
+                    canvas.pencil_modo = modo
+                    canvas.update()
+        elif self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
+            self.main_window.lienzo.pencil_modo = modo
+            self.main_window.lienzo.update()
+
+    def _on_pencil_dureza_changed(self, val):
+        self.lbl_pencil_dureza_val.setText(f"{val}%")
+        self.settings.setValue("pencil_dureza", val)
+        if self.main_window and hasattr(self.main_window, 'tab_widget'):
+            for i in range(self.main_window.tab_widget.count()):
+                area = self.main_window.tab_widget.widget(i)
+                canvas = area.widget() if (area and hasattr(area, 'widget')) else area
+                if canvas and hasattr(canvas, 'pencil_dureza'):
+                    canvas.pencil_dureza = val
+        elif self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
+            self.main_window.lienzo.pencil_dureza = val
+
+    def _on_pencil_polvo_toggled(self, checked):
+        self.settings.setValue("pencil_polvo", checked)
+        if self.main_window and hasattr(self.main_window, 'tab_widget'):
+            for i in range(self.main_window.tab_widget.count()):
+                area = self.main_window.tab_widget.widget(i)
+                canvas = area.widget() if (area and hasattr(area, 'widget')) else area
+                if canvas and hasattr(canvas, 'pencil_polvo'):
+                    canvas.pencil_polvo = checked
+        elif self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
+            self.main_window.lienzo.pencil_polvo = checked
+
     def _on_zoom_changed(self):
         txt = self.combo_zoom.currentText().replace("%", "").strip()
         try:
@@ -1165,6 +1281,15 @@ class TopToolBarWidget(QToolBar):
             self.lbl_spray_intensidad.setText(f" {t('Intensidad:')} ")
         if hasattr(self, 'chk_spray_goteo'):
             self.chk_spray_goteo.setText(t("Goteo"))
+        if hasattr(self, 'lbl_pencil_modo'):
+            self.lbl_pencil_modo.setText(f" {t('Modo:')} ")
+        if hasattr(self, 'combo_pencil_modo'):
+            self.combo_pencil_modo.setItemText(0, t("Pixelado"))
+            self.combo_pencil_modo.setItemText(1, t("Realista"))
+        if hasattr(self, 'lbl_pencil_dureza'):
+            self.lbl_pencil_dureza.setText(f" {t('Dureza:')} ")
+        if hasattr(self, 'chk_pencil_polvo'):
+            self.chk_pencil_polvo.setText(t("Polvo"))
         if hasattr(self, 'lbl_zoom'):
             self.lbl_zoom.setToolTip(t("Zoom"))
         if hasattr(self, 'lbl_linea'):

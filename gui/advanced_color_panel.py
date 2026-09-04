@@ -1,13 +1,108 @@
-import math
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
     QGridLayout, QLabel, QSpinBox, QLineEdit, QFrame, QScrollArea, QAbstractSpinBox
 )
-from PyQt6.QtGui import QColor, QPainter, QBrush, QPen, QLinearGradient, QIcon
+from PyQt6.QtGui import QColor, QPainter, QBrush, QPen, QLinearGradient, QIcon, QImage
 from PyQt6.QtCore import Qt, QPointF, QRectF, QSize, pyqtSignal
 
-from gui.color_panel import ColorButton, CustomSlotButton, ColorMuestraWidget, ColorWheel
+from gui.color_panel import ColorButton, CustomSlotButton, ColorMuestraWidget
 from core.i18n import t
+
+
+class ColorBoxWidget(QWidget):
+    """Rectángulo interactivo 2D de Matiz (X) y Brillo/Valor (Y) para selección rápida de color."""
+    colorChanged = pyqtSignal(QColor)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedHeight(85)
+        self.setMinimumWidth(100)
+        self.hue = 0
+        self.sat = 255
+        self.val = 255
+        self._cached_img = None
+        self.setCursor(Qt.CursorShape.CrossCursor)
+
+    def set_color(self, color):
+        qcol = QColor(color)
+        if not qcol.isValid():
+            return
+        h, s, v, _ = qcol.getHsv()
+        if h >= 0:
+            self.hue = h
+        self.sat = s
+        self.val = v
+        self._cached_img = None
+        self.update()
+
+    def resizeEvent(self, event):
+        self._cached_img = None
+        super().resizeEvent(event)
+
+    def _generar_imagen_espectro(self):
+        w = max(1, self.width())
+        h_box = max(1, self.height())
+
+        img = QImage(w, h_box, QImage.Format.Format_RGB32)
+        # Siempre renderizar el espectro con saturación máxima (255) para que no se bloquee en escala de grises
+        for y in range(h_box):
+            v = int((1.0 - (y / float(max(1, h_box - 1)))) * 255)
+            for x in range(w):
+                hue_angle = int((x / float(max(1, w - 1))) * 359)
+                col = QColor.fromHsv(hue_angle, 255, v)
+                img.setPixelColor(x, y, col)
+        self._cached_img = img
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        w = self.width()
+        h_box = self.height()
+
+        if self._cached_img is None or self._cached_img.width() != w or self._cached_img.height() != h_box:
+            self._generar_imagen_espectro()
+
+        painter.drawImage(0, 0, self._cached_img)
+
+        # Borde exterior fino
+        painter.setPen(QPen(QColor(40, 40, 40), 1))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawRect(0, 0, w - 1, h_box - 1)
+
+        # Indicador circular de selección (cursor de retícula)
+        ix = (self.hue / 360.0) * (w - 1)
+        iy = (1.0 - (self.val / 255.0)) * (h_box - 1)
+
+        painter.setPen(QPen(QColor(0, 0, 0, 220), 2.0))
+        painter.drawEllipse(QPointF(ix, iy), 3.5, 3.5)
+
+        painter.setPen(QPen(QColor(255, 255, 255, 220), 1.0))
+        painter.drawEllipse(QPointF(ix, iy), 2.5, 2.5)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.update_color_from_pos(event.position().toPoint())
+
+    def mouseMoveEvent(self, event):
+        if event.buttons() & Qt.MouseButton.LeftButton:
+            self.update_color_from_pos(event.position().toPoint())
+
+    def update_color_from_pos(self, pos):
+        w = max(1, self.width())
+        h_box = max(1, self.height())
+
+        rx = max(0.0, min(1.0, pos.x() / float(w)))
+        ry = max(0.0, min(1.0, pos.y() / float(h_box)))
+
+        self.hue = int(rx * 359)
+        self.val = int((1.0 - ry) * 255)
+        # Si la saturación era 0 (p.ej. negro/blanco), al hacer clic en la paleta de color se reactiva la saturación viva (255)
+        self.sat = 255 if self.sat == 0 else self.sat
+
+        color = QColor.fromHsv(self.hue, self.sat, self.val)
+        self.colorChanged.emit(color)
+        self.update()
 
 
 class GradientSliderWidget(QWidget):
@@ -115,7 +210,7 @@ class GradientSliderWidget(QWidget):
 
 
 class AdvancedColorPanelWidget(QWidget):
-    """Panel de Colores Avanzados compacto (sliders RGB/MSV, Hex y rueda de color)."""
+    """Panel de Colores Avanzados compacto (sliders RGB/MSV, Hex y rectángulo de espectro de color)."""
     color_primario_cambiado = pyqtSignal(QColor)
     color_secundario_cambiado = pyqtSignal(QColor)
 
@@ -144,36 +239,10 @@ class AdvancedColorPanelWidget(QWidget):
         layout.setSpacing(4)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
-        # 1. Muestras Superpuestas + Botón Swap + Rueda de Color Centrada
-        row_top = QHBoxLayout()
-        row_top.setContentsMargins(0, 0, 0, 0)
-        row_top.setSpacing(6)
-
-        self.muestras = ColorMuestraWidget()
-        self.muestras.setFixedSize(42, 30)
-        self.muestras.primario_clicked.connect(lambda: self.set_modo_color("primario"))
-        self.muestras.secundario_clicked.connect(lambda: self.set_modo_color("secundario"))
-        row_top.addWidget(self.muestras)
-
-        btn_swap = QPushButton()
-        btn_swap.setIcon(QIcon("gui/iconos/switch.png"))
-        btn_swap.setIconSize(QSize(14, 14))
-        btn_swap.setToolTip(t("Intercambiar Color Primario / Secundario (X)"))
-        btn_swap.setFixedSize(20, 20)
-        btn_swap.setStyleSheet("padding: 0;")
-        btn_swap.clicked.connect(self.intercambiar_colores)
-        row_top.addWidget(btn_swap)
-
-        row_top.addStretch(1)
-
-        self.color_wheel = ColorWheel()
-        self.color_wheel.setFixedSize(50, 50)
-        self.color_wheel.colorChanged.connect(self._on_wheel_color_changed)
-        row_top.addWidget(self.color_wheel)
-
-        row_top.addStretch(1)
-
-        layout.addLayout(row_top)
+        # 1. Rectángulo 2D de Espectro de Color (ampliado a todo el ancho)
+        self.color_box = ColorBoxWidget()
+        self.color_box.colorChanged.connect(self._on_box_color_changed)
+        layout.addWidget(self.color_box)
 
         # 2. Grid Unificado Compacto: RGB, Hex, MSV
         grid = QGridLayout()
@@ -333,7 +402,18 @@ class AdvancedColorPanelWidget(QWidget):
 
     def intercambiar_colores(self):
         self.color_primario, self.color_secundario = self.color_secundario, self.color_primario
-        self.muestras.set_colores(self.color_primario, self.color_secundario, self.modo_color)
+        if hasattr(self, 'muestras') and self.muestras:
+            self.muestras.set_colores(self.color_primario, self.color_secundario, self.modo_color)
+        self.color_primario_cambiado.emit(self.color_primario)
+        self.color_secundario_cambiado.emit(self.color_secundario)
+        col = self.color_primario if self.modo_color == "primario" else self.color_secundario
+        self._actualizar_interfaz_desde_color(col)
+
+    def restablecer_blanco_negro(self):
+        self.color_primario = QColor(0, 0, 0, 255)
+        self.color_secundario = QColor(255, 255, 255, 255)
+        if hasattr(self, 'muestras') and self.muestras:
+            self.muestras.set_colores(self.color_primario, self.color_secundario, self.modo_color)
         self.color_primario_cambiado.emit(self.color_primario)
         self.color_secundario_cambiado.emit(self.color_secundario)
         col = self.color_primario if self.modo_color == "primario" else self.color_secundario
@@ -351,16 +431,18 @@ class AdvancedColorPanelWidget(QWidget):
             self.color_secundario = qcol
             self.color_secundario_cambiado.emit(qcol)
 
-        self.muestras.set_colores(self.color_primario, self.color_secundario, self.modo_color)
+        if hasattr(self, 'muestras') and self.muestras:
+            self.muestras.set_colores(self.color_primario, self.color_secundario, self.modo_color)
         self._actualizar_interfaz_desde_color(qcol)
 
     def set_color_secundario(self, color):
         qcol = QColor(color)
         if not qcol.isValid():
             return
-        self.color_secundario = qcol
+        self.color_secundario = QColor(color)
         self.color_secundario_cambiado.emit(qcol)
-        self.muestras.set_colores(self.color_primario, self.color_secundario, self.modo_color)
+        if hasattr(self, 'muestras') and self.muestras:
+            self.muestras.set_colores(self.color_primario, self.color_secundario, self.modo_color)
 
     def _actualizar_interfaz_desde_color(self, color):
         if self._updating:
@@ -402,13 +484,14 @@ class AdvancedColorPanelWidget(QWidget):
         self.slider_v.set_value(v_pct)
         self.spin_v.setValue(v_pct)
 
-        if hasattr(self, 'color_wheel') and self.color_wheel:
-            self.color_wheel.set_color(color)
+        if hasattr(self, 'color_box') and self.color_box:
+            self.color_box.set_color(color)
 
-        self.muestras.set_colores(self.color_primario, self.color_secundario, self.modo_color)
+        if hasattr(self, 'muestras') and self.muestras:
+            self.muestras.set_colores(self.color_primario, self.color_secundario, self.modo_color)
         self._updating = False
 
-    def _on_wheel_color_changed(self, color):
+    def _on_box_color_changed(self, color):
         self.set_color_activo(color)
 
     def _on_rgb_slider_changed(self, channel, val):

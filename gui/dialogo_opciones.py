@@ -142,8 +142,12 @@ class DialogoOpciones(QDialog):
             "PNG (*.png)",
             "PaintNotNet (*.pnn)",
             "JPG (*.jpg)",
+            "WEBP (*.webp)",
+            "GIF (*.gif)",
+            "TIFF (*.tiff)",
             "BMP (*.bmp)",
-            "GIF (*.gif)"
+            "ICO (*.ico)",
+            "TGA (*.tga)",
         ])
         default_fmt = self.settings.value("default_format", "PNG (*.png)")
         idx = self.combo_format.findText(str(default_fmt))

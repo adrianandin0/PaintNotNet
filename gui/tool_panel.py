@@ -54,8 +54,8 @@ class ShortcutToolButton(QToolButton):
                 border_color = QColor(140, 140, 145)
                 text_color = QColor(20, 20, 20)
 
-            # Recuadro un poco más grande con reborde en la esquina inferior izquierda
-            bg_rect = QRectF(2.0, self.height() - 13.0, 11.0, 11.0)
+            # Recuadro un poco más grande con reborde en la esquina inferior derecha
+            bg_rect = QRectF(self.width() - 13.0, self.height() - 13.0, 11.0, 11.0)
             p.setPen(QPen(border_color, 1.0))
             p.setBrush(QBrush(bg_color))
             p.drawRoundedRect(bg_rect, 2.0, 2.0)

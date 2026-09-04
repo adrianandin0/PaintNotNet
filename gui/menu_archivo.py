@@ -354,9 +354,9 @@ class MenuArchivo:
     def abrir_archivo(self):
         dir_home = self.obtener_home_real()
         filtros = [
-            ("Todos los archivos soportados", "*.pnn *.png *.jpg *.jpeg *.bmp *.webp"),
+            ("Todos los archivos soportados", "*.pnn *.png *.jpg *.jpeg *.webp *.gif *.tiff *.tif *.bmp *.ico *.tga *.ppm"),
             ("Borrador PaintNotNet",          "*.pnn"),
-            ("Imágenes",                      "*.png *.jpg *.jpeg *.bmp *.webp"),
+            ("Imágenes",                      "*.png *.jpg *.jpeg *.webp *.gif *.tiff *.tif *.bmp *.ico *.tga *.ppm"),
             ("Todos los archivos",            "*"),
         ]
         dialogo = DialogoArchivo(
@@ -364,7 +364,7 @@ class MenuArchivo:
             modo="abrir",
             directorio=dir_home,
             filtros=filtros,
-            titulo="Abrir Imagen o Borrador"
+            titulo=t("Abrir Imagen o Borrador")
         )
         if dialogo.exec() != QDialog.DialogCode.Accepted:
             return
@@ -394,7 +394,7 @@ class MenuArchivo:
     def insertar_imagen(self):
         dir_home = self.obtener_home_real()
         filtros = [
-            ("Imágenes",          "*.png *.jpg *.jpeg *.bmp *.webp"),
+            ("Imágenes",          "*.png *.jpg *.jpeg *.webp *.gif *.tiff *.tif *.bmp *.ico *.tga *.ppm"),
             ("Todos los archivos", "*"),
         ]
         dialogo = DialogoArchivo(
@@ -402,7 +402,7 @@ class MenuArchivo:
             modo="abrir",
             directorio=dir_home,
             filtros=filtros,
-            titulo="Insertar Imagen"
+            titulo=t("Insertar Imagen")
         )
         if dialogo.exec() != QDialog.DialogCode.Accepted:
             return
@@ -421,10 +421,6 @@ class MenuArchivo:
 
     def guardar_como(self, target_canvas=None):
         dir_home = self.obtener_home_real()
-        filtro_pnn = "Borrador PaintNotNet (*.pnn)"
-        filtro_png = "Imagen PNG (*.png)"
-        filtro_jpg = "Imagen JPG (*.jpg *.jpeg)"
-        filtro_bmp = "Imagen BMP (*.bmp)"
 
         canvas = target_canvas if target_canvas else self.ventana.lienzo
         num_capas = len(canvas.layer_mgr.capas) if (canvas and hasattr(canvas, 'layer_mgr')) else 1
@@ -440,39 +436,54 @@ class MenuArchivo:
 
         if num_capas > 1:
             ext_defecto = ".pnn"
-            filtro_defecto = filtro_pnn
-            filtros = f"{filtro_pnn};;{filtro_png};;{filtro_jpg};;{filtro_bmp}"
-        else:
-            if fmt_config and "pnn" in str(fmt_config).lower():
+        elif fmt_config:
+            fmt_str = str(fmt_config).lower()
+            if "pnn" in fmt_str:
                 ext_defecto = ".pnn"
-                filtro_defecto = filtro_pnn
-                filtros = f"{filtro_pnn};;{filtro_png};;{filtro_jpg};;{filtro_bmp}"
-            elif fmt_config and "jpg" in str(fmt_config).lower():
+            elif "jpg" in fmt_str or "jpeg" in fmt_str:
                 ext_defecto = ".jpg"
-                filtro_defecto = filtro_jpg
-                filtros = f"{filtro_jpg};;{filtro_png};;{filtro_pnn};;{filtro_bmp}"
-            elif fmt_config and "bmp" in str(fmt_config).lower():
+            elif "webp" in fmt_str:
+                ext_defecto = ".webp"
+            elif "gif" in fmt_str:
+                ext_defecto = ".gif"
+            elif "tiff" in fmt_str or "tif" in fmt_str:
+                ext_defecto = ".tiff"
+            elif "bmp" in fmt_str:
                 ext_defecto = ".bmp"
-                filtro_defecto = filtro_bmp
-                filtros = f"{filtro_bmp};;{filtro_png};;{filtro_pnn};;{filtro_jpg}"
+            elif "ico" in fmt_str:
+                ext_defecto = ".ico"
+            elif "tga" in fmt_str:
+                ext_defecto = ".tga"
+            elif "ppm" in fmt_str:
+                ext_defecto = ".ppm"
             else:
                 ext_defecto = ".png"
-                filtro_defecto = filtro_png
-                filtros = f"{filtro_png};;{filtro_pnn};;{filtro_jpg};;{filtro_bmp}"
+        else:
+            ext_defecto = ".png"
 
         sug_nombre = base_nombre if base_nombre.lower().endswith(ext_defecto) else f"{base_nombre}{ext_defecto}"
         sug_path = os.path.join(dir_home, sug_nombre)
 
         # Construir lista de filtros para DialogoArchivo
         filtros_dialogo = [
-            ("Borrador PaintNotNet", "*.pnn"),
             ("Imagen PNG",          "*.png"),
+            ("Borrador PaintNotNet", "*.pnn"),
             ("Imagen JPG",          "*.jpg *.jpeg"),
+            ("Imagen WEBP",         "*.webp"),
+            ("Imagen GIF",          "*.gif"),
+            ("Imagen TIFF",         "*.tiff *.tif"),
             ("Imagen BMP",          "*.bmp"),
+            ("Icono ICO",           "*.ico"),
+            ("Imagen TGA",          "*.tga"),
+            ("Imagen PPM",          "*.ppm"),
         ]
         # Poner el filtro por defecto primero
-        _orden = {"pnn": 0, "png": 1, "jpg": 2, "bmp": 3}
-        idx_defecto = _orden.get(ext_defecto.lstrip('.'), 1)
+        _orden = {
+            "png": 0, "pnn": 1, "jpg": 2, "jpeg": 2, "webp": 3,
+            "gif": 4, "tiff": 5, "tif": 5, "bmp": 6, "ico": 7,
+            "tga": 8, "ppm": 9
+        }
+        idx_defecto = _orden.get(ext_defecto.lstrip('.'), 0)
         filtros_dialogo = (
             filtros_dialogo[idx_defecto:idx_defecto+1] +
             [f for i, f in enumerate(filtros_dialogo) if i != idx_defecto]

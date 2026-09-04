@@ -25,12 +25,18 @@ class BottomStatusBarWidget(QWidget):
         layout.setContentsMargins(8, 2, 12, 2)
         layout.setSpacing(6)
 
-        # 1. Opción Cuadrícula de píxeles
-        self.chk_grid = QCheckBox(t("Cuadrícula de píxeles"))
+        # 1. Opción Cuadrícula y Reglas
+        self.chk_grid = QCheckBox(t("Cuadrícula"))
         self.chk_grid.setIcon(QIcon("gui/iconos/transparency.png"))
         self.chk_grid.setToolTip(t("Muestra un borde fino negro/blanco alrededor de cada píxel al hacer zoom."))
         self.chk_grid.toggled.connect(self._on_toggle_grid)
         layout.addWidget(self.chk_grid)
+
+        self.chk_rulers = QCheckBox(t("Reglas"))
+        self.chk_rulers.setIcon(QIcon("gui/iconos/ruler.png"))
+        self.chk_rulers.setToolTip(t("Muestra u oculta las reglas graduadas en centímetros en los bordes del lienzo."))
+        self.chk_rulers.toggled.connect(self._on_toggle_rulers)
+        layout.addWidget(self.chk_rulers)
 
         # Separador vertical 1
         self.sep1 = QFrame()
@@ -74,11 +80,27 @@ class BottomStatusBarWidget(QWidget):
         self.btn_align_bottom.clicked.connect(lambda: self._on_align("bottom"))
         layout.addWidget(self.btn_align_bottom)
 
-        # Botón Centrar Selección
+        # Botón Centrar Horizontalmente
+        self.btn_align_center_h = QToolButton()
+        self.btn_align_center_h.setIcon(QIcon("gui/iconos/align_center_h.png"))
+        self.btn_align_center_h.setIconSize(QSize(18, 18))
+        self.btn_align_center_h.setToolTip(t("Centrar horizontalmente"))
+        self.btn_align_center_h.clicked.connect(lambda: self._on_align("center_h"))
+        layout.addWidget(self.btn_align_center_h)
+
+        # Botón Centrar Verticalmente
+        self.btn_align_center_v = QToolButton()
+        self.btn_align_center_v.setIcon(QIcon("gui/iconos/align_center_v.png"))
+        self.btn_align_center_v.setIconSize(QSize(18, 18))
+        self.btn_align_center_v.setToolTip(t("Centrar verticalmente"))
+        self.btn_align_center_v.clicked.connect(lambda: self._on_align("center_v"))
+        layout.addWidget(self.btn_align_center_v)
+
+        # Botón Centrar en Ambos Ejes
         self.btn_align_center = QToolButton()
         self.btn_align_center.setIcon(QIcon("gui/iconos/align_center.png"))
         self.btn_align_center.setIconSize(QSize(18, 18))
-        self.btn_align_center.setToolTip(t("Centrar selección"))
+        self.btn_align_center.setToolTip(t("Centrar en ambos ejes"))
         self.btn_align_center.clicked.connect(lambda: self._on_align("center"))
         layout.addWidget(self.btn_align_center)
 
@@ -161,10 +183,23 @@ class BottomStatusBarWidget(QWidget):
         self.sep2.setStyleSheet(f"color: {border_subtle}; background-color: {border_subtle};")
 
     def _on_toggle_grid(self, checked: bool):
-        if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
-            canvas = self.main_window.lienzo
-            canvas.show_pixel_grid = checked
-            canvas.update()
+        if self.main_window and hasattr(self.main_window, 'tab_widget'):
+            for i in range(self.main_window.tab_widget.count()):
+                container = self.main_window.tab_widget.widget(i)
+                canvas = container.widget() if (container and hasattr(container, 'widget')) else container
+                if canvas:
+                    canvas.show_pixel_grid = checked
+                    canvas.update()
+        elif self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
+            self.main_window.lienzo.show_pixel_grid = checked
+            self.main_window.lienzo.update()
+
+    def _on_toggle_rulers(self, checked: bool):
+        if self.main_window and hasattr(self.main_window, 'tab_widget'):
+            for i in range(self.main_window.tab_widget.count()):
+                container = self.main_window.tab_widget.widget(i)
+                if container and hasattr(container, 'set_rulers_visible'):
+                    container.set_rulers_visible(checked)
 
     def _on_align(self, alignment: str):
         if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
@@ -186,11 +221,15 @@ class BottomStatusBarWidget(QWidget):
         self.msg_timer.start(msecs)
 
     def retraducir_bar(self):
-        self.chk_grid.setText(t("Cuadrícula de píxeles"))
+        self.chk_grid.setText(t("Cuadrícula"))
         self.chk_grid.setToolTip(t("Muestra un borde fino negro/blanco alrededor de cada píxel al hacer zoom."))
+        self.chk_rulers.setText(t("Reglas"))
+        self.chk_rulers.setToolTip(t("Muestra u oculta las reglas graduadas en centímetros en los bordes del lienzo."))
         self.lbl_align.setText(t("Alinear selección:"))
         self.btn_align_left.setToolTip(t("Alinear a la izquierda"))
         self.btn_align_right.setToolTip(t("Alinear a la derecha"))
         self.btn_align_top.setToolTip(t("Alinear arriba"))
         self.btn_align_bottom.setToolTip(t("Alinear abajo"))
-        self.btn_align_center.setToolTip(t("Centrar selección"))
+        self.btn_align_center_h.setToolTip(t("Centrar horizontalmente"))
+        self.btn_align_center_v.setToolTip(t("Centrar verticalmente"))
+        self.btn_align_center.setToolTip(t("Centrar en ambos ejes"))

@@ -85,6 +85,9 @@ class CanvasWidget(QWidget):
         self.suavizado_pincel = True
         self.spray_intensidad = 50
         self.spray_goteo = True
+        self.pencil_modo = "pixelado"
+        self.pencil_dureza = 50
+        self.pencil_polvo = True
         self.forma_pincel = "Redondo"
         self.tolerancia = 50
         from tools.text import obtener_fuente_predeterminada_sistema
@@ -192,7 +195,80 @@ class CanvasWidget(QWidget):
         self._ajustar_tamano_widget()
         if hasattr(self, 'main_window') and self.main_window and hasattr(self.main_window, 'top_toolbar'):
             self.main_window.top_toolbar.sync_zoom_from_canvas(self.scale_factor)
+        if hasattr(self, 'container') and self.container and hasattr(self.container, 'update_rulers'):
+            self.container.update_rulers()
         self.update()
+
+    def get_scroll_area(self):
+        if hasattr(self, 'container') and self.container and hasattr(self.container, 'area_scroll'):
+            return self.container.area_scroll
+        p = self.parent()
+        while p:
+            from PyQt6.QtWidgets import QScrollArea
+            if isinstance(p, QScrollArea):
+                return p
+            p = p.parent()
+        return None
+
+    def zoom_to_rect(self, rect):
+        """Enfoca y ajusta el zoom del lienzo para encajar y centrar la región rectangular especificada."""
+        if not rect or rect.width() <= 0 or rect.height() <= 0:
+            return
+
+        scroll_area = self.get_scroll_area()
+        if not scroll_area:
+            return
+
+        viewport = scroll_area.viewport()
+        vw = viewport.width()
+        vh = viewport.height()
+
+        if vw <= 0 or vh <= 0:
+            return
+
+        scale_w = vw / float(rect.width())
+        scale_h = vh / float(rect.height())
+        nuevo_scale = min(scale_w, scale_h) * 0.95
+
+        self.set_zoom(nuevo_scale)
+
+        center_doc = rect.center()
+        off_x, off_y = self.obtener_offset_canvas()
+        target_widget_x = float(off_x) + center_doc.x() * self.scale_factor
+        target_widget_y = float(off_y) + center_doc.y() * self.scale_factor
+
+        hbar = scroll_area.horizontalScrollBar()
+        vbar = scroll_area.verticalScrollBar()
+
+        if hbar:
+            hbar.setValue(int(target_widget_x - vw / 2.0))
+        if vbar:
+            vbar.setValue(int(target_widget_y - vh / 2.0))
+
+    def zoom_at_point(self, point_doc, new_scale):
+        """Ajusta el zoom del lienzo manteniendo centrado el punto indicado en coordenadas de documento."""
+        scroll_area = self.get_scroll_area()
+        if not scroll_area:
+            self.set_zoom(new_scale)
+            return
+
+        viewport = scroll_area.viewport()
+        vw = viewport.width()
+        vh = viewport.height()
+
+        self.set_zoom(new_scale)
+
+        off_x, off_y = self.obtener_offset_canvas()
+        target_widget_x = float(off_x) + point_doc.x() * self.scale_factor
+        target_widget_y = float(off_y) + point_doc.y() * self.scale_factor
+
+        hbar = scroll_area.horizontalScrollBar()
+        vbar = scroll_area.verticalScrollBar()
+
+        if hbar:
+            hbar.setValue(int(target_widget_x - vw / 2.0))
+        if vbar:
+            vbar.setValue(int(target_widget_y - vh / 2.0))
 
     def set_active_tool(self, tool_object):
         from tools.text import TextTool
@@ -433,20 +509,26 @@ class CanvasWidget(QWidget):
         )
         painter.drawPixmap(0, 0, pixmap)
 
-        # 2. Dibujar cuadrícula de píxeles si está activada y el zoom es suficiente (>= 300%)
-        if getattr(self, 'show_pixel_grid', False) and self.scale_factor >= 3.0:
+        # 2. Dibujar cuadrícula de píxeles si está activada y el zoom es suficiente (>= 150%)
+        if getattr(self, 'show_pixel_grid', False) and self.scale_factor >= 1.5:
             painter.save()
-            from core.theme import ThemeManager
-            tm = ThemeManager()
-            res_nombre = tm.resolver_nombre_tema(tm.current_theme)
-            is_dark = (res_nombre == "Oscuro")
-            grid_color = QColor(255, 255, 255, 120) if is_dark else QColor(0, 0, 0, 120)
-            pen_grid = QPen(grid_color, 1 / self.scale_factor, Qt.PenStyle.SolidLine)
-            painter.setPen(pen_grid)
+            pen_dark = QPen(QColor(0, 0, 0, 100), 0, Qt.PenStyle.SolidLine)
+            pen_dark.setCosmetic(True)
+            pen_light = QPen(QColor(255, 255, 255, 140), 0, Qt.PenStyle.DotLine)
+            pen_light.setCosmetic(True)
+
+            painter.setPen(pen_dark)
             for x in range(1, l_width):
                 painter.drawLine(QPointF(float(x), 0.0), QPointF(float(x), float(l_height)))
             for y in range(1, l_height):
                 painter.drawLine(QPointF(0.0, float(y)), QPointF(float(l_width), float(y)))
+
+            painter.setPen(pen_light)
+            for x in range(1, l_width):
+                painter.drawLine(QPointF(float(x), 0.0), QPointF(float(x), float(l_height)))
+            for y in range(1, l_height):
+                painter.drawLine(QPointF(0.0, float(y)), QPointF(float(l_width), float(y)))
+
             painter.restore()
 
         # 3. Tiradores y controles interactivos de herramientas (visibles en primer plano)
@@ -649,12 +731,13 @@ class CanvasWidget(QWidget):
 
     def guardar_imagen(self, ruta):
         _, ext = os.path.splitext(ruta)
-        if ext.lower() == '.pnn':
+        ext = ext.lower()
+        if ext == '.pnn':
             from core.pnn_format import guardar_proyecto_pnn
             return guardar_proyecto_pnn(self, ruta)
 
         img_a_guardar = self.layer_mgr.get_qimage()
-        if ext.lower() in ['.jpg', '.jpeg']:
+        if ext in ['.jpg', '.jpeg']:
             img_jpg = QImage(img_a_guardar.size(), QImage.Format.Format_RGB32)
             img_jpg.fill(Qt.GlobalColor.white)
 
@@ -662,9 +745,30 @@ class CanvasWidget(QWidget):
             painter.drawImage(0, 0, img_a_guardar)
             painter.end()
 
-            return img_jpg.save(ruta)
+            if img_jpg.save(ruta):
+                return True
 
-        return img_a_guardar.save(ruta)
+        if img_a_guardar.save(ruta):
+            return True
+
+        # Fallback a PIL para formatos adicionales (GIF, TIFF, TGA, ICO, etc.)
+        try:
+            from PIL import Image
+            qimg_conv = img_a_guardar.convertToFormat(QImage.Format.Format_RGBA8888)
+            ptr = qimg_conv.bits()
+            ptr.setsize(qimg_conv.height() * qimg_conv.width() * 4)
+            pil_img = Image.frombytes('RGBA', (qimg_conv.width(), qimg_conv.height()), bytes(ptr))
+
+            if ext in ['.jpg', '.jpeg']:
+                pil_img.convert('RGB').save(ruta)
+            elif ext == '.gif':
+                pil_img.convert('P', palette=Image.Palette.ADAPTIVE).save(ruta)
+            else:
+                pil_img.save(ruta)
+            return True
+        except Exception as e:
+            print(f"[canvas] Error al guardar con PIL: {e}")
+            return False
 
     def invertir_seleccion(self):
         w, h = self.layer_mgr.width, self.layer_mgr.height
@@ -691,7 +795,16 @@ class CanvasWidget(QWidget):
             return res
 
         img_temp = QImage(ruta)
-        if img_temp.isNull(): return False
+        if img_temp.isNull():
+            # Fallback a PIL
+            try:
+                from PIL import Image
+                pil_img = Image.open(ruta).convert('RGBA')
+                data = pil_img.tobytes("raw", "RGBA")
+                img_temp = QImage(data, pil_img.width, pil_img.height, QImage.Format.Format_RGBA8888).copy()
+            except Exception as e:
+                print(f"[canvas] Error al cargar con PIL: {e}")
+                return False
 
         img_format = img_temp.convertToFormat(QImage.Format.Format_ARGB32_Premultiplied)
         w, h = img_format.width(), img_format.height()
@@ -1651,7 +1764,11 @@ class CanvasWidget(QWidget):
             new_x, new_y = rect.left(), 0.0
         elif alignment == "bottom":
             new_x, new_y = rect.left(), ch - h
-        elif alignment == "center":
+        elif alignment == "center_h":
+            new_x, new_y = (cw - w) / 2.0, rect.top()
+        elif alignment == "center_v":
+            new_x, new_y = rect.left(), (ch - h) / 2.0
+        elif alignment in ("center", "center_both"):
             new_x, new_y = (cw - w) / 2.0, (ch - h) / 2.0
         else:
             return

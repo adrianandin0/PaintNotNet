@@ -193,7 +193,7 @@ class ColorMuestraWidget(QWidget):
             accent_hex = pal.get("accent_color", "#0078D7")
             accent_col = QColor(accent_hex)
 
-            painter.setPen(QPen(accent_col, 2))
+            painter.setPen(QPen(accent_col, 1))
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.drawRect(x, y, w - 1, h - 1)
             painter.setPen(QPen(QColor(255, 255, 255, 220), 1))
