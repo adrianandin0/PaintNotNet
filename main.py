@@ -892,6 +892,7 @@ if __name__ == '__main__':
     from core.i18n import I18nManager
 
     app.setWindowIcon(QIcon(obtener_ruta_icono_app()))
+    app.setDesktopFileName("io.github.adrianandin0.PaintNotNet.desktop")
     I18nManager().cargar_idioma_configurado()
 
     ventana = PaintNotNet()

@@ -111,3 +111,12 @@ paintnotnet_*
 *BITCOIN*
 *btc*
 *BTC*
+
+# Flatpak
+.flatpak-builder/
+builddir/
+repo/
+flatpak/
+flatpak-builder-tools/
+flatpak-pip-generator
+flatpak_requirements.txt
