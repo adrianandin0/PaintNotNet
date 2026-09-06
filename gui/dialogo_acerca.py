@@ -3,6 +3,29 @@ from PyQt6.QtCore import Qt
 from core.i18n import t
 
 
+import os
+import sys
+
+def obtener_version():
+    candidates = []
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    candidates.append(os.path.join(base_dir, "version.txt"))
+    if hasattr(sys, '_MEIPASS'):
+        candidates.append(os.path.join(sys._MEIPASS, "version.txt"))
+    candidates.append(os.path.join(os.getcwd(), "version.txt"))
+
+    for path in candidates:
+        if os.path.isfile(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    ver = f.read().strip()
+                    if ver:
+                        return ver
+            except Exception:
+                pass
+    return "1.0.8"
+
+
 class DialogoAcerca(QDialog):
     """Diálogo 'Acerca de' de PaintNotNet con i18n y scroll adaptable."""
     def __init__(self, parent=None):
@@ -19,7 +42,8 @@ class DialogoAcerca(QDialog):
         lbl_titulo.setStyleSheet("font-size: 22px; font-weight: bold; color: #00AAFF;")
         layout.addWidget(lbl_titulo)
 
-        lbl_version = QLabel(t("Versión: 1.0.8"))
+        version_val = obtener_version()
+        lbl_version = QLabel(f"{t('Versión:')} {version_val}")
         lbl_version.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lbl_version.setStyleSheet("font-size: 13px; font-weight: normal; color: #999999;")
         layout.addWidget(lbl_version)

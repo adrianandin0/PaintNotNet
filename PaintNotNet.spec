@@ -14,6 +14,7 @@ a = Analysis(
         ('gui/icono.png', 'gui'),
         ('gui/paintdotnet.ico', 'gui'),
         ('locales', 'locales'),
+        ('version.txt', '.'),
     ],
     hiddenimports=[
         'PyQt6',

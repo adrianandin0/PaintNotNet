@@ -697,9 +697,6 @@ class CanvasWidget(QWidget):
         ev = self._canvas_event(event)
         self.cursor_pos = ev.position()
         self._notificar_posicion_cursor()
-        from tools.placeholder import PlaceholderTool
-        if isinstance(self.active_tool_obj, PlaceholderTool):
-            return
 
         if hasattr(self.selection_engine, 'original_selection_region'):
             self.selection_engine.original_selection_region = None
@@ -761,7 +758,6 @@ class CanvasWidget(QWidget):
             from tools.bucket import BucketTool
             from tools.eyedropper import EyedropperTool
             from tools.zoom import ZoomTool
-            from tools.placeholder import PlaceholderTool
             from tools.transform import TransformTool
             from tools.move_select_pixels import MoveSelectPixelsTool
             from tools.move_select_only import MoveSelectOnlyTool
@@ -774,7 +770,7 @@ class CanvasWidget(QWidget):
             from tools.line import LineTool
 
             if not isinstance(self.active_tool_obj, (
-                BucketTool, EyedropperTool, ZoomTool, PlaceholderTool,
+                BucketTool, EyedropperTool, ZoomTool,
                 TransformTool, MoveSelectPixelsTool, MoveSelectOnlyTool,
                 SelectRectTool, SelectEllipseTool, SelectFreeTool, MagicWandTool,
                 TextTool, ShapesTool, LineTool

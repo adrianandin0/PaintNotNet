@@ -109,6 +109,20 @@ class MenuEditar:
         if c:
             c.borrar_todo()
 
+    def desechar_seleccion(self):
+        c = self._get_canvas()
+        if c and hasattr(c, 'cancelar_o_deseleccionar'):
+            c.cancelar_o_deseleccionar()
+
+    def invertir_seleccion(self):
+        c = self._get_canvas()
+        if c and hasattr(c, 'invertir_seleccion'):
+            c.invertir_seleccion()
+
+    def activar_transformar(self):
+        if hasattr(self.ventana, 'activar_herramienta_transformar'):
+            self.ventana.activar_herramienta_transformar()
+
     def crear_menu(self, menu_bar):
         self.menu_bar = menu_bar
         self.retraducir_menu()
@@ -155,21 +169,12 @@ class MenuEditar:
         accion_desel.setShortcut("Ctrl+D")
         accion_desel.triggered.connect(self.desechar_seleccion)
 
-        accion_transform = self.menu_editar.addAction(QIcon("gui/iconos/transform.png"), t("Transformar"))
-        accion_transform.setShortcut("Ctrl+T")
-        accion_transform.triggered.connect(self.activar_transformar)
+        accion_invertir = self.menu_editar.addAction(QIcon("gui/iconos/invert.png"), t("Invertir Selección"))
+        accion_invertir.setShortcut("Ctrl+I")
+        accion_invertir.triggered.connect(self.invertir_seleccion)
 
         self.menu_editar.addSeparator()
 
         accion_borrar_sel = self.menu_editar.addAction(QIcon("gui/iconos/bin.png"), t("Eliminar Selección"))
         accion_borrar_sel.setShortcut(QKeySequence.StandardKey.Delete)
         accion_borrar_sel.triggered.connect(self.borrar_seleccion)
-
-    def desechar_seleccion(self):
-        c = self._get_canvas()
-        if c and hasattr(c, 'cancelar_o_deseleccionar'):
-            c.cancelar_o_deseleccionar()
-
-    def activar_transformar(self):
-        if hasattr(self.ventana, 'activar_herramienta_transformar'):
-            self.ventana.activar_herramienta_transformar()
