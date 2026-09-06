@@ -73,7 +73,7 @@ class PexelsAPIClient:
                 elif engine == "wikimedia":
                     photos = PexelsAPIClient._search_wikimedia(search_q, is_transparent, page, per_page)
                 elif engine == "unsplash":
-                    photos = PexelsAPIClient._search_unsplash_public(search_q, page, per_page)
+                    photos = PexelsAPIClient._search_unsplash_public(search_q, is_transparent, page, per_page)
 
                 if photos:
                     break
@@ -102,21 +102,42 @@ class PexelsAPIClient:
             with urllib.request.urlopen(req, context=ctx, timeout=8) as resp:
                 if resp.status == 200:
                     html_text = resp.read().decode("utf-8", errors="ignore")
-                    matches = re.findall(r'm="([^"]+)"', html_text)
-                    for m in matches:
+                    chunks = html_text.split('class="iusc"')
+                    for chunk in chunks[1:]:
+                        m_match = re.search(r'm="([^"]+)"', chunk)
+                        if not m_match:
+                            continue
                         try:
-                            clean_json = html.unescape(m)
+                            clean_json = html.unescape(m_match.group(1))
                             data = json.loads(clean_json)
                             murl = data.get("murl")
                             turl = data.get("turl") or murl
-                            if murl and turl:
-                                photos.append({
-                                    "id": murl,
-                                    "preview_url": turl,
-                                    "download_url": murl,
-                                    "width": data.get("w", 800),
-                                    "height": data.get("h", 600)
-                                })
+                            if not murl:
+                                continue
+                            w, h = 0, 0
+                            try:
+                                w = int(data.get("ow") or data.get("w") or 0)
+                                h = int(data.get("oh") or data.get("h") or 0)
+                            except Exception:
+                                pass
+
+                            dim_match = re.search(r'expw=(\d+)&amp;exph=(\d+)|exph=(\d+)&amp;expw=(\d+)|<span class="nowrap">(\d+)&#215;(\d+)</span>', chunk)
+                            if dim_match:
+                                g = dim_match.groups()
+                                if g[0] and g[1]:
+                                    w, h = int(g[0]), int(g[1])
+                                elif g[2] and g[3]:
+                                    h, w = int(g[2]), int(g[3])
+                                elif g[4] and g[5]:
+                                    w, h = int(g[4]), int(g[5])
+
+                            photos.append({
+                                "id": murl,
+                                "preview_url": turl,
+                                "download_url": murl,
+                                "width": w,
+                                "height": h
+                            })
                         except Exception:
                             pass
                         if len(photos) >= per_page:
@@ -145,15 +166,20 @@ class PexelsAPIClient:
             with urllib.request.urlopen(req, context=ctx, timeout=8) as resp:
                 if resp.status == 200:
                     html_text = resp.read().decode("utf-8", errors="ignore")
-                    img_urls = re.findall(r'\["(https://[^"]+\.(?:jpg|jpeg|png|webp|gif)[^"]*)",\s*\d+,\s*\d+\]', html_text)
-                    for u in img_urls:
+                    matches = re.findall(r'\["(https://[^"]+\.(?:jpg|jpeg|png|webp|gif)[^"]*)",\s*(\d+),\s*(\d+)\]', html_text)
+                    for u, h_str, w_str in matches:
                         if u not in [p["download_url"] for p in photos]:
+                            try:
+                                h_val = int(h_str)
+                                w_val = int(w_str)
+                            except Exception:
+                                h_val, w_val = 0, 0
                             photos.append({
                                 "id": u,
                                 "preview_url": u,
                                 "download_url": u,
-                                "width": 800,
-                                "height": 600
+                                "width": w_val,
+                                "height": h_val
                             })
                         if len(photos) >= per_page:
                             break
@@ -193,8 +219,8 @@ class PexelsAPIClient:
                             "id": large,
                             "preview_url": thumb,
                             "download_url": large,
-                            "width": r.get("width", 800),
-                            "height": r.get("height", 600)
+                            "width": r.get("width") or 0,
+                            "height": r.get("height") or 0
                         })
         except Exception:
             pass
@@ -270,8 +296,8 @@ class PexelsAPIClient:
                                     "id": large,
                                     "preview_url": thumb,
                                     "download_url": large,
-                                    "width": res.get("width", 800),
-                                    "height": res.get("height", 600)
+                                    "width": res.get("width") or 0,
+                                    "height": res.get("height") or 0
                                 })
             except Exception:
                 pass  # Silenciar errores i.js HTTP 403
@@ -307,8 +333,8 @@ class PexelsAPIClient:
                                     "id": f"wm_{page_id}",
                                     "preview_url": img_url,
                                     "download_url": img_url,
-                                    "width": imageinfo[0].get("width", 800),
-                                    "height": imageinfo[0].get("height", 600)
+                                    "width": imageinfo[0].get("width") or 0,
+                                    "height": imageinfo[0].get("height") or 0
                                 })
         except Exception:
             pass
@@ -316,7 +342,7 @@ class PexelsAPIClient:
         return photos
 
     @staticmethod
-    def _search_unsplash_public(query: str, page: int, per_page: int) -> list:
+    def _search_unsplash_public(query: str, is_transparent: bool = False, page: int = 1, per_page: int = 40) -> list:
         clean_q = urllib.parse.quote(query.strip())
         url = f"https://unsplash.com/napi/search/photos?query={clean_q}&page={page}&per_page={per_page}"
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
@@ -336,8 +362,8 @@ class PexelsAPIClient:
                                 "id": item.get("id", full),
                                 "preview_url": small,
                                 "download_url": full,
-                                "width": item.get("width", 800),
-                                "height": item.get("height", 600)
+                                "width": item.get("width") or 0,
+                                "height": item.get("height") or 0
                             })
         except Exception:
             pass

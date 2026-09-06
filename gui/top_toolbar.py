@@ -113,46 +113,46 @@ class TopToolBarWidget(QToolBar):
         """)
 
         # 0. Nueva Pestaña (+)
-        self.action_nueva_pestana = QAction(QIcon("gui/iconos/new.png"), "Nueva Pestaña", self)
-        self.action_nueva_pestana.setToolTip("Nueva Pestaña (Ctrl+N)")
+        self.action_nueva_pestana = QAction(QIcon("gui/iconos/new.png"), t("Nueva Pestaña"), self)
+        self.action_nueva_pestana.setToolTip(f"{t('Nueva Pestaña')} (Ctrl+N)")
         self.addAction(self.action_nueva_pestana)
 
         # 1. Abrir
-        self.action_abrir = QAction(QIcon("gui/iconos/open.png"), "Abrir", self)
-        self.action_abrir.setToolTip("Abrir imagen (Ctrl+O)")
+        self.action_abrir = QAction(QIcon("gui/iconos/open.png"), t("Abrir"), self)
+        self.action_abrir.setToolTip(f"{t('Abrir...')} (Ctrl+O)")
         self.addAction(self.action_abrir)
 
         # 2. Guardar
-        self.action_guardar = QAction(QIcon("gui/iconos/save.png"), "Guardar", self)
-        self.action_guardar.setToolTip("Guardar imagen (Ctrl+S)")
+        self.action_guardar = QAction(QIcon("gui/iconos/save.png"), t("Guardar"), self)
+        self.action_guardar.setToolTip(f"{t('Guardar')} (Ctrl+S)")
         self.addAction(self.action_guardar)
 
         self.addSeparator()
 
         # 3. Cortar
-        self.action_cortar = QAction(QIcon("gui/iconos/cut.png"), "Cortar", self)
-        self.action_cortar.setToolTip("Cortar selección (Ctrl+X)")
+        self.action_cortar = QAction(QIcon("gui/iconos/cut.png"), t("Cortar"), self)
+        self.action_cortar.setToolTip(f"{t('Cortar')} (Ctrl+X)")
         self.addAction(self.action_cortar)
 
         # 4. Copiar
-        self.action_copiar = QAction(QIcon("gui/iconos/copy.png"), "Copiar", self)
-        self.action_copiar.setToolTip("Copiar selección (Ctrl+C)")
+        self.action_copiar = QAction(QIcon("gui/iconos/copy.png"), t("Copiar"), self)
+        self.action_copiar.setToolTip(f"{t('Copiar')} (Ctrl+C)")
         self.addAction(self.action_copiar)
 
         # 5. Pegar
-        self.action_pegar = QAction(QIcon("gui/iconos/paste.png"), "Pegar", self)
-        self.action_pegar.setToolTip("Pegar contenido (Ctrl+V)")
+        self.action_pegar = QAction(QIcon("gui/iconos/paste.png"), t("Pegar"), self)
+        self.action_pegar.setToolTip(f"{t('Pegar')} (Ctrl+V)")
         self.addAction(self.action_pegar)
 
         # 6. Recortar a selección
-        self.action_crop = QAction(QIcon("gui/iconos/crop.png"), "Recortar", self)
-        self.action_crop.setToolTip("Recortar a selección")
+        self.action_crop = QAction(QIcon("gui/iconos/crop.png"), t("Recortar"), self)
+        self.action_crop.setToolTip(t("Recortar a selección"))
         self.action_crop.triggered.connect(self._on_crop_clicked)
         self.addAction(self.action_crop)
 
         # 6.5 Ajustar a ventana
-        self.action_fit = QAction(QIcon("gui/iconos/fit.png"), "Ajustar a ventana", self)
-        self.action_fit.setToolTip("Ajustar a la ventana")
+        self.action_fit = QAction(QIcon("gui/iconos/fit.png"), t("Ajustar a la ventana"), self)
+        self.action_fit.setToolTip(t("Ajustar a la ventana"))
         self.action_fit.triggered.connect(self._on_fit_clicked)
         self.addAction(self.action_fit)
 

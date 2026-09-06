@@ -13,7 +13,7 @@ class DialogoOpciones(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle(t("Preferencias de usuario"))
-        self.setFixedSize(540, 365)
+        self.setFixedSize(540, 470)
 
         self.setStyleSheet("""
             QDialog {
@@ -161,7 +161,49 @@ class DialogoOpciones(QDialog):
         group_format.setLayout(layout_format)
         layout.addWidget(group_format)
 
-        # 5. Opciones verticales (Mostrar atajos y Guardar cambios) + Eliminar preferencias
+        # 5. Vista y Lienzo
+        group_view = QGroupBox(t("Vista y lienzo"))
+        layout_view = QVBoxLayout()
+        layout_view.setContentsMargins(8, 6, 8, 6)
+        layout_view.setSpacing(6)
+
+        row1_view = QHBoxLayout()
+        self.chk_show_grid = QCheckBox(t("Mostrar cuadrícula de píxeles"))
+        show_grid = self.settings.value("show_pixel_grid", False, type=bool)
+        self.chk_show_grid.setChecked(show_grid)
+
+        self.chk_show_rulers = QCheckBox(t("Mostrar reglas graduadas"))
+        show_rulers = self.settings.value("show_rulers", False, type=bool)
+        self.chk_show_rulers.setChecked(show_rulers)
+
+        row1_view.addWidget(self.chk_show_grid)
+        row1_view.addSpacing(16)
+        row1_view.addWidget(self.chk_show_rulers)
+        row1_view.addStretch()
+
+        row2_view = QHBoxLayout()
+        lbl_unit = QLabel(t("Unidad de regla:"))
+        self.combo_ruler_unit = QComboBox()
+        self.combo_ruler_unit.addItems([
+            t("Centímetros (cm)"),
+            t("Pulgadas (in)"),
+            t("Píxeles (px)")
+        ])
+        self.ruler_unit_raw = ["cm", "in", "px"]
+        default_unit = str(self.settings.value("ruler_unit", "cm"))
+        if default_unit in self.ruler_unit_raw:
+            self.combo_ruler_unit.setCurrentIndex(self.ruler_unit_raw.index(default_unit))
+
+        row2_view.addWidget(lbl_unit)
+        row2_view.addWidget(self.combo_ruler_unit)
+        row2_view.addStretch()
+
+        layout_view.addLayout(row1_view)
+        layout_view.addLayout(row2_view)
+        group_view.setLayout(layout_view)
+        layout.addWidget(group_view)
+
+        # 6. Opciones verticales (Mostrar atajos y Guardar cambios) + Eliminar preferencias
         layout_chk = QHBoxLayout()
         layout_chk.setContentsMargins(4, 2, 4, 2)
 
@@ -263,10 +305,34 @@ class DialogoOpciones(QDialog):
         self.settings.setValue("save_on_close", self.chk_save_on_close.isChecked())
         self.settings.setValue("show_shortcuts", self.chk_show_shortcuts.isChecked())
 
+        self.settings.setValue("show_pixel_grid", self.chk_show_grid.isChecked())
+        self.settings.setValue("show_rulers", self.chk_show_rulers.isChecked())
+
+        unit_idx = self.combo_ruler_unit.currentIndex()
+        if 0 <= unit_idx < len(self.ruler_unit_raw):
+            ruler_unit = self.ruler_unit_raw[unit_idx]
+            self.settings.setValue("ruler_unit", ruler_unit)
+        else:
+            ruler_unit = "cm"
+
         I18nManager().establecer_idioma(nuevo_idioma)
 
         parent = self.parent()
         if parent:
+            if hasattr(parent, 'bottom_bar') and parent.bottom_bar:
+                parent.bottom_bar.chk_grid.setChecked(self.chk_show_grid.isChecked())
+                parent.bottom_bar.chk_rulers.setChecked(self.chk_show_rulers.isChecked())
+            if hasattr(parent, 'tab_widget') and parent.tab_widget:
+                for i in range(parent.tab_widget.count()):
+                    container = parent.tab_widget.widget(i)
+                    if container:
+                        if hasattr(container, 'corner'):
+                            container.corner.set_unit(ruler_unit)
+                        if hasattr(container, 'top_ruler'):
+                            container.top_ruler.set_unit(ruler_unit)
+                        if hasattr(container, 'left_ruler'):
+                            container.left_ruler.set_unit(ruler_unit)
+
             if hasattr(parent, 'tool_panel') and parent.tool_panel:
                 parent.tool_panel.actualizar_insignias_atajos()
             if hasattr(parent, 'retraducir_ui'):

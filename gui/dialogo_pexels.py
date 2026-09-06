@@ -8,8 +8,8 @@ from PyQt6.QtWidgets import (
     QPushButton, QCheckBox, QComboBox, QScrollArea, QWidget, QGridLayout,
     QProgressBar, QMessageBox
 )
-from PyQt6.QtCore import Qt, QSize, QThread, pyqtSignal, QRect
-from PyQt6.QtGui import QIcon, QPixmap, QImage, QPainter, QColor, QPen
+from PyQt6.QtCore import Qt, QSize, QThread, pyqtSignal, QRect, QRectF
+from PyQt6.QtGui import QIcon, QPixmap, QImage, QPainter, QColor, QPen, QFont, QBrush
 from core.i18n import t
 from core.pexels import PexelsAPIClient
 
@@ -118,6 +118,11 @@ class _ImageCardWidget(QPushButton):
         self._update_style()
 
     def _update_style(self):
+        from core.theme import ThemeManager
+        tm = ThemeManager()
+        is_light = (tm.resolver_nombre_tema(tm.current_theme) == "Claro")
+        card_bg = "#E0E0E0" if is_light else "#2B2B2B"
+
         if self.is_selected:
             self.setStyleSheet("""
                 _ImageCardWidget {
@@ -127,15 +132,15 @@ class _ImageCardWidget(QPushButton):
                 }
             """)
         else:
-            self.setStyleSheet("""
-                _ImageCardWidget {
+            self.setStyleSheet(f"""
+                _ImageCardWidget {{
                     border: 2px solid transparent;
                     border-radius: 5px;
-                    background-color: #2B2B2B;
-                }
-                _ImageCardWidget:hover {
+                    background-color: {card_bg};
+                }}
+                _ImageCardWidget:hover {{
                     border: 2px solid #64B4FF;
-                }
+                }}
             """)
 
     def mousePressEvent(self, event):
@@ -177,6 +182,37 @@ class _ImageCardWidget(QPushButton):
             painter.setPen(QPen(QColor(150, 150, 150), 1))
             painter.drawText(QRect(0, 0, w, h), Qt.AlignmentFlag.AlignCenter, "...")
 
+        # 3. Dibujar insignia de dimensiones (anchoxalto) en la parte inferior centrada
+        pw = self.photo_data.get("width", 0)
+        ph = self.photo_data.get("height", 0)
+        if (not pw or not ph) and self.pixmap and not self.pixmap.isNull():
+            pw = self.pixmap.width()
+            ph = self.pixmap.height()
+
+        if pw > 0 and ph > 0:
+            dim_str = f"{pw}x{ph}"
+            font = QFont()
+            font.setPointSize(7)
+            font.setBold(False)
+            painter.setFont(font)
+
+            fm = painter.fontMetrics()
+            text_w = fm.horizontalAdvance(dim_str)
+            badge_w = text_w + 10
+            badge_h = 16
+            badge_x = (w - badge_w) / 2.0
+            badge_y = h - 22.0
+            badge_rect = QRectF(badge_x, badge_y, badge_w, badge_h)
+
+            # Fondo semitransparente oscuro con bordes redondeados
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QBrush(QColor(0, 0, 0, 180)))
+            painter.drawRoundedRect(badge_rect, 3.0, 3.0)
+
+            # Texto blanco centrado
+            painter.setPen(QPen(QColor(255, 255, 255)))
+            painter.drawText(badge_rect, Qt.AlignmentFlag.AlignCenter, dim_str)
+
 
 # Diálogo Principal
 
@@ -190,6 +226,21 @@ class DialogoBusquedaPexels(QDialog):
         self.search_worker: _SearchWorker | None = None
         self.download_worker: _DownloadWorker | None = None
         self._active_workers = set()
+
+        from core.theme import ThemeManager
+        tm = ThemeManager()
+        is_light = (tm.resolver_nombre_tema(tm.current_theme) == "Claro")
+
+        bg_col = "#DFDFDF" if is_light else "#2D2D2D"
+        txt_col = "#222222" if is_light else "#EDEDED"
+        scroll_bg = "#F5F5F5" if is_light else "#1E1E1E"
+        scroll_border = "#CCCCCC" if is_light else "#3C3C3C"
+        status_col = "#555555" if is_light else "#AAAAAA"
+
+        self.setStyleSheet(f"""
+            QDialog {{ background-color: {bg_col}; color: {txt_col}; }}
+            QLabel {{ color: {txt_col}; }}
+        """)
 
         self.setWindowTitle(t("Insertar desde Internet"))
         self.resize(720, 560)
@@ -239,15 +290,19 @@ class DialogoBusquedaPexels(QDialog):
         # ── Área Central: Galería de Miniaturas ─────────────────────────
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setStyleSheet("""
-            QScrollArea {
-                border: 1px solid #3C3C3C;
+        self.scroll_area.setStyleSheet(f"""
+            QScrollArea {{
+                border: 1px solid {scroll_border};
                 border-radius: 4px;
-                background-color: #1E1E1E;
-            }
+                background-color: {scroll_bg};
+            }}
+            QScrollArea > QWidget > QWidget {{
+                background-color: {scroll_bg};
+            }}
         """)
 
         self.grid_container = QWidget()
+        self.grid_container.setStyleSheet(f"background-color: {scroll_bg};")
         self.grid_layout = QGridLayout(self.grid_container)
         self.grid_layout.setContentsMargins(8, 8, 8, 8)
         self.grid_layout.setSpacing(8)
@@ -260,7 +315,7 @@ class DialogoBusquedaPexels(QDialog):
         page_layout.setSpacing(8)
 
         self.lbl_status = QLabel(t("Realiza una búsqueda para ver imágenes."))
-        self.lbl_status.setStyleSheet("color: #AAAAAA; font-size: 11px;")
+        self.lbl_status.setStyleSheet(f"color: {status_col}; font-size: 11px;")
         page_layout.addWidget(self.lbl_status)
         page_layout.addStretch()
 
@@ -278,8 +333,8 @@ class DialogoBusquedaPexels(QDialog):
         self.btn_prev.clicked.connect(self._on_prev_page)
         page_layout.addWidget(self.btn_prev)
 
-        self.lbl_page = QLabel(t("Página 1"))
-        self.lbl_page.setStyleSheet("font-weight: bold; font-size: 11px; padding: 0 4px;")
+        self.lbl_page = QLabel(t("Página %1").replace("%1", "1"))
+        self.lbl_page.setStyleSheet(f"font-size: 11px; padding: 0 4px; color: {txt_col};")
         page_layout.addWidget(self.lbl_page)
 
         self.btn_next = QPushButton(t("Siguiente >"))
@@ -313,9 +368,7 @@ class DialogoBusquedaPexels(QDialog):
 
         layout.addLayout(btn_layout)
 
-        # Cargar búsqueda predeterminada
-        self.input_search.setText("paisaje")
-        self._on_new_search()
+        # Sin búsqueda predeterminada por defecto
 
     def _track_worker(self, worker):
         if not worker:

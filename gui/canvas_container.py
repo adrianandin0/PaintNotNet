@@ -14,13 +14,22 @@ class CanvasContainerWidget(QWidget):
         self.canvas = canvas
         self.main_window = main_window
 
+        from PyQt6.QtCore import QSettings
+        settings = QSettings("PaintNotNet", "PaintNotNet")
+        saved_unit = str(settings.value("ruler_unit", "cm"))
+        if saved_unit not in ["cm", "in", "px"]:
+            saved_unit = "cm"
+
         self.corner = RulerCornerWidget(self)
         self.top_ruler = RulerWidget(Qt.Orientation.Horizontal, canvas=canvas, scroll_area=area_scroll, parent=self)
         self.left_ruler = RulerWidget(Qt.Orientation.Vertical, canvas=canvas, scroll_area=area_scroll, parent=self)
 
-        # Cuando el usuario cambia la unidad en el corner, ambas reglas se actualizan
-        self.corner.unit_changed.connect(self.top_ruler.set_unit)
-        self.corner.unit_changed.connect(self.left_ruler.set_unit)
+        self.corner.set_unit(saved_unit)
+        self.top_ruler.set_unit(saved_unit)
+        self.left_ruler.set_unit(saved_unit)
+
+        # Cuando el usuario cambia la unidad en el corner, ambas reglas se actualizan y se propaga la preferencia
+        self.corner.unit_changed.connect(self._on_unit_changed)
 
         # Vincular contenedor al lienzo para refrescos rápidos
         if hasattr(self.canvas, 'container'):
@@ -53,6 +62,24 @@ class CanvasContainerWidget(QWidget):
             self.top_ruler.update()
         if self.left_ruler.isVisible():
             self.left_ruler.update()
+
+    def _on_unit_changed(self, new_unit: str):
+        from PyQt6.QtCore import QSettings
+        QSettings("PaintNotNet", "PaintNotNet").setValue("ruler_unit", new_unit)
+        self.top_ruler.set_unit(new_unit)
+        self.left_ruler.set_unit(new_unit)
+        if self.main_window and hasattr(self.main_window, 'tab_widget'):
+            for i in range(self.main_window.tab_widget.count()):
+                cont = self.main_window.tab_widget.widget(i)
+                if cont and cont != self:
+                    if hasattr(cont, 'corner'):
+                        cont.corner.blockSignals(True)
+                        cont.corner.set_unit(new_unit)
+                        cont.corner.blockSignals(False)
+                    if hasattr(cont, 'top_ruler'):
+                        cont.top_ruler.set_unit(new_unit)
+                    if hasattr(cont, 'left_ruler'):
+                        cont.left_ruler.set_unit(new_unit)
 
     def widget(self):
         """Mantiene compatibilidad total con llamadas 'area.widget()' en main.py"""

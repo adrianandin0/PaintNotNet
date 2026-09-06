@@ -27,16 +27,23 @@ class BottomStatusBarWidget(QWidget):
         layout.setContentsMargins(8, 2, 12, 2)
         layout.setSpacing(6)
 
+        from PyQt6.QtCore import QSettings
+        self.settings = QSettings("PaintNotNet", "PaintNotNet")
+
         # 1. Opción Cuadrícula y Reglas
         self.chk_grid = QCheckBox(t("Cuadrícula"))
         self.chk_grid.setIcon(QIcon("gui/iconos/transparency.png"))
         self.chk_grid.setToolTip(t("Muestra un borde fino negro/blanco alrededor de cada píxel al hacer zoom."))
+        grid_saved = self.settings.value("show_pixel_grid", False, type=bool)
+        self.chk_grid.setChecked(grid_saved)
         self.chk_grid.toggled.connect(self._on_toggle_grid)
         layout.addWidget(self.chk_grid)
 
         self.chk_rulers = QCheckBox(t("Reglas"))
         self.chk_rulers.setIcon(QIcon("gui/iconos/ruler.png"))
-        self.chk_rulers.setToolTip(t("Muestra u oculta las reglas graduadas en centímetros en los bordes del lienzo."))
+        self.chk_rulers.setToolTip(t("Muestra u oculta las reglas graduadas en los bordes del lienzo."))
+        rulers_saved = self.settings.value("show_rulers", False, type=bool)
+        self.chk_rulers.setChecked(rulers_saved)
         self.chk_rulers.toggled.connect(self._on_toggle_rulers)
         layout.addWidget(self.chk_rulers)
 
@@ -244,6 +251,7 @@ class BottomStatusBarWidget(QWidget):
         self.sep2.setStyleSheet(sep_style)
 
     def _on_toggle_grid(self, checked: bool):
+        self.settings.setValue("show_pixel_grid", checked)
         if self.main_window and hasattr(self.main_window, 'tab_widget'):
             for i in range(self.main_window.tab_widget.count()):
                 container = self.main_window.tab_widget.widget(i)
@@ -256,6 +264,7 @@ class BottomStatusBarWidget(QWidget):
             self.main_window.lienzo.update()
 
     def _on_toggle_rulers(self, checked: bool):
+        self.settings.setValue("show_rulers", checked)
         if self.main_window and hasattr(self.main_window, 'tab_widget'):
             for i in range(self.main_window.tab_widget.count()):
                 container = self.main_window.tab_widget.widget(i)

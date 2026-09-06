@@ -29,6 +29,11 @@ class MagicWandTool(BaseTool):
         self.last_seed = None
 
     def mouse_press(self, canvas, event, color_activo=None):
+        engine = canvas.selection_engine
+        if engine.floating_image and not engine.floating_image.isNull():
+            from tools.move_select_pixels import MoveSelectPixelsTool
+            MoveSelectPixelsTool.commit_floating_image(canvas)
+
         pos = QPoint(int(math.floor(event.position().x())), int(math.floor(event.position().y())))
         if 0 <= pos.x() < canvas.layer_mgr.width and 0 <= pos.y() < canvas.layer_mgr.height:
             self.last_seed = pos

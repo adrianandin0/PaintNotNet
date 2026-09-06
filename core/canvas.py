@@ -15,6 +15,53 @@ class DialogoOpcionesInsercion(QDialog):
     def __init__(self, parent=None, img_w=0, img_h=0, canvas_w=0, canvas_h=0):
         super().__init__(parent)
         from core.i18n import t
+        from core.theme import ThemeManager
+
+        tm = ThemeManager()
+        is_light = (tm.resolver_nombre_tema(tm.current_theme) == "Claro")
+
+        bg_col = "#DFDFDF" if is_light else "#2D2D2D"
+        txt_col = "#222222" if is_light else "#EDEDED"
+        btn_bg = "#E1E1E1" if is_light else "#3C3C3C"
+        btn_border = "#ADADAD" if is_light else "#555555"
+        btn_hover = "#E5F1FB" if is_light else "#505050"
+
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {bg_col};
+                color: {txt_col};
+            }}
+            QLabel {{
+                background: transparent;
+                background-color: transparent;
+                color: {txt_col};
+            }}
+            QLabel#lbl_title {{
+                font-size: 12px;
+                color: {txt_col};
+                background: transparent;
+                background-color: transparent;
+            }}
+            QLabel#lbl_sub {{
+                font-size: 11px;
+                color: {txt_col};
+                background: transparent;
+                background-color: transparent;
+            }}
+            QPushButton {{
+                background-color: {btn_bg};
+                color: {txt_col};
+                border: 1px solid {btn_border};
+                border-radius: 4px;
+                padding: 6px;
+                font-size: 11px;
+            }}
+            QPushButton:hover {{
+                background-color: {btn_hover};
+                border: 1px solid #0078D7;
+            }}
+        """)
+
         self.setWindowTitle(t("Opciones de inserción"))
         self.setFixedWidth(390)
 
@@ -25,12 +72,12 @@ class DialogoOpcionesInsercion(QDialog):
         layout.setContentsMargins(16, 16, 16, 16)
 
         lbl_title = QLabel(t("La imagen que intentas insertar es más grande que el lienzo actual."))
+        lbl_title.setObjectName("lbl_title")
         lbl_title.setWordWrap(True)
-        lbl_title.setStyleSheet("font-weight: bold; font-size: 12px;")
         layout.addWidget(lbl_title)
 
         lbl_sub = QLabel(t("¿Cómo deseas insertar la imagen?"))
-        lbl_sub.setStyleSheet("font-size: 11px;")
+        lbl_sub.setObjectName("lbl_sub")
         layout.addWidget(lbl_sub)
 
         layout_btns = QVBoxLayout()
@@ -112,7 +159,8 @@ class CanvasWidget(QWidget):
         self.drawing = False
         self.last_point = QPoint()
         self.cursor_pos = None
-        self.show_pixel_grid = False
+        from PyQt6.QtCore import QSettings
+        self.show_pixel_grid = QSettings("PaintNotNet", "PaintNotNet").value("show_pixel_grid", False, type=bool)
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
@@ -1154,15 +1202,35 @@ class CanvasWidget(QWidget):
         if not engine.has_selection():
             return False
 
+        rect = engine.active_rect.toRect().intersected(QRect(0, 0, self.layer_mgr.width, self.layer_mgr.height))
+        if engine.floating_image and not engine.floating_image.isNull():
+            # Si hay una imagen flotante previa pero su tamaño o posición no coincide con la selección actual, consolidarla
+            if (hasattr(engine, 'original_image_pos') and engine.original_image_pos != QPointF(rect.topLeft())) or \
+               (hasattr(engine, 'unscaled_floating_image') and engine.unscaled_floating_image and engine.unscaled_floating_image.size() != rect.size()):
+                from tools.move_select_pixels import MoveSelectPixelsTool
+                MoveSelectPixelsTool.commit_floating_image(self)
+
         if engine.floating_image is None or engine.floating_image.isNull():
-            rect = engine.active_rect.toRect().intersected(QRect(0, 0, self.layer_mgr.width, self.layer_mgr.height))
             if rect.width() > 0 and rect.height() > 0:
                 buffer = self.layer_mgr.buffer
 
                 if not hasattr(self, 'floating_initial_canvas') or self.floating_initial_canvas is None:
                     self.floating_initial_canvas = buffer.copy()
 
-                engine.floating_image = buffer.copy(rect)
+                full_crop = buffer.copy(rect)
+                if not engine.active_path.isEmpty():
+                    masked = QImage(rect.size(), QImage.Format.Format_ARGB32_Premultiplied)
+                    masked.fill(Qt.GlobalColor.transparent)
+                    mpainter = QPainter(masked)
+                    local_path = QPainterPath(engine.active_path)
+                    local_path.translate(-QPointF(rect.topLeft()))
+                    mpainter.setClipPath(local_path)
+                    mpainter.drawImage(0, 0, full_crop)
+                    mpainter.end()
+                    engine.floating_image = masked
+                else:
+                    engine.floating_image = full_crop
+
                 engine.unscaled_floating_image = engine.floating_image.copy()
                 engine.init_raw_image(engine.floating_image)
                 engine.original_image_pos = QPointF(rect.topLeft())

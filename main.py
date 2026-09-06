@@ -357,8 +357,11 @@ class PaintNotNet(QMainWindow):
 
         from gui.canvas_container import CanvasContainerWidget
         container = CanvasContainerWidget(area_scroll, canvas, main_window=self)
-        if hasattr(self, 'bottom_bar') and hasattr(self.bottom_bar, 'chk_rulers'):
-            container.set_rulers_visible(self.bottom_bar.chk_rulers.isChecked())
+        if hasattr(self, 'bottom_bar'):
+            if hasattr(self.bottom_bar, 'chk_rulers'):
+                container.set_rulers_visible(self.bottom_bar.chk_rulers.isChecked())
+            if hasattr(self.bottom_bar, 'chk_grid'):
+                canvas.show_pixel_grid = self.bottom_bar.chk_grid.isChecked()
 
         if not titulo:
             if ruta:
@@ -376,9 +379,6 @@ class PaintNotNet(QMainWindow):
             idx, self.tab_widget.tabBar().ButtonPosition.RightSide, btn_cerrar
         )
         self.tab_widget.setCurrentIndex(idx)
-
-        if hasattr(self, 'bottom_bar') and hasattr(self.bottom_bar, 'chk_grid'):
-            canvas.show_pixel_grid = self.bottom_bar.chk_grid.isChecked()
 
         if hasattr(self, 'emergency_mgr') and self.emergency_mgr:
             self.emergency_mgr.registrar_canvas(canvas, titulo=titulo)

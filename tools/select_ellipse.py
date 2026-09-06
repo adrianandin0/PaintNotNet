@@ -23,6 +23,9 @@ class SelectEllipseTool(BaseTool):
         if hit != engine.HANDLE_NONE:
             engine.begin_transform(event.position(), event.button(), hit)
         else:
+            if engine.floating_image and not engine.floating_image.isNull():
+                from tools.move_select_pixels import MoveSelectPixelsTool
+                MoveSelectPixelsTool.commit_floating_image(canvas)
             self.start_point = pos
             self.current_point = pos
             self.is_selecting = True

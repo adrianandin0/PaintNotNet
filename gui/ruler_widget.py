@@ -19,9 +19,23 @@ class RulerCornerWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setFixedSize(22, 22)
-        self._unit_index = 0          # 0=cm, 1=in, 2=px
+        from PyQt6.QtCore import QSettings
+        settings = QSettings("PaintNotNet", "PaintNotNet")
+        saved_unit = str(settings.value("ruler_unit", "cm"))
+        self._unit_index = UNITS.index(saved_unit) if saved_unit in UNITS else 0
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        self.setToolTip("Clic izq: siguiente unidad  |  Clic der: unidad anterior")
+        self.retraducir()
+
+    def set_unit(self, unit: str):
+        if unit in UNITS:
+            idx = UNITS.index(unit)
+            if self._unit_index != idx:
+                self._unit_index = idx
+                self.update()
+
+    def retraducir(self):
+        from core.i18n import t
+        self.setToolTip(t("Clic izq: siguiente unidad | Clic der: unidad anterior"))
 
     @property
     def unit(self) -> str:
@@ -35,6 +49,8 @@ class RulerCornerWidget(QWidget):
         else:
             return
         self.update()
+        from PyQt6.QtCore import QSettings
+        QSettings("PaintNotNet", "PaintNotNet").setValue("ruler_unit", self.unit)
         self.unit_changed.emit(self.unit)
 
     def paintEvent(self, event):

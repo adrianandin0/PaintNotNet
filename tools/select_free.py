@@ -26,6 +26,9 @@ class SelectFreeTool(BaseTool):
         pos = self._get_pixel_pos(event)
 
         if not self.is_selecting:
+            if engine.floating_image and not engine.floating_image.isNull():
+                from tools.move_select_pixels import MoveSelectPixelsTool
+                MoveSelectPixelsTool.commit_floating_image(canvas)
             self.points = [pos]
             self.hover_point = pos
             self.is_selecting = True
