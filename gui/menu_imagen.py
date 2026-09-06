@@ -120,14 +120,14 @@ class DialogoTamanoBase(QDialog):
         layout_ancho = QHBoxLayout()
         layout_ancho.addWidget(QLabel(t("Ancho:")))
         self.spin_ancho = QSpinBox()
-        self.spin_ancho.setRange(1, 99999)
+        self.spin_ancho.setRange(1, 16384)
         self.spin_ancho.setValue(ancho_actual)
         layout_ancho.addWidget(self.spin_ancho)
 
         layout_alto = QHBoxLayout()
         layout_alto.addWidget(QLabel(t("Alto:")))
         self.spin_alto = QSpinBox()
-        self.spin_alto.setRange(1, 99999)
+        self.spin_alto.setRange(1, 16384)
         self.spin_alto.setValue(alto_actual)
         layout_alto.addWidget(self.spin_alto)
 

@@ -18,6 +18,10 @@ class CanvasContainerWidget(QWidget):
         self.top_ruler = RulerWidget(Qt.Orientation.Horizontal, canvas=canvas, scroll_area=area_scroll, parent=self)
         self.left_ruler = RulerWidget(Qt.Orientation.Vertical, canvas=canvas, scroll_area=area_scroll, parent=self)
 
+        # Cuando el usuario cambia la unidad en el corner, ambas reglas se actualizan
+        self.corner.unit_changed.connect(self.top_ruler.set_unit)
+        self.corner.unit_changed.connect(self.left_ruler.set_unit)
+
         # Vincular contenedor al lienzo para refrescos rápidos
         if hasattr(self.canvas, 'container'):
             self.canvas.container = self

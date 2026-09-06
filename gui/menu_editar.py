@@ -155,9 +155,9 @@ class MenuEditar:
         accion_desel.setShortcut("Ctrl+D")
         accion_desel.triggered.connect(self.desechar_seleccion)
 
-        accion_invert = self.menu_editar.addAction(QIcon("gui/iconos/invert.png"), t("Invertir Selección"))
-        accion_invert.setShortcut("Ctrl+I")
-        accion_invert.triggered.connect(self.invertir_seleccion)
+        accion_transform = self.menu_editar.addAction(QIcon("gui/iconos/transform.png"), t("Transformar"))
+        accion_transform.setShortcut("Ctrl+T")
+        accion_transform.triggered.connect(self.activar_transformar)
 
         self.menu_editar.addSeparator()
 
@@ -170,7 +170,6 @@ class MenuEditar:
         if c and hasattr(c, 'cancelar_o_deseleccionar'):
             c.cancelar_o_deseleccionar()
 
-    def invertir_seleccion(self):
-        c = self._get_canvas()
-        if c and hasattr(c, 'invertir_seleccion'):
-            c.invertir_seleccion()
+    def activar_transformar(self):
+        if hasattr(self.ventana, 'activar_herramienta_transformar'):
+            self.ventana.activar_herramienta_transformar()

@@ -152,6 +152,9 @@ class CanvasWidget(QWidget):
         self.setMinimumSize(total_w, total_h)
         self.setFixedSize(total_w, total_h)
 
+        if hasattr(self, 'main_window') and self.main_window and hasattr(self.main_window, 'bottom_bar') and self.main_window.bottom_bar:
+            self.main_window.bottom_bar.actualizar_tamano_lienzo(w, h)
+
     def eventFilter(self, watched, event):
         from PyQt6.QtCore import QEvent
         if hasattr(self, 'layer_mgr') and self.layer_mgr:
@@ -193,8 +196,11 @@ class CanvasWidget(QWidget):
     def set_zoom(self, scale):
         self.scale_factor = max(0.01, min(30.0, scale))
         self._ajustar_tamano_widget()
-        if hasattr(self, 'main_window') and self.main_window and hasattr(self.main_window, 'top_toolbar'):
-            self.main_window.top_toolbar.sync_zoom_from_canvas(self.scale_factor)
+        if hasattr(self, 'main_window') and self.main_window:
+            if hasattr(self.main_window, 'top_toolbar') and self.main_window.top_toolbar:
+                self.main_window.top_toolbar.sync_zoom_from_canvas(self.scale_factor)
+            if hasattr(self.main_window, 'bottom_bar') and self.main_window.bottom_bar:
+                self.main_window.bottom_bar.sync_zoom_from_canvas(self.scale_factor)
         if hasattr(self, 'container') and self.container and hasattr(self.container, 'update_rulers'):
             self.container.update_rulers()
         self.update()
@@ -270,6 +276,42 @@ class CanvasWidget(QWidget):
         if vbar:
             vbar.setValue(int(target_widget_y - vh / 2.0))
 
+    def zoom_to_fit(self):
+        """Ajusta el zoom del lienzo para encajar la imagen completa en la ventana de trabajo disponible."""
+        scroll_area = self.get_scroll_area()
+        if not scroll_area:
+            return
+
+        viewport = scroll_area.viewport()
+        vw = viewport.width()
+        vh = viewport.height()
+
+        if vw <= 0 or vh <= 0 or self.ancho <= 0 or self.alto <= 0:
+            return
+
+        margin = 16.0
+        avail_w = max(1.0, float(vw) - margin)
+        avail_h = max(1.0, float(vh) - margin)
+
+        scale_w = avail_w / float(self.ancho)
+        scale_h = avail_h / float(self.alto)
+        nuevo_scale = min(scale_w, scale_h)
+
+        self.set_zoom(nuevo_scale)
+
+        off_x, off_y = self.obtener_offset_canvas()
+        center_widget_x = float(off_x) + (self.ancho * self.scale_factor) / 2.0
+        center_widget_y = float(off_y) + (self.alto * self.scale_factor) / 2.0
+
+        hbar = scroll_area.horizontalScrollBar()
+        vbar = scroll_area.verticalScrollBar()
+
+        if hbar:
+            hbar.setValue(int(center_widget_x - vw / 2.0))
+        if vbar:
+            vbar.setValue(int(center_widget_y - vh / 2.0))
+
+
     def set_active_tool(self, tool_object):
         from tools.text import TextTool
         from tools.line import LineTool
@@ -282,13 +324,15 @@ class CanvasWidget(QWidget):
             elif isinstance(self.active_tool_obj, ShapesTool):
                 self.active_tool_obj.commit_shape(self)
         self.active_tool_obj = tool_object
-        # Habilitar input method para composición de caracteres (dead keys, IME)
-        enable_ime = isinstance(tool_object, TextTool)
+        # Habilitar input method para composición de caracteres solo cuando se edita texto activamente
+        enable_ime = isinstance(tool_object, TextTool) and getattr(tool_object, 'is_editing', False)
         self.setAttribute(Qt.WidgetAttribute.WA_InputMethodEnabled, enable_ime)
+        self.setFocus()
 
         if hasattr(self, 'selection_engine') and self.selection_engine.floating_image:
             from tools.move_select_pixels import MoveSelectPixelsTool
-            if not isinstance(tool_object, MoveSelectPixelsTool):
+            from tools.transform import TransformTool
+            if not isinstance(tool_object, (MoveSelectPixelsTool, TransformTool)):
                 MoveSelectPixelsTool.commit_floating_image(self)
 
         self.herramienta_actual = getattr(tool_object, 'name', 'Herramienta')
@@ -301,6 +345,10 @@ class CanvasWidget(QWidget):
             self.main_window.top_toolbar.update_tool_states(tool_object)
 
         self.actualizar_cursor_herramienta(tool_object)
+
+        # Hook de activación: llamar on_activate si la herramienta lo define
+        if hasattr(tool_object, 'on_activate'):
+            tool_object.on_activate(self)
 
     def obtener_cursor_custom_herramienta(self, tool_object=None):
         """Genera y devuelve el QCursor personalizado (32x32 con cruz y la insignia en escala de grises)."""
@@ -477,22 +525,23 @@ class CanvasWidget(QWidget):
         l_width = self.layer_mgr.width
         l_height = self.layer_mgr.height
 
-        # --- DIBUJAR FONDO CUADRICULADO DEL LIENZO ---
-        tamano_cuadro = 16
-        for y in range(0, l_height, tamano_cuadro):
-            for x in range(0, l_width, tamano_cuadro):
-                if (x // tamano_cuadro + y // tamano_cuadro) % 2 == 0:
-                    color = QColor(200, 200, 200)
-                else:
-                    color = QColor(255, 255, 255)
+        # --- DIBUJAR FONDO CUADRICULADO DEL LIENZO (optimizado con textura QBrush) ---
+        if not hasattr(self, '_bg_checker_brush') or self._bg_checker_brush is None:
+            pm = QPixmap(32, 32)
+            p_pm = QPainter(pm)
+            p_pm.fillRect(0, 0, 16, 16, QColor(200, 200, 200))
+            p_pm.fillRect(16, 0, 16, 16, QColor(255, 255, 255))
+            p_pm.fillRect(0, 16, 16, 16, QColor(255, 255, 255))
+            p_pm.fillRect(16, 16, 16, 16, QColor(200, 200, 200))
+            p_pm.end()
+            self._bg_checker_brush = QBrush(pm)
 
-                w = min(tamano_cuadro, l_width - x)
-                h = min(tamano_cuadro, l_height - y)
-                painter.fillRect(x, y, w, h, color)
+        painter.fillRect(0, 0, l_width, l_height, self._bg_checker_brush)
 
         # Callback para dibujar la previsualización del contenido en el orden Z de la capa activa
         def _dibujar_preview_capa_activa(p_capa):
-            if self.selection_engine.floating_image and not self.selection_engine.floating_image.isNull():
+            is_transforming = (getattr(self.active_tool_obj, 'name', '') == "Transformar" and getattr(self.active_tool_obj, '_is_active', False))
+            if not is_transforming and self.selection_engine.floating_image and not self.selection_engine.floating_image.isNull():
                 p_capa.save()
                 p_capa.setClipRect(0, 0, l_width, l_height)
                 p_capa.drawImage(self.selection_engine.original_image_pos, self.selection_engine.floating_image)
@@ -536,8 +585,9 @@ class CanvasWidget(QWidget):
             self.active_tool_obj.draw_handles(painter, self)
 
         # 4. Marco de selección activo y tiradores (VISIBLES INCLUSO FUERA DEL LIENZO)
-        if self.selection_engine.has_selection():
+        if self.selection_engine.has_selection() and getattr(self.active_tool_obj, 'name', '') != "Transformar":
             pen = QPen(QColor(0, 120, 215), 1, Qt.PenStyle.DashLine)
+            pen.setCosmetic(True)
             painter.setPen(pen)
             painter.setBrush(Qt.BrushStyle.NoBrush)
 
@@ -547,8 +597,10 @@ class CanvasWidget(QWidget):
                 painter.drawRect(self.selection_engine.active_rect)
 
             # Dibujar los 8 tiradores de selección (visibles en el área externa)
-            handles = self.selection_engine.get_handles()
-            painter.setPen(QPen(QColor(0, 120, 215), 1, Qt.PenStyle.SolidLine))
+            handles = self.selection_engine.get_handles(self.scale_factor)
+            pen_handle = QPen(QColor(0, 120, 215), 1, Qt.PenStyle.SolidLine)
+            pen_handle.setCosmetic(True)
+            painter.setPen(pen_handle)
             painter.setBrush(QBrush(QColor(255, 255, 255)))
             for handle_rect in handles.values():
                 painter.drawRect(handle_rect)
@@ -568,6 +620,7 @@ class CanvasWidget(QWidget):
                 painter.save()
                 color_stroke = QColor(0, 0, 0, 180) if tool_name != "Goma de Borrar" else QColor(255, 255, 255, 220)
                 pen_preview = QPen(color_stroke, 1, Qt.PenStyle.DashLine)
+                pen_preview.setCosmetic(True)
                 painter.setPen(pen_preview)
 
                 if tool_name == "Goma de Borrar":
@@ -678,7 +731,19 @@ class CanvasWidget(QWidget):
         if self.drawing and self.callback_modificado:
             self.callback_modificado()
 
-        self.update()
+        if self.drawing and hasattr(self, 'cursor_pos') and self.cursor_pos:
+            grosor = max(30, int(getattr(self, 'grosor_pincel', 5) * 4))
+            cx, cy = self.cursor_pos.x(), self.cursor_pos.y()
+            sf = self.scale_factor
+            off_x, off_y = self.obtener_offset_canvas()
+
+            vx = int(off_x + (cx - grosor) * sf)
+            vy = int(off_y + (cy - grosor) * sf)
+            vw = int((grosor * 2) * sf)
+            vh = int((grosor * 2) * sf)
+            self.update(vx, vy, vw, vh)
+        else:
+            self.update()
 
     def mouseReleaseEvent(self, event):
         ev = self._canvas_event(event)
@@ -697,8 +762,23 @@ class CanvasWidget(QWidget):
             from tools.eyedropper import EyedropperTool
             from tools.zoom import ZoomTool
             from tools.placeholder import PlaceholderTool
+            from tools.transform import TransformTool
+            from tools.move_select_pixels import MoveSelectPixelsTool
+            from tools.move_select_only import MoveSelectOnlyTool
+            from tools.select_rect import SelectRectTool
+            from tools.select_ellipse import SelectEllipseTool
+            from tools.select_free import SelectFreeTool
+            from tools.magic_wand import MagicWandTool
+            from tools.text import TextTool
+            from tools.shapes import ShapesTool
+            from tools.line import LineTool
 
-            if not isinstance(self.active_tool_obj, (BucketTool, EyedropperTool, ZoomTool, PlaceholderTool)):
+            if not isinstance(self.active_tool_obj, (
+                BucketTool, EyedropperTool, ZoomTool, PlaceholderTool,
+                TransformTool, MoveSelectPixelsTool, MoveSelectOnlyTool,
+                SelectRectTool, SelectEllipseTool, SelectFreeTool, MagicWandTool,
+                TextTool, ShapesTool, LineTool
+            )):
                 tool_name = getattr(self.active_tool_obj, 'name', None) or getattr(self.active_tool_obj, 'nombre', None) or getattr(self, 'herramienta_actual', 'Trazo')
                 self.push_document_state(tool_name)
 
@@ -1310,8 +1390,12 @@ class CanvasWidget(QWidget):
     def rehacer(self): self.redo()
 
     def undo(self):
-        # Si la herramienta activa tiene una edición interactiva en curso (ej. Línea con tiradores activos)
+        # Si la herramienta activa tiene una edición interactiva en curso (ej. Transformar o Línea con tiradores activos)
         if hasattr(self, 'active_tool_obj') and self.active_tool_obj:
+            if hasattr(self.active_tool_obj, 'undo_step'):
+                if self.active_tool_obj.undo_step(self):
+                    self.update()
+                    return
             if hasattr(self.active_tool_obj, 'cancel_or_reset'):
                 if self.active_tool_obj.cancel_or_reset(self):
                     self.update()
@@ -1327,6 +1411,12 @@ class CanvasWidget(QWidget):
             self.restaurar_snapshot_documento(prev_state)
 
     def redo(self):
+        if hasattr(self, 'active_tool_obj') and self.active_tool_obj:
+            if hasattr(self.active_tool_obj, 'redo_step'):
+                if self.active_tool_obj.redo_step(self):
+                    self.update()
+                    return
+
         next_state = self.history_mgr.redo()
         if next_state is not None:
             self.restaurar_snapshot_documento(next_state)
@@ -1615,8 +1705,6 @@ class CanvasWidget(QWidget):
             else:
                 return False
 
-        self.push_document_state(action_title)
-
         if opcion == "ajustar_lienzo":
             nuevo_w = max(lienzo_w, img_w)
             nuevo_h = max(lienzo_h, img_h)
@@ -1644,6 +1732,8 @@ class CanvasWidget(QWidget):
             self.selection_engine.set_rectangle(QRectF(pos_x, pos_y, img_w, img_h))
             self.selection_engine.original_image_pos = QPointF(pos_x, pos_y)
             self.selection_engine.init_raw_image(img_format)
+
+        self.push_document_state(action_title, force=True)
 
         if hasattr(self, 'main_window') and self.main_window:
             self.main_window.activar_herramienta_mover()

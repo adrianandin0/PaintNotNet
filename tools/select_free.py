@@ -1,4 +1,5 @@
-from PyQt6.QtCore import Qt, QPoint, QPointF
+import math
+from PyQt6.QtCore import Qt, QPoint, QPointF, QRectF
 from PyQt6.QtGui import QPainterPath, QPen, QColor
 from PyQt6.QtWidgets import QApplication
 from tools.base_tool import BaseTool
@@ -11,15 +12,18 @@ class SelectFreeTool(BaseTool):
         self.is_selecting = False
         self.hover_point = QPoint()
 
+    def _get_pixel_pos(self, event):
+        return QPoint(int(math.floor(event.position().x())), int(math.floor(event.position().y())))
+
     def mouse_press(self, canvas, event, color_activo=None):
         engine = canvas.selection_engine
-        hit = engine.hit_test(event.position()) if engine.has_selection() else engine.HANDLE_NONE
+        hit = engine.hit_test(event.position(), canvas.scale_factor) if engine.has_selection() else engine.HANDLE_NONE
 
         if hit != engine.HANDLE_NONE and not self.is_selecting:
             engine.begin_transform(event.position(), event.button(), hit)
             return
 
-        pos = event.position().toPoint()
+        pos = self._get_pixel_pos(event)
 
         if not self.is_selecting:
             self.points = [pos]
@@ -41,7 +45,7 @@ class SelectFreeTool(BaseTool):
             engine.update_transform(event.position(), is_shift=is_shift)
             canvas.update()
         elif self.is_selecting:
-            pos = event.position().toPoint()
+            pos = self._get_pixel_pos(event)
             self.hover_point = pos
 
             if not self.points or (pos - self.points[-1]).manhattanLength() > 2:
@@ -84,9 +88,10 @@ class SelectFreeTool(BaseTool):
         self.points.clear()
         canvas.update()
 
-    def draw_preview(self, painter, canvas):
+    def draw_handles(self, painter, canvas):
         if self.is_selecting and self.points:
             pen = QPen(QColor(0, 120, 215), 1, Qt.PenStyle.DashLine)
+            pen.setCosmetic(True)
             painter.setPen(pen)
 
             for i in range(len(self.points) - 1):
@@ -95,5 +100,9 @@ class SelectFreeTool(BaseTool):
             if self.hover_point:
                 painter.drawLine(self.points[-1], self.hover_point)
 
-            painter.setPen(QPen(QColor(255, 0, 0), 2))
-            painter.drawEllipse(self.points[0], 5, 5)
+            sf = max(0.001, getattr(canvas, 'scale_factor', 1.0))
+            r_sz = 5.0 / sf
+            pen_red = QPen(QColor(255, 0, 0), 2)
+            pen_red.setCosmetic(True)
+            painter.setPen(pen_red)
+            painter.drawEllipse(QRectF(float(self.points[0].x()) - r_sz, float(self.points[0].y()) - r_sz, r_sz * 2.0, r_sz * 2.0))

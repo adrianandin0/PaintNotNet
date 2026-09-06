@@ -18,7 +18,7 @@ class MoveSelectOnlyTool(BaseTool):
             return
 
         pos = event.position()
-        hit = engine.hit_test(pos)
+        hit = engine.hit_test(pos, canvas.scale_factor)
         if hit == engine.HANDLE_NONE:
             canvas.cancelar_o_deseleccionar()
             return

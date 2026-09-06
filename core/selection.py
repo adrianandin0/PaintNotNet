@@ -169,7 +169,7 @@ class SelectionEngine:
             self.active_path = t_path.map(self.initial_unrotated_path)
             self.active_rect = self.active_path.boundingRect()
 
-    def get_handles(self):
+    def get_handles(self, scale_factor=1.0):
         if not self.has_selection():
             return {}
 
@@ -189,7 +189,7 @@ class SelectionEngine:
         cos_a = math.cos(rad)
         sin_a = math.sin(rad)
 
-        s = self.HANDLE_SIZE
+        s = self.HANDLE_SIZE / max(0.001, scale_factor)
         s2 = s / 2.0
 
         local_positions = {
@@ -211,8 +211,8 @@ class SelectionEngine:
 
         return handles
 
-    def hit_test(self, point_f):
-        handles = self.get_handles()
+    def hit_test(self, point_f, scale_factor=1.0):
+        handles = self.get_handles(scale_factor)
         for handle_id, handle_rect in handles.items():
             if handle_rect.contains(point_f):
                 return handle_id

@@ -24,11 +24,14 @@ class SmudgeTool(BaseTool):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
 
         pen_outer = QPen(QColor(0, 0, 0, 180), 1.5)
+        pen_outer.setCosmetic(True)
         painter.setPen(pen_outer)
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawEllipse(pos, r, r)
 
-        painter.setPen(QPen(QColor(255, 255, 255, 200), 1.0, Qt.PenStyle.DashLine))
+        pen_dash = QPen(QColor(255, 255, 255, 200), 1.0, Qt.PenStyle.DashLine)
+        pen_dash.setCosmetic(True)
+        painter.setPen(pen_dash)
         painter.drawEllipse(pos, r - 0.5, r - 0.5)
 
         painter.restore()

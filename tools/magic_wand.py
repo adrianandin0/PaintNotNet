@@ -29,7 +29,7 @@ class MagicWandTool(BaseTool):
         self.last_seed = None
 
     def mouse_press(self, canvas, event, color_activo=None):
-        pos = event.position().toPoint()
+        pos = QPoint(int(math.floor(event.position().x())), int(math.floor(event.position().y())))
         if 0 <= pos.x() < canvas.layer_mgr.width and 0 <= pos.y() < canvas.layer_mgr.height:
             self.last_seed = pos
             tol = getattr(canvas, 'tolerancia', 50)

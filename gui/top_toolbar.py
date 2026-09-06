@@ -1,8 +1,90 @@
-from PyQt6.QtWidgets import QToolBar, QWidget, QHBoxLayout, QLabel, QSpinBox, QSlider, QComboBox, QCheckBox, QStyle, QAbstractSpinBox, QFontComboBox, QPushButton, QToolButton, QButtonGroup
-from PyQt6.QtGui import QIcon, QAction, QFont
-from PyQt6.QtCore import Qt, QSize, pyqtSignal, QSettings
+from PyQt6.QtWidgets import (
+    QToolBar, QWidget, QHBoxLayout, QLabel, QSpinBox, QSlider, QComboBox, QCheckBox, QStyle,
+    QAbstractSpinBox, QFontComboBox, QPushButton, QToolButton, QButtonGroup, QAbstractButton
+)
+from PyQt6.QtGui import QIcon, QAction, QFont, QPainter, QColor, QBrush, QPen
+from PyQt6.QtCore import Qt, QSize, pyqtSignal, QSettings, QPropertyAnimation, pyqtProperty, QRectF
 from gui.effects_panel import _EffectColorSlot, _LightDirectionWidget
 from core.i18n import t
+
+
+class ToggleSwitch(QAbstractButton):
+    valueChanged = pyqtSignal(int)
+
+    def __init__(self, parent=None, active_color="#0078D7"):
+        super().__init__(parent)
+        self.setCheckable(True)
+        self.setChecked(True)
+        self.setFixedSize(30, 22)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        self._active_color = QColor(active_color)
+        self._bg_off_color = QColor(190, 190, 195)
+        self._knob_color = QColor(255, 255, 255)
+
+        self._position = 1.0 if self.isChecked() else 0.0
+
+        self.animation = QPropertyAnimation(self, b"position", self)
+        self.animation.setDuration(120)
+        self.toggled.connect(self._on_toggled_internal)
+
+    def _on_toggled_internal(self, checked):
+        self._start_animation(checked)
+        self.valueChanged.emit(100 if checked else 0)
+
+    @pyqtProperty(float)
+    def position(self):
+        return self._position
+
+    @position.setter
+    def position(self, pos):
+        self._position = pos
+        self.update()
+
+    def _start_animation(self, checked):
+        self.animation.stop()
+        self.animation.setEndValue(1.0 if checked else 0.0)
+        self.animation.start()
+
+    def value(self) -> int:
+        return 100 if self.isChecked() else 0
+
+    def setValue(self, val):
+        checked = bool(val > 0) if isinstance(val, (int, float)) else bool(val)
+        if self.isChecked() != checked:
+            self.setChecked(checked)
+            self._position = 1.0 if checked else 0.0
+            self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        w = float(self.width())
+        h = float(self.height())
+
+        margin_v = 2.0
+        track_h = h - (margin_v * 2.0)
+        track_y = 0.0
+        radius = track_h / 2.0
+
+        r = int(self._bg_off_color.red() + self._position * (self._active_color.red() - self._bg_off_color.red()))
+        g = int(self._bg_off_color.green() + self._position * (self._active_color.green() - self._bg_off_color.green()))
+        b = int(self._bg_off_color.blue() + self._position * (self._active_color.blue() - self._bg_off_color.blue()))
+        track_color = QColor(r, g, b)
+
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QBrush(track_color))
+        painter.drawRoundedRect(QRectF(0.0, track_y, w, track_h), radius, radius)
+
+        margin_k = 2.0
+        knob_d = track_h - (margin_k * 2.0)
+        knob_x = margin_k + float(self._position) * (w - knob_d - (margin_k * 2.0))
+        knob_y = track_y + margin_k
+
+        painter.setBrush(QBrush(self._knob_color))
+        painter.drawEllipse(QRectF(knob_x, knob_y, knob_d, knob_d))
+        painter.end()
 
 
 class TopToolBarWidget(QToolBar):
@@ -25,7 +107,7 @@ class TopToolBarWidget(QToolBar):
                 padding-left: 4px;
                 padding-right: 4px;
             }
-            QToolBar QToolButton, QToolBar QLabel, QToolBar QSpinBox, QToolBar QComboBox, QToolBar QCheckBox {
+            QToolBar QToolButton, QToolBar QLabel, QToolBar QSpinBox, QToolBar QComboBox, QToolBar QCheckBox, ToggleSwitch {
                 margin-bottom: 3px;
             }
         """)
@@ -67,6 +149,12 @@ class TopToolBarWidget(QToolBar):
         self.action_crop.setToolTip("Recortar a selección")
         self.action_crop.triggered.connect(self._on_crop_clicked)
         self.addAction(self.action_crop)
+
+        # 6.5 Ajustar a ventana
+        self.action_fit = QAction(QIcon("gui/iconos/fit.png"), "Ajustar a ventana", self)
+        self.action_fit.setToolTip("Ajustar a la ventana")
+        self.action_fit.triggered.connect(self._on_fit_clicked)
+        self.addAction(self.action_fit)
 
         # 6. Selector de Grosor / Ancho Global
         self.lbl_grosor = QLabel(" Grosor: ")
@@ -168,22 +256,21 @@ class TopToolBarWidget(QToolBar):
 
         self.sep_tol = self.addSeparator()
 
-        # 8. Selector de Suavizado Global
+        # 8. Selector de Suavizado Global (Botón Toggle Switch Pill)
         self.lbl_suav = QLabel(" Suavizado: ")
         self.lbl_suav.setStyleSheet("font-size: 11px; font-weight: normal;")
         self.act_lbl_suav = self.addWidget(self.lbl_suav)
 
-        self.slider_suav = QSlider(Qt.Orientation.Horizontal)
-        self.slider_suav.setRange(0, 100)
-        self.slider_suav.setValue(100)
-        self.slider_suav.setFixedWidth(65)
-        self.slider_suav.valueChanged.connect(self._on_suavizado_changed)
-        self.act_slider_suav = self.addWidget(self.slider_suav)
+        self.btn_suav = ToggleSwitch(active_color="#0078D7")
+        self.btn_suav.setChecked(True)
+        self.btn_suav.toggled.connect(self._on_suavizado_toggled)
+        self.act_btn_suav = self.addWidget(self.btn_suav)
 
-        self.lbl_suav_val = QLabel("100%")
-        self.lbl_suav_val.setStyleSheet("font-size: 11px; font-weight: normal;")
-        self.lbl_suav_val.setFixedWidth(36)
-        self.lbl_suav_val.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        # Aliases para compatibilidad con código existente
+        self.slider_suav = self.btn_suav
+        self.act_slider_suav = self.act_btn_suav
+        self.lbl_suav_val = QLabel("")
+        self.lbl_suav_val.hide()
         self.act_lbl_suav_val = self.addWidget(self.lbl_suav_val)
 
         self.sep_suav = self.addSeparator()
@@ -318,7 +405,7 @@ class TopToolBarWidget(QToolBar):
             QComboBox QAbstractItemView::item:selected, QComboBox QAbstractItemView::item:hover {
                 border: none;
                 outline: 0;
-                background-color: #0066CC;
+                background-color: #0078D7;
                 color: #FFFFFF;
             }
         """
@@ -512,6 +599,7 @@ class TopToolBarWidget(QToolBar):
         self.btn_texto_bold.setCheckable(True)
         self.btn_texto_bold.setFixedSize(22, 22)
         self.btn_texto_bold.setToolTip(t("Negrita"))
+        self.btn_texto_bold.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_texto_bold.toggled.connect(lambda c: self._emitir_cambio_texto_parcial({"bold": c}))
         self.act_btn_texto_bold = self.addWidget(self.btn_texto_bold)
 
@@ -521,6 +609,7 @@ class TopToolBarWidget(QToolBar):
         self.btn_texto_italic.setCheckable(True)
         self.btn_texto_italic.setFixedSize(22, 22)
         self.btn_texto_italic.setToolTip(t("Cursiva"))
+        self.btn_texto_italic.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_texto_italic.toggled.connect(lambda c: self._emitir_cambio_texto_parcial({"italic": c}))
         self.act_btn_texto_italic = self.addWidget(self.btn_texto_italic)
 
@@ -530,6 +619,7 @@ class TopToolBarWidget(QToolBar):
         self.btn_texto_underline.setCheckable(True)
         self.btn_texto_underline.setFixedSize(22, 22)
         self.btn_texto_underline.setToolTip(t("Subrayado"))
+        self.btn_texto_underline.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_texto_underline.toggled.connect(lambda c: self._emitir_cambio_texto_parcial({"underline": c}))
         self.act_btn_texto_underline = self.addWidget(self.btn_texto_underline)
 
@@ -539,6 +629,7 @@ class TopToolBarWidget(QToolBar):
         self.btn_texto_strike.setCheckable(True)
         self.btn_texto_strike.setFixedSize(22, 22)
         self.btn_texto_strike.setToolTip(t("Tachado"))
+        self.btn_texto_strike.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_texto_strike.toggled.connect(lambda c: self._emitir_cambio_texto_parcial({"strike": c}))
         self.act_btn_texto_strike = self.addWidget(self.btn_texto_strike)
 
@@ -552,6 +643,7 @@ class TopToolBarWidget(QToolBar):
         self.btn_texto_align_left.setFixedSize(22, 22)
         self.btn_texto_align_left.setToolTip(t("Alinear izquierda"))
         self.btn_texto_align_left.setIcon(QIcon("gui/iconos/left-align.png"))
+        self.btn_texto_align_left.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_texto_align_left.toggled.connect(lambda c: self._emitir_cambio_texto_parcial({"alignment": Qt.AlignmentFlag.AlignLeft}) if c else None)
         self._align_group.addButton(self.btn_texto_align_left)
         self.act_btn_texto_align_left = self.addWidget(self.btn_texto_align_left)
@@ -561,6 +653,7 @@ class TopToolBarWidget(QToolBar):
         self.btn_texto_align_center.setFixedSize(22, 22)
         self.btn_texto_align_center.setToolTip(t("Alinear centro"))
         self.btn_texto_align_center.setIcon(QIcon("gui/iconos/center-align.png"))
+        self.btn_texto_align_center.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_texto_align_center.toggled.connect(lambda c: self._emitir_cambio_texto_parcial({"alignment": Qt.AlignmentFlag.AlignHCenter}) if c else None)
         self._align_group.addButton(self.btn_texto_align_center)
         self.act_btn_texto_align_center = self.addWidget(self.btn_texto_align_center)
@@ -570,6 +663,7 @@ class TopToolBarWidget(QToolBar):
         self.btn_texto_align_right.setFixedSize(22, 22)
         self.btn_texto_align_right.setToolTip(t("Alinear derecha"))
         self.btn_texto_align_right.setIcon(QIcon("gui/iconos/right-align.png"))
+        self.btn_texto_align_right.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_texto_align_right.toggled.connect(lambda c: self._emitir_cambio_texto_parcial({"alignment": Qt.AlignmentFlag.AlignRight}) if c else None)
         self._align_group.addButton(self.btn_texto_align_right)
         self.act_btn_texto_align_right = self.addWidget(self.btn_texto_align_right)
@@ -579,6 +673,7 @@ class TopToolBarWidget(QToolBar):
         self.btn_texto_align_justify.setFixedSize(22, 22)
         self.btn_texto_align_justify.setToolTip(t("Justificar texto"))
         self.btn_texto_align_justify.setIcon(QIcon("gui/iconos/justify.png"))
+        self.btn_texto_align_justify.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_texto_align_justify.toggled.connect(lambda c: self._emitir_cambio_texto_parcial({"alignment": Qt.AlignmentFlag.AlignJustify}) if c else None)
         self._align_group.addButton(self.btn_texto_align_justify)
         self.act_btn_texto_align_justify = self.addWidget(self.btn_texto_align_justify)
@@ -588,6 +683,7 @@ class TopToolBarWidget(QToolBar):
         # 5. Efectos: Borde
         self.chk_texto_borde = QCheckBox(t("Borde"))
         self.chk_texto_borde.setStyleSheet("font-size: 11px; font-weight: normal;")
+        self.chk_texto_borde.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.chk_texto_borde.toggled.connect(self._emitir_cambio_efectos)
         self.act_chk_texto_borde = self.addWidget(self.chk_texto_borde)
 
@@ -608,6 +704,7 @@ class TopToolBarWidget(QToolBar):
         # 6. Efectos: Resplandor
         self.chk_texto_glow = QCheckBox(t("Resplandor"))
         self.chk_texto_glow.setStyleSheet("font-size: 11px; font-weight: normal;")
+        self.chk_texto_glow.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.chk_texto_glow.toggled.connect(self._emitir_cambio_efectos)
         self.act_chk_texto_glow = self.addWidget(self.chk_texto_glow)
 
@@ -628,6 +725,7 @@ class TopToolBarWidget(QToolBar):
         # 7. Efectos: Sombra con Rueda de Luz en paralelo a slot de color
         self.chk_texto_shadow = QCheckBox(t("Sombra"))
         self.chk_texto_shadow.setStyleSheet("font-size: 11px; font-weight: normal;")
+        self.chk_texto_shadow.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.chk_texto_shadow.toggled.connect(self._emitir_cambio_efectos)
         self.act_chk_texto_shadow = self.addWidget(self.chk_texto_shadow)
 
@@ -740,7 +838,7 @@ class TopToolBarWidget(QToolBar):
         uses_grosor = isinstance(tool_obj, (BrushTool, PencilTool, EraserTool, LineTool, ShapesTool, SprayTool, SmudgeTool, StampTool))
         uses_forma = isinstance(tool_obj, (BrushTool, PencilTool, EraserTool))
         uses_tolerance = isinstance(tool_obj, (BucketTool, MagicWandTool))
-        uses_smoothness = isinstance(tool_obj, (BrushTool, LineTool, EraserTool, ShapesTool, SprayTool, StampTool))
+        uses_smoothness = isinstance(tool_obj, (BrushTool, PencilTool, LineTool, EraserTool, ShapesTool, SprayTool, StampTool))
         uses_spray = isinstance(tool_obj, SprayTool)
         uses_zoom = isinstance(tool_obj, ZoomTool)
         uses_line = isinstance(tool_obj, LineTool)
@@ -808,11 +906,9 @@ class TopToolBarWidget(QToolBar):
         # Suavizado
         self._set_group_visible([
             getattr(self, 'lbl_suav', None),
-            getattr(self, 'slider_suav', None),
-            getattr(self, 'lbl_suav_val', None),
+            getattr(self, 'btn_suav', None),
             getattr(self, 'act_lbl_suav', None),
-            getattr(self, 'act_slider_suav', None),
-            getattr(self, 'act_lbl_suav_val', None),
+            getattr(self, 'act_btn_suav', None),
             getattr(self, 'sep_suav', None)
         ], uses_smoothness)
 
@@ -951,6 +1047,19 @@ class TopToolBarWidget(QToolBar):
         if hasattr(self, 'sep_texto_efe') and self.sep_texto_efe:
             self.sep_texto_efe.setVisible(uses_text)
 
+        self._deshabilitar_foco_autofocus()
+
+        if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
+            self.main_window.lienzo.setFocus()
+
+    def _deshabilitar_foco_autofocus(self):
+        from PyQt6.QtWidgets import QAbstractButton, QSlider, QLabel, QSpinBox, QComboBox, QCheckBox, QPushButton, QToolButton
+        for widget in self.findChildren(QWidget):
+            if isinstance(widget, (QAbstractButton, QSlider, QLabel, QCheckBox, QPushButton, QToolButton)):
+                widget.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            elif isinstance(widget, (QSpinBox, QComboBox)):
+                widget.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
+
     def _emitir_cambio_texto_parcial(self, diff_dict):
         if self.main_window:
             canvas = getattr(self.main_window, 'lienzo', getattr(self.main_window, 'canvas', None))
@@ -1087,6 +1196,13 @@ class TopToolBarWidget(QToolBar):
                     t("No hay selección activa para recortar.")
                 )
 
+    def _on_fit_clicked(self):
+        canvas = None
+        if self.main_window and hasattr(self.main_window, 'lienzo'):
+            canvas = self.main_window.lienzo
+        if canvas and hasattr(canvas, 'zoom_to_fit'):
+            canvas.zoom_to_fit()
+
     def _on_grosor_changed(self, val):
         if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
             self.main_window.lienzo.ancho_pincel = val
@@ -1104,18 +1220,25 @@ class TopToolBarWidget(QToolBar):
             if hasattr(canvas, 'active_tool_obj') and hasattr(canvas.active_tool_obj, 'update_tolerance'):
                 canvas.active_tool_obj.update_tolerance(canvas, val)
 
-    def _on_suavizado_changed(self, val):
-        self.lbl_suav_val.setText(f"{val}%")
-        # suavizado_pincel es bool: cualquier valor > 0 activa antialiasing
-        suav_bool = val > 0
+    def _on_suavizado_toggled(self, checked: bool):
+        suav_bool = bool(checked)
         if self.main_window and hasattr(self.main_window, 'tab_widget'):
             for i in range(self.main_window.tab_widget.count()):
                 area = self.main_window.tab_widget.widget(i)
                 canvas = area.widget() if (area and hasattr(area, 'widget')) else area
                 if canvas and hasattr(canvas, 'suavizado_pincel'):
                     canvas.suavizado_pincel = suav_bool
+                    canvas.update()
         elif self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
             self.main_window.lienzo.suavizado_pincel = suav_bool
+            self.main_window.lienzo.update()
+
+    def _on_suavizado_changed(self, val):
+        checked = bool(val > 0) if isinstance(val, (int, float)) else bool(val)
+        if hasattr(self, 'btn_suav') and self.btn_suav.isChecked() != checked:
+            self.btn_suav.setChecked(checked)
+        else:
+            self._on_suavizado_toggled(checked)
 
     def _on_spray_intensidad_changed(self, val):
         self.lbl_spray_intensidad_val.setText(f"{val}%")
@@ -1260,6 +1383,8 @@ class TopToolBarWidget(QToolBar):
         self.action_pegar.setToolTip(f"{t('Pegar')} (Ctrl+V)")
         if hasattr(self, 'action_crop'):
             self.action_crop.setToolTip(t('Recortar a selección'))
+        if hasattr(self, 'action_fit'):
+            self.action_fit.setToolTip(t('Ajustar a la ventana'))
         if hasattr(self, 'lbl_grosor'):
             self.lbl_grosor.setText(f" {t('Grosor:')} ")
         if hasattr(self, 'lbl_forma_pincel'):

@@ -1,4 +1,5 @@
-from PyQt6.QtCore import Qt, QPoint, QRect
+import math
+from PyQt6.QtCore import Qt, QPoint, QRect, QRectF
 from PyQt6.QtGui import QPen, QColor
 from PyQt6.QtWidgets import QApplication
 from tools.base_tool import BaseTool
@@ -11,10 +12,13 @@ class SelectRectTool(BaseTool):
         self.current_point = QPoint()
         self.is_selecting = False
 
+    def _get_pixel_pos(self, event):
+        return QPoint(int(math.floor(event.position().x())), int(math.floor(event.position().y())))
+
     def mouse_press(self, canvas, event, color_activo=None):
-        pos = event.position().toPoint()
+        pos = self._get_pixel_pos(event)
         engine = canvas.selection_engine
-        hit = engine.hit_test(event.position()) if engine.has_selection() else engine.HANDLE_NONE
+        hit = engine.hit_test(event.position(), canvas.scale_factor) if engine.has_selection() else engine.HANDLE_NONE
 
         if hit != engine.HANDLE_NONE:
             engine.begin_transform(event.position(), event.button(), hit)
@@ -30,7 +34,7 @@ class SelectRectTool(BaseTool):
             engine.update_transform(event.position(), is_shift=is_shift)
             canvas.update()
         elif self.is_selecting:
-            self.current_point = event.position().toPoint()
+            self.current_point = self._get_pixel_pos(event)
             canvas.update()
 
     def mouse_release(self, canvas, event, color_activo=None):
@@ -63,10 +67,11 @@ class SelectRectTool(BaseTool):
 
         return QRect(self.start_point.x(), self.start_point.y(), dx, dy).normalized()
 
-    def draw_preview(self, painter, canvas):
+    def draw_handles(self, painter, canvas):
         if self.is_selecting:
             rect = self._get_rect()
             pen = QPen(QColor(0, 120, 215), 1, Qt.PenStyle.DashLine)
+            pen.setCosmetic(True)
             painter.setPen(pen)
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.drawRect(rect)

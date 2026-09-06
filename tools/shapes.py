@@ -72,7 +72,8 @@ class ShapesTool(BaseTool):
         if not tight or tight.width() < 1 or tight.height() < 1:
             return HANDLE_NONE
 
-        handle_size = 12.0
+        sf = max(0.001, getattr(canvas, 'scale_factor', 1.0))
+        handle_size = 12.0 / sf
         half_h = handle_size / 2.0
 
         pts = {
@@ -596,8 +597,8 @@ class ShapesTool(BaseTool):
 
         return rays_path, center_path
 
-    def _draw_shape_to_painter(self, painter, rect, tipo, estilo, redondeado, grosor, col_prim, col_sec):
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+    def _draw_shape_to_painter(self, painter, rect, tipo, estilo, redondeado, grosor, col_prim, col_sec, suavizado=True):
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, suavizado)
         join_cap = Qt.PenJoinStyle.RoundJoin if redondeado else Qt.PenJoinStyle.MiterJoin
         end_cap = Qt.PenCapStyle.RoundCap if redondeado else Qt.PenCapStyle.SquareCap
 
@@ -777,11 +778,22 @@ class ShapesTool(BaseTool):
         rect = self.active_shape_rect
         tipo, estilo, redondeado, grosor, col_prim, col_sec = self._get_shape_config(canvas)
 
+        suavizado = getattr(canvas, 'suavizado_pincel', True)
         painter.save()
         canvas.aplicar_clip_seleccion(painter)
 
         # Dibujar la forma activa calculada en tiempo real
-        self._draw_shape_to_painter(painter, rect, tipo, estilo, redondeado, grosor, col_prim, col_sec)
+        self._draw_shape_to_painter(painter, rect, tipo, estilo, redondeado, grosor, col_prim, col_sec, suavizado)
+
+        painter.restore()
+
+    def draw_handles(self, painter, canvas):
+        """Bounding box y tiradores en espacio pantalla con plumas cosméticas (zoom-independiente)."""
+        if not self.active_shape_rect or self.active_shape_rect.width() < 1 or self.active_shape_rect.height() < 1:
+            return
+
+        rect = self.active_shape_rect
+        tipo, estilo, redondeado, grosor, col_prim, col_sec = self._get_shape_config(canvas)
 
         # Marco delimitador exacto encajado al alto/ancho del trazado (tight bounding rect)
         full_path = self._get_full_shape_path(rect, tipo, redondeado)
@@ -789,15 +801,16 @@ class ShapesTool(BaseTool):
         if tight_rect.width() < 1 or tight_rect.height() < 1:
             tight_rect = rect
 
-        # Dibujar marco delimitador (bounding box) azul guionzado encajado exactamente
+        # Bounding box azul guionzado — cosmético: 1px en pantalla sin importar el zoom
         pen_box = QPen(QColor(0, 120, 215), 1.0, Qt.PenStyle.DashLine)
         pen_box.setCosmetic(True)
         painter.setPen(pen_box)
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawRect(tight_rect)
 
-        # Tiradores de redimensionado en las esquinas y bordes exactos de la figura
-        handle_size = 7.0
+        # Tiradores — tamaño fijo en pantalla dividiendo por scale_factor (igual que selection tools)
+        sf = max(0.001, getattr(canvas, 'scale_factor', 1.0))
+        handle_size = 7.0 / sf
         half_h = handle_size / 2.0
 
         pts = [
@@ -813,15 +826,12 @@ class ShapesTool(BaseTool):
 
         pen_handle = QPen(QColor(0, 120, 215), 1.0)
         pen_handle.setCosmetic(True)
-        brush_handle = QBrush(QColor(255, 255, 255))
         painter.setPen(pen_handle)
-        painter.setBrush(brush_handle)
+        painter.setBrush(QBrush(QColor(255, 255, 255)))
 
         for pt in pts:
             h_rect = QRectF(pt.x() - half_h, pt.y() - half_h, handle_size, handle_size)
             painter.drawRect(h_rect)
-
-        painter.restore()
 
     def clear_active_shape(self, canvas):
         self.active_shape_rect = None
@@ -842,10 +852,11 @@ class ShapesTool(BaseTool):
 
         layer = canvas.layer_mgr.get_active_layer()
         if layer and layer.image:
+            suavizado = getattr(canvas, 'suavizado_pincel', True)
             p = QPainter(layer.image)
-            p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+            p.setRenderHint(QPainter.RenderHint.Antialiasing, suavizado)
             canvas.aplicar_clip_seleccion(p)
-            self._draw_shape_to_painter(p, rect, tipo, estilo, redondeado, grosor, col_prim, col_sec)
+            self._draw_shape_to_painter(p, rect, tipo, estilo, redondeado, grosor, col_prim, col_sec, suavizado)
             p.end()
             canvas.push_document_state("Insertar Forma")
 
@@ -865,10 +876,11 @@ class ShapesTool(BaseTool):
         shape_img = QImage(img_w, img_h, QImage.Format.Format_ARGB32_Premultiplied)
         shape_img.fill(Qt.GlobalColor.transparent)
 
+        suavizado = getattr(canvas, 'suavizado_pincel', True)
         p = QPainter(shape_img)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing, suavizado)
         rect_local = QRectF(margin, margin, rect.width(), rect.height())
-        self._draw_shape_to_painter(p, rect_local, tipo, estilo, redondeado, grosor, col_prim, col_sec)
+        self._draw_shape_to_painter(p, rect_local, tipo, estilo, redondeado, grosor, col_prim, col_sec, suavizado)
         p.end()
 
         from PyQt6.QtWidgets import QApplication
@@ -889,10 +901,11 @@ class ShapesTool(BaseTool):
         shape_img = QImage(img_w, img_h, QImage.Format.Format_ARGB32_Premultiplied)
         shape_img.fill(Qt.GlobalColor.transparent)
 
+        suavizado = getattr(canvas, 'suavizado_pincel', True)
         p = QPainter(shape_img)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing, suavizado)
         rect_local = QRectF(margin, margin, rect.width(), rect.height())
-        self._draw_shape_to_painter(p, rect_local, tipo, estilo, redondeado, grosor, col_prim, col_sec)
+        self._draw_shape_to_painter(p, rect_local, tipo, estilo, redondeado, grosor, col_prim, col_sec, suavizado)
         p.end()
 
         shape_path_global = self._get_full_shape_path(rect, tipo, redondeado)

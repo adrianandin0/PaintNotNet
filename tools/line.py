@@ -125,11 +125,13 @@ class LineTool(BaseTool):
             nx, ny = 0.0, -1.0
         return QPointF(mid_pt.x() + nx * 14.0, mid_pt.y() + ny * 14.0)
 
-    def hit_test(self, pos):
+    def hit_test(self, pos, scale_factor=1.0):
         if self.state != 2:
             return self.HANDLE_NONE
 
-        s2 = self.HANDLE_SIZE / 2.0
+        sf = max(0.001, scale_factor)
+        h_sz = float(self.HANDLE_SIZE) / sf
+        s2 = h_sz / 2.0
         pts = [
             (self.HANDLE_P0, self.p0),
             (self.HANDLE_P1, self.p1),
@@ -138,14 +140,15 @@ class LineTool(BaseTool):
         ]
 
         for h_id, pt in pts:
-            if pt and QRectF(pt.x() - s2, pt.y() - s2, self.HANDLE_SIZE, self.HANDLE_SIZE).contains(pos):
+            if pt and QRectF(pt.x() - s2, pt.y() - s2, h_sz, h_sz).contains(pos):
                 return h_id
 
         # 5º tirador azul de movimiento
         blue_pt = self._get_blue_handle_point()
         if blue_pt:
-            sb2 = (self.HANDLE_SIZE + 2) / 2.0
-            if QRectF(blue_pt.x() - sb2, blue_pt.y() - sb2, self.HANDLE_SIZE + 2, self.HANDLE_SIZE + 2).contains(pos):
+            sb_sz = float(self.HANDLE_SIZE + 2) / sf
+            sb2 = sb_sz / 2.0
+            if QRectF(blue_pt.x() - sb2, blue_pt.y() - sb2, sb_sz, sb_sz).contains(pos):
                 return self.HANDLE_BODY
 
         # Si no toca ningún handle, comprobar si toca el cuerpo de la curva
@@ -188,7 +191,7 @@ class LineTool(BaseTool):
                 self.orig_p3 = QPointF(self.p3)
                 return
 
-            hit = self.hit_test(pos)
+            hit = self.hit_test(pos, canvas.scale_factor)
             if hit == self.HANDLE_BODY:
                 # Arrastrar toda la línea
                 self.active_handle = self.HANDLE_BODY
@@ -355,11 +358,14 @@ class LineTool(BaseTool):
 
     def draw_handles(self, painter, canvas):
         if self.state == 2 and self.p0 and self.p3:
-            s = self.HANDLE_SIZE
+            sf = max(0.001, getattr(canvas, 'scale_factor', 1.0))
+            s = float(self.HANDLE_SIZE) / sf
             s2 = s / 2.0
             pts = [self.p0, self.p1, self.p2, self.p3]
 
-            painter.setPen(QPen(QColor(0, 0, 0), 1))
+            pen1 = QPen(QColor(0, 0, 0), 1)
+            pen1.setCosmetic(True)
+            painter.setPen(pen1)
             painter.setBrush(QBrush(QColor(255, 255, 255)))
 
             for pt in pts:
@@ -369,8 +375,10 @@ class LineTool(BaseTool):
             # 5º tirador azul de movimiento
             blue_pt = self._get_blue_handle_point()
             if blue_pt:
-                sb = self.HANDLE_SIZE + 2
+                sb = float(self.HANDLE_SIZE + 2) / sf
                 sb2 = sb / 2.0
-                painter.setPen(QPen(QColor(0, 50, 160), 1))
+                pen2 = QPen(QColor(0, 50, 160), 1)
+                pen2.setCosmetic(True)
+                painter.setPen(pen2)
                 painter.setBrush(QBrush(QColor(0, 120, 215)))
-                painter.drawRect(QRectF(int(blue_pt.x() - sb2) + 0.5, int(blue_pt.y() - sb2) + 0.5, sb - 1, sb - 1))
+                painter.drawRect(QRectF(blue_pt.x() - sb2, blue_pt.y() - sb2, sb, sb))

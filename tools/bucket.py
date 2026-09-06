@@ -1,3 +1,4 @@
+import math
 import cv2
 import numpy as np
 from PyQt6.QtGui import QImage, QPainter, QColor, QBrush
@@ -11,8 +12,8 @@ class BucketTool(BaseTool):
         super().__init__("Balde de Pintura", "gui/iconos/bucket.png")
 
     def mouse_press(self, canvas, event, color_activo=None):
-        pos = event.position().toPoint()
-        x, y = pos.x(), pos.y()
+        x = int(math.floor(event.position().x()))
+        y = int(math.floor(event.position().y()))
 
         qimg = canvas.layer_mgr.buffer
         w, h = qimg.width(), qimg.height()

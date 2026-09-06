@@ -1,6 +1,7 @@
+import math
 import cv2
 import numpy as np
-from PyQt6.QtCore import Qt, QRect, QRectF
+from PyQt6.QtCore import Qt, QRect, QRectF, QPoint
 from PyQt6.QtGui import QPainter, QImage, QPen, QColor, QBrush, QPainterPath
 from tools.base_tool import BaseTool
 
@@ -10,17 +11,20 @@ class BlurTool(BaseTool):
         super().__init__("Difuminar", "gui/iconos/blur.png")
         self.is_drawing = False
 
+    def _get_pixel_pos(self, event):
+        return QPoint(int(math.floor(event.position().x())), int(math.floor(event.position().y())))
+
     def mouse_press(self, canvas, event, color_activo=None):
         if event.button() in (Qt.MouseButton.LeftButton, Qt.MouseButton.RightButton):
             if canvas.selection_engine.has_selection():
                 canvas.actualizar_preview_difuminado_seleccion()
             else:
                 self.is_drawing = True
-                self._apply_blur_at(canvas, event.position().toPoint())
+                self._apply_blur_at(canvas, self._get_pixel_pos(event))
 
     def mouse_move(self, canvas, event, color_activo=None):
         if self.is_drawing:
-            self._apply_blur_at(canvas, event.position().toPoint())
+            self._apply_blur_at(canvas, self._get_pixel_pos(event))
 
     def mouse_release(self, canvas, event, color_activo=None):
         if self.is_drawing:

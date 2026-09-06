@@ -185,14 +185,24 @@ class GradientTool(BaseTool):
                 painter.fillRect(0, 0, w, h, brush)
                 painter.restore()
 
+    def draw_handles(self, painter, canvas):
+        if self.is_dragging and self.p_start and self.p_end:
+            painter.save()
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+            modo = getattr(canvas, 'modo_degradado', 'Color')
+
             # Línea guía y nodos
             pen = QPen(QColor(255, 255, 255), 1, Qt.PenStyle.DashLine)
+            pen.setCosmetic(True)
             painter.setPen(pen)
             painter.drawLine(self.p_start, self.p_end)
 
-            s = 8
+            sf = max(0.001, canvas.scale_factor)
+            s = 8.0 / sf
             s2 = s / 2.0
-            painter.setPen(QPen(QColor(0, 0, 0), 1))
+            pen_node = QPen(QColor(0, 0, 0), 1)
+            pen_node.setCosmetic(True)
+            painter.setPen(pen_node)
             col1 = canvas.color_secundario if self.active_button == Qt.MouseButton.RightButton else canvas.color_primario
             col2 = canvas.color_primario if self.active_button == Qt.MouseButton.RightButton else canvas.color_secundario
 
@@ -205,3 +215,4 @@ class GradientTool(BaseTool):
 
             painter.setBrush(QBrush(col2))
             painter.drawEllipse(QRectF(self.p_end.x() - s2, self.p_end.y() - s2, s, s))
+            painter.restore()

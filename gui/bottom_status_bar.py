@@ -3,11 +3,13 @@ gui/bottom_status_bar.py — Barra inferior estática para PaintNotNet.
 Contiene:
 - Cuadrícula de píxeles (conmutador)
 - Botones de alineación de selección (Izquierda, Derecha, Arriba, Abajo, Centrar)
-- Coordenadas de posición del cursor fijas a la derecha.
-- Adaptabilidad dinámica al tema activo (fuente Negra en tema claro, Blanca en tema oscuro, 11px).
+- Control de Zoom del lienzo (lupa, selector desplegable de zoom y botón reset 100%)
+- Tamaño del lienzo en píxeles (icono pixel.png + dimensión ej: 800 x 600 (px))
+- Coordenadas de posición del cursor fijas con icono pin.png.
+- Adaptabilidad dinámica al tema activo.
 """
 from PyQt6.QtWidgets import (
-    QWidget, QHBoxLayout, QLabel, QToolButton, QFrame, QCheckBox
+    QWidget, QHBoxLayout, QLabel, QToolButton, QFrame, QCheckBox, QComboBox
 )
 from PyQt6.QtCore import Qt, QSize, QTimer
 from PyQt6.QtGui import QIcon
@@ -104,9 +106,44 @@ class BottomStatusBarWidget(QWidget):
         self.btn_align_center.clicked.connect(lambda: self._on_align("center"))
         layout.addWidget(self.btn_align_center)
 
+        # --- SECCIÓN ZOOM DE LIENZO ---
+        self.sep_zoom = QFrame()
+        self.sep_zoom.setFrameShape(QFrame.Shape.VLine)
+        self.sep_zoom.setFrameShadow(QFrame.Shadow.Sunken)
+        layout.addWidget(self.sep_zoom)
+
+        self.lbl_zoom_icon = QLabel()
+        self.lbl_zoom_icon.setPixmap(QIcon("gui/iconos/zoom.png").pixmap(QSize(16, 16)))
+        self.lbl_zoom_icon.setToolTip(t("Zoom del lienzo"))
+        layout.addWidget(self.lbl_zoom_icon)
+
+        self.combo_zoom = QComboBox()
+        self.combo_zoom.setEditable(True)
+        self.combo_zoom.setFixedWidth(75)
+        self.combo_zoom.setFixedHeight(22)
+        self.combo_zoom.addItems([
+            "10%", "25%", "50%", "75%",
+            "100%", "150%", "200%", "300%", "400%", "500%",
+            "800%", "1000%", "1500%", "2000%", "3000%"
+        ])
+        self.combo_zoom.setCurrentText("100%")
+        self.combo_zoom.setStyleSheet("font-size: 11px; padding: 1px;")
+        self.combo_zoom.activated.connect(self._on_zoom_combobox_changed)
+        if self.combo_zoom.lineEdit():
+            self.combo_zoom.lineEdit().editingFinished.connect(self._on_zoom_combobox_changed)
+        layout.addWidget(self.combo_zoom)
+
+        self.btn_zoom_reset = QToolButton()
+        self.btn_zoom_reset.setIcon(QIcon("gui/iconos/reset.png"))
+        self.btn_zoom_reset.setIconSize(QSize(16, 16))
+        self.btn_zoom_reset.setToolTip(t("Restablecer zoom a 100%"))
+        self.btn_zoom_reset.setFixedSize(22, 22)
+        self.btn_zoom_reset.clicked.connect(self._on_zoom_reset_clicked)
+        layout.addWidget(self.btn_zoom_reset)
+
         layout.addStretch()
 
-        # 3. Label de Mensajes de Estado / Alertas (a la izquierda de las coordenadas X, Y)
+        # Label de Mensajes de Estado / Alertas
         self.lbl_msg = QLabel("")
         layout.addWidget(self.lbl_msg)
 
@@ -115,14 +152,34 @@ class BottomStatusBarWidget(QWidget):
         self.msg_timer.setSingleShot(True)
         self.msg_timer.timeout.connect(lambda: self.lbl_msg.setText(""))
 
-        # Separador vertical 2
+        # --- SECCIÓN TAMAÑO DE LIENZO EN PIXELES ---
+        self.sep_size = QFrame()
+        self.sep_size.setFrameShape(QFrame.Shape.VLine)
+        self.sep_size.setFrameShadow(QFrame.Shadow.Sunken)
+        layout.addWidget(self.sep_size)
+
+        self.lbl_pixel_icon = QLabel()
+        self.lbl_pixel_icon.setPixmap(QIcon("gui/iconos/pixel.png").pixmap(QSize(16, 16)))
+        self.lbl_pixel_icon.setToolTip(t("Tamaño del lienzo en píxeles"))
+        layout.addWidget(self.lbl_pixel_icon)
+
+        self.lbl_canvas_size = QLabel("800 x 600 (px)")
+        layout.addWidget(self.lbl_canvas_size)
+
+        # --- COORDENADAS DEL CURSOR ---
         self.sep2 = QFrame()
         self.sep2.setFrameShape(QFrame.Shape.VLine)
         self.sep2.setFrameShadow(QFrame.Shadow.Sunken)
         layout.addWidget(self.sep2)
 
-        # 4. Coordenadas del Cursor (Fijas a la derecha de la barra estática)
-        self.lbl_cursor_pos = QLabel("X: -- px, Y: -- px")
+        self.lbl_pin_icon = QLabel()
+        self.lbl_pin_icon.setPixmap(QIcon("gui/iconos/pin.png").pixmap(QSize(16, 16)))
+        self.lbl_pin_icon.setToolTip(t("Posición del cursor"))
+        layout.addWidget(self.lbl_pin_icon)
+
+        self.lbl_cursor_pos = QLabel("-- x -- (px)")
+        self.lbl_cursor_pos.setFixedWidth(110)
+        self.lbl_cursor_pos.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         layout.addWidget(self.lbl_cursor_pos)
 
         # Aplicar diseño y estilos según el tema activo
@@ -139,7 +196,6 @@ class BottomStatusBarWidget(QWidget):
         brd_col = pal.get("border_color", "#686868" if is_dark else "#B0B0B0")
         btn_hv = pal.get("button_hover", "#555555" if is_dark else "#D4D4D4")
 
-        # Texto Negro en tema claro, Blanco en tema oscuro (tamaño 11px, respetando fuente del sistema)
         text_color_exact = "#FFFFFF" if is_dark else "#000000"
         border_subtle = "#555555" if is_dark else "#A0A0A0"
         msg_color = "#64B4FF" if is_dark else "#0055B8"
@@ -177,10 +233,15 @@ class BottomStatusBarWidget(QWidget):
         self._msg_color = msg_color
         label_style = f"font-size: 11px; font-weight: normal; color: {text_color_exact};"
         self.lbl_align.setStyleSheet(label_style)
+        self.lbl_canvas_size.setStyleSheet(label_style)
         self.lbl_cursor_pos.setStyleSheet(label_style)
         self.lbl_msg.setStyleSheet(f"font-size: 11px; font-weight: normal; font-style: normal; color: {msg_color}; padding: 0 4px;")
-        self.sep1.setStyleSheet(f"color: {border_subtle}; background-color: {border_subtle};")
-        self.sep2.setStyleSheet(f"color: {border_subtle}; background-color: {border_subtle};")
+
+        sep_style = f"color: {border_subtle}; background-color: {border_subtle};"
+        self.sep1.setStyleSheet(sep_style)
+        self.sep_zoom.setStyleSheet(sep_style)
+        self.sep_size.setStyleSheet(sep_style)
+        self.sep2.setStyleSheet(sep_style)
 
     def _on_toggle_grid(self, checked: bool):
         if self.main_window and hasattr(self.main_window, 'tab_widget'):
@@ -207,11 +268,37 @@ class BottomStatusBarWidget(QWidget):
             if hasattr(canvas, 'align_selection'):
                 canvas.align_selection(alignment)
 
+    def _on_zoom_combobox_changed(self, *args):
+        text = self.combo_zoom.currentText().replace("%", "").strip()
+        try:
+            val = float(text)
+            scale = val / 100.0
+            if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
+                self.main_window.lienzo.set_zoom(scale)
+        except ValueError:
+            pass
+
+    def _on_zoom_reset_clicked(self):
+        if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
+            self.main_window.lienzo.set_zoom(1.0)
+
+    def sync_zoom_from_canvas(self, scale_factor: float):
+        if hasattr(self, 'combo_zoom'):
+            pct = int(round(scale_factor * 100))
+            txt = f"{pct}%"
+            self.combo_zoom.blockSignals(True)
+            self.combo_zoom.setCurrentText(txt)
+            self.combo_zoom.blockSignals(False)
+
+    def actualizar_tamano_lienzo(self, w: int, h: int):
+        if hasattr(self, 'lbl_canvas_size'):
+            self.lbl_canvas_size.setText(f"{w} x {h} (px)")
+
     def actualizar_posicion_cursor(self, x: int | None, y: int | None):
         if x is not None and y is not None:
-            self.lbl_cursor_pos.setText(f"X: {x} px, Y: {y} px")
+            self.lbl_cursor_pos.setText(f"{x} x {y} (px)")
         else:
-            self.lbl_cursor_pos.setText("X: -- px, Y: -- px")
+            self.lbl_cursor_pos.setText("-- x -- (px)")
 
     def mostrar_mensaje(self, text: str, msecs: int = 2500, italic: bool = False):
         font_style = "italic" if italic else "normal"
@@ -233,3 +320,7 @@ class BottomStatusBarWidget(QWidget):
         self.btn_align_center_h.setToolTip(t("Centrar horizontalmente"))
         self.btn_align_center_v.setToolTip(t("Centrar verticalmente"))
         self.btn_align_center.setToolTip(t("Centrar en ambos ejes"))
+        self.lbl_zoom_icon.setToolTip(t("Zoom del lienzo"))
+        self.btn_zoom_reset.setToolTip(t("Restablecer zoom a 100%"))
+        self.lbl_pixel_icon.setToolTip(t("Tamaño del lienzo en píxeles"))
+        self.lbl_pin_icon.setToolTip(t("Posición del cursor"))

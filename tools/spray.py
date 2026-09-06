@@ -29,6 +29,7 @@ class SprayTool(BaseTool):
 
         # Círculo guía exterior del área de aerosol
         pen_outer = QPen(QColor(0, 0, 0, 180), 1.0, Qt.PenStyle.DashLine)
+        pen_outer.setCosmetic(True)
         painter.setPen(pen_outer)
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawEllipse(pos, r, r)
@@ -37,7 +38,9 @@ class SprayTool(BaseTool):
         col_pri = QColor(canvas.color_primario)
         col_rim = QColor(col_pri)
         col_rim.setAlpha(220)
-        painter.setPen(QPen(col_rim, 0.8))
+        pen_rim = QPen(col_rim, 0.8)
+        pen_rim.setCosmetic(True)
+        painter.setPen(pen_rim)
         painter.drawEllipse(pos, r - 0.5, r - 0.5)
 
         painter.restore()
@@ -47,10 +50,14 @@ class SprayTool(BaseTool):
             self.is_drawing = True
             pos = event.position()
             self._last_pos = pos
+            self._points = [pos]
+            self._last_drawn_index = 0
             self.shift_anchor = None
             self.active_drips = {}
             color = color_activo if color_activo else (canvas.color_primario if event.button() == Qt.MouseButton.LeftButton else canvas.color_secundario)
             self._spray_at(canvas, pos, color)
+            if hasattr(canvas.layer_mgr, 'invalidate_cache'):
+                canvas.layer_mgr.invalidate_cache()
             canvas.update()
 
     def mouse_move(self, canvas, event, color_activo=None):
@@ -72,9 +79,44 @@ class SprayTool(BaseTool):
                 self.shift_anchor = None
                 pos = raw_pos
 
-            self._last_pos = pos
+            if not hasattr(self, '_points') or not self._points:
+                self._points = [self._last_pos if self._last_pos else pos]
+                self._last_drawn_index = 0
+
+            self._points.append(pos)
+            n = len(self._points)
+            start_idx = max(0, getattr(self, '_last_drawn_index', 0))
+
             color = color_activo if color_activo else (canvas.color_primario if event.buttons() & Qt.MouseButton.LeftButton else canvas.color_secundario)
-            self._spray_at(canvas, pos, color)
+            grosor = max(2, getattr(canvas, 'grosor_pincel', 15))
+            radius = grosor / 2.0
+            step_px = max(2.0, radius * 0.4)
+
+            if start_idx < n - 1:
+                for i in range(start_idx, n - 1):
+                    p0 = self._points[max(0, i - 1)]
+                    p1 = self._points[i]
+                    p2 = self._points[i + 1]
+                    p3 = self._points[min(n - 1, i + 2)]
+
+                    dx = p2.x() - p1.x()
+                    dy = p2.y() - p1.y()
+                    dist = math.hypot(dx, dy)
+                    steps = max(1, int(math.ceil(dist / step_px)))
+
+                    for s in range(steps):
+                        t = (s + 1) / steps
+                        t2 = t * t
+                        t3 = t2 * t
+                        x = 0.5 * ((2 * p1.x()) + (-p0.x() + p2.x()) * t + (2 * p0.x() - 5 * p1.x() + 4 * p2.x() - p3.x()) * t2 + (-p0.x() + 3 * p1.x() - 3 * p2.x() + p3.x()) * t3)
+                        y = 0.5 * ((2 * p1.y()) + (-p0.y() + p2.y()) * t + (2 * p0.y() - 5 * p1.y() + 4 * p2.y() - p3.y()) * t2 + (-p0.y() + 3 * p1.y() - 3 * p2.y() + p3.y()) * t3)
+                        self._spray_at(canvas, QPointF(x, y), color)
+
+                self._last_drawn_index = n - 1
+
+            self._last_pos = pos
+            if hasattr(canvas.layer_mgr, 'invalidate_cache'):
+                canvas.layer_mgr.invalidate_cache()
             canvas.update()
 
     def mouse_release(self, canvas, event, color_activo=None):
@@ -82,7 +124,11 @@ class SprayTool(BaseTool):
             self.is_drawing = False
             self.shift_anchor = None
             self._last_pos = None
+            self._points = []
+            self._last_drawn_index = 0
             self.active_drips = {}
+            if hasattr(canvas.layer_mgr, 'invalidate_cache'):
+                canvas.layer_mgr.invalidate_cache()
             if hasattr(canvas, 'push_document_state'):
                 canvas.push_document_state(self.name)
             canvas.update()

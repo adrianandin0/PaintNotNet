@@ -5,7 +5,7 @@ Manejo seguro de hilos QThread para evitar bloqueos y cierres inesperados.
 import os
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-    QPushButton, QCheckBox, QScrollArea, QWidget, QGridLayout,
+    QPushButton, QCheckBox, QComboBox, QScrollArea, QWidget, QGridLayout,
     QProgressBar, QMessageBox
 )
 from PyQt6.QtCore import Qt, QSize, QThread, pyqtSignal, QRect
@@ -19,10 +19,11 @@ from core.pexels import PexelsAPIClient
 class _SearchWorker(QThread):
     results_ready = pyqtSignal(list, str)
 
-    def __init__(self, query: str, is_transparent: bool, page: int = 1):
+    def __init__(self, query: str, is_transparent: bool, source: str = "Todas", page: int = 1):
         super().__init__()
         self.query = query
         self.is_transparent = is_transparent
+        self.source = source
         self.page = page
         self._is_cancelled = False
 
@@ -31,7 +32,7 @@ class _SearchWorker(QThread):
 
     def run(self):
         try:
-            photos = PexelsAPIClient.search_photos(self.query, "DuckDuckGo", self.is_transparent, page=self.page, per_page=40)
+            photos = PexelsAPIClient.search_photos(self.query, self.source, self.is_transparent, page=self.page, per_page=40)
             if not self._is_cancelled:
                 self.results_ready.emit(photos, "")
         except Exception as e:
@@ -210,6 +211,19 @@ class DialogoBusquedaPexels(QDialog):
         self.input_search.returnPressed.connect(self._on_new_search)
         top_layout.addWidget(self.input_search)
 
+        self.combo_source = QComboBox()
+        self.combo_source.addItems([
+            t("Todas las fuentes (Auto)"),
+            "Bing",
+            "Google",
+            "DuckDuckGo",
+            "Wikimedia",
+            "Unsplash"
+        ])
+        self.combo_source.setToolTip(t("Motor de búsqueda de imágenes"))
+        self.combo_source.currentIndexChanged.connect(self._on_new_search)
+        top_layout.addWidget(self.combo_source)
+
         self.chk_transparent = QCheckBox(t("Transparente (PNG)"))
         self.chk_transparent.stateChanged.connect(self._on_new_search)
         top_layout.addWidget(self.chk_transparent)
@@ -368,7 +382,8 @@ class DialogoBusquedaPexels(QDialog):
         self.btn_next.setEnabled(False)
 
         is_trans = self.chk_transparent.isChecked()
-        self.search_worker = _SearchWorker(query, is_trans, page=self.current_page)
+        source = self.combo_source.currentText()
+        self.search_worker = _SearchWorker(query, is_trans, source=source, page=self.current_page)
         self.search_worker.results_ready.connect(self._on_results_ready)
         self._track_worker(self.search_worker)
         self.search_worker.start()

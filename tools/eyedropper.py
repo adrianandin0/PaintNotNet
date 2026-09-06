@@ -1,3 +1,4 @@
+import math
 from PyQt6.QtCore import Qt, QPoint, QPointF, QRectF
 from PyQt6.QtGui import QPen, QColor, QBrush, QTransform, QPainter
 from tools.base_tool import BaseTool
@@ -11,8 +12,11 @@ class EyedropperTool(BaseTool):
         self.current_color = None
         self.button_pressed = Qt.MouseButton.LeftButton
 
+    def _get_pixel_pos(self, event):
+        return QPoint(int(math.floor(event.position().x())), int(math.floor(event.position().y())))
+
     def mouse_press(self, canvas, event, color_activo=None):
-        pos = event.position().toPoint()
+        pos = self._get_pixel_pos(event)
         self.is_picking = True
         self.button_pressed = event.button()
         self.current_pos = pos
@@ -20,14 +24,14 @@ class EyedropperTool(BaseTool):
         canvas.update()
 
     def mouse_move(self, canvas, event, color_activo=None):
-        pos = event.position().toPoint()
+        pos = self._get_pixel_pos(event)
         self.current_pos = pos
         self.update_color(canvas, pos)
         canvas.update()
 
     def mouse_release(self, canvas, event, color_activo=None):
         if self.is_picking:
-            pos = event.position().toPoint()
+            pos = self._get_pixel_pos(event)
             self.update_color(canvas, pos)
             self.is_picking = False
             canvas.update()

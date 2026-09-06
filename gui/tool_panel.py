@@ -7,7 +7,7 @@ from tools.move_select_only import MoveSelectOnlyTool
 from tools.select_free import SelectFreeTool
 from tools.move_select_pixels import MoveSelectPixelsTool
 from tools.select_ellipse import SelectEllipseTool
-from tools.invert_selection import InvertSelectionTool
+from tools.transform import TransformTool
 from tools.zoom import ZoomTool
 from tools.bucket import BucketTool
 from tools.eraser import EraserTool
@@ -86,7 +86,7 @@ class ToolPanelWidget(QWidget):
 
         self.tools_grid = [
             [SelectRectTool(), MoveSelectOnlyTool(), SelectFreeTool()],
-            [MoveSelectPixelsTool(), SelectEllipseTool(), InvertSelectionTool()],
+            [MoveSelectPixelsTool(), SelectEllipseTool(), TransformTool()],
             [BucketTool(), GradientTool(), BrushTool()],
             [EyedropperTool(), PencilTool(), EraserTool()],
             [SprayTool(), SmudgeTool(), StampTool()],
@@ -100,6 +100,7 @@ class ToolPanelWidget(QWidget):
         for row_idx, row in enumerate(self.tools_grid):
             for col_idx, tool in enumerate(row):
                 btn = ShortcutToolButton()
+                btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
                 btn.setCheckable(True)
                 btn.setToolTip(tool.name)
                 btn.setProperty("tool_obj", tool)
@@ -162,11 +163,6 @@ class ToolPanelWidget(QWidget):
                 break
 
         if self.main_window and hasattr(self.main_window, 'canvas'):
-            if isinstance(tool, InvertSelectionTool):
-                self.main_window.canvas.invertir_seleccion()
-                prev_tool = getattr(self, 'herramienta_anterior', None)
-                if prev_tool and not isinstance(prev_tool, InvertSelectionTool):
-                    self.select_tool(prev_tool)
-            else:
-                self.herramienta_anterior = tool
-                self.main_window.canvas.set_active_tool(tool)
+            self.herramienta_anterior = tool
+            self.main_window.canvas.set_active_tool(tool)
+            self.main_window.canvas.setFocus()

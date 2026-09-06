@@ -45,14 +45,14 @@ class DialogoNuevoArchivo(QDialog):
         layout_ancho = QHBoxLayout()
         layout_ancho.addWidget(QLabel(t("Ancho (px):")))
         self.spin_ancho = QSpinBox()
-        self.spin_ancho.setRange(1, 99999)
+        self.spin_ancho.setRange(1, 16384)
         self.spin_ancho.setValue(def_w)
         layout_ancho.addWidget(self.spin_ancho)
 
         layout_alto = QHBoxLayout()
         layout_alto.addWidget(QLabel(t("Alto (px):")))
         self.spin_alto = QSpinBox()
-        self.spin_alto.setRange(1, 99999)
+        self.spin_alto.setRange(1, 16384)
         self.spin_alto.setValue(def_h)
         layout_alto.addWidget(self.spin_alto)
 

@@ -19,7 +19,7 @@ from PyQt6.QtGui import (
     QPainter, QFont, QPen, QColor, QFontMetrics,
     QPainterPath, QBrush, QCursor
 )
-from PyQt6.QtCore import Qt, QPoint, QRect, QRectF, QObject, QEvent
+from PyQt6.QtCore import Qt, QPoint, QPointF, QRect, QRectF, QObject, QEvent
 from tools.base_tool import BaseTool
 
 
@@ -644,40 +644,45 @@ class TextTool(BaseTool, QObject):
     def _get_content_rect(self) -> QRect:
         if self.text_rect:
             return QRect(self.text_rect)
-        total_h = max(sum(self._line_height(i) for i in range(len(self.rich_lines))), 24)
+        total_h = max(sum(self._line_height(i) for i in range(len(self.rich_lines))), self._line_height(0))
         asc0 = self._line_ascent(0)
         max_w = max(self._max_line_width(), 60)
         return QRect(self.pos.x(), self.pos.y() - asc0, max_w, total_h)
 
-    def _handle_rects(self) -> list[tuple[int, QRect]]:
+    def _handle_rects(self, scale_factor: float = 1.0) -> list[tuple[int, QRectF]]:
         r = self._get_content_rect()
-        cx = r.center().x()
-        cy = r.center().y()
-        hs = _HANDLE_SIZE // 2
+        cx = float(r.center().x())
+        cy = float(r.center().y())
+        sf = max(0.001, scale_factor)
+        h_sz = float(_HANDLE_SIZE) / sf
+        hs = h_sz / 2.0
 
         pts = [
-            r.topLeft(),                     # 0: TL
-            QPoint(cx, r.top()),            # 1: TC
-            r.topRight(),                    # 2: TR
-            QPoint(r.right(), cy),          # 3: RC
-            r.bottomRight(),                 # 4: BR
-            QPoint(cx, r.bottom()),         # 5: BC
-            r.bottomLeft(),                  # 6: BL
-            QPoint(r.left(), cy),           # 7: LC
+            QPointF(float(r.left()), float(r.top())),          # 0: TL
+            QPointF(cx, float(r.top())),                       # 1: TC
+            QPointF(float(r.right()), float(r.top())),         # 2: TR
+            QPointF(float(r.right()), cy),                     # 3: RC
+            QPointF(float(r.right()), float(r.bottom())),      # 4: BR
+            QPointF(cx, float(r.bottom())),                    # 5: BC
+            QPointF(float(r.left()), float(r.bottom())),       # 6: BL
+            QPointF(float(r.left()), cy),                      # 7: LC
         ]
-        resizes = [(i, QRect(p.x() - hs, p.y() - hs, _HANDLE_SIZE, _HANDLE_SIZE)) for i, p in enumerate(pts)]
+        resizes = [(i, QRectF(p.x() - hs, p.y() - hs, h_sz, h_sz)) for i, p in enumerate(pts)]
 
-        # Handle 8: Cuadradito de Mover (10x10px, idéntico al de la herramienta Línea)
-        move_sz = 10
-        move_rect = QRect(cx - move_sz // 2, r.top() - move_sz - 5, move_sz, move_sz)
+        # Handle 8: Cuadradito de Mover (10x10px en pantalla)
+        move_sz = 10.0 / sf
+        move_rect = QRectF(cx - move_sz / 2.0, float(r.top()) - move_sz - (5.0 / sf), move_sz, move_sz)
         resizes.append((8, move_rect))
 
         return resizes
 
-    def _hit_handle(self, pt: QPoint) -> int | None:
-        for idx, hr in self._handle_rects():
-            hit_area = hr.adjusted(-4, -4, 4, 4) if idx == 8 else hr.adjusted(-2, -2, 2, 2)
-            if hit_area.contains(pt):
+    def _hit_handle(self, pt: QPoint | QPointF, scale_factor: float = 1.0) -> int | None:
+        pt_f = QPointF(pt)
+        sf = max(0.001, scale_factor)
+        tol = 4.0 / sf
+        for idx, hr in self._handle_rects(scale_factor):
+            hit_area = hr.adjusted(-tol, -tol, tol, tol)
+            if hit_area.contains(pt_f):
                 return idx
         return None
 
@@ -747,7 +752,7 @@ class TextTool(BaseTool, QObject):
             return
 
         # Ya editando → ¿clic en handle (resize o move)?
-        h = self._hit_handle(click)
+        h = self._hit_handle(click, canvas.scale_factor)
         if h is not None:
             self._drag_handle = h
             self._drag_click_pos = click
@@ -820,7 +825,7 @@ class TextTool(BaseTool, QObject):
 
         # Hovering cursor feedback (IBeam SOLO cuando se está dentro del recuadro de texto para editar)
         if self.is_editing:
-            h_hover = self._hit_handle(click)
+            h_hover = self._hit_handle(click, canvas.scale_factor)
             if h_hover is not None:
                 canvas.setCursor(self._get_cursor_for_handle(h_hover, canvas))
             else:
@@ -873,6 +878,8 @@ class TextTool(BaseTool, QObject):
 
     def _start_editing_point(self, canvas, pos: QPoint, color_activo):
         self.is_editing   = True
+        if canvas:
+            canvas.setAttribute(Qt.WidgetAttribute.WA_InputMethodEnabled, True)
         self.text_rect    = None
         self._default_fmt = self._fmt_from_canvas(canvas, color_activo)
         self.rich_lines   = [_empty_line(self._default_fmt)]
@@ -882,6 +889,8 @@ class TextTool(BaseTool, QObject):
 
     def _start_editing_rect(self, canvas, rect: QRect, color_activo):
         self.is_editing   = True
+        if canvas:
+            canvas.setAttribute(Qt.WidgetAttribute.WA_InputMethodEnabled, True)
         self.text_rect    = rect
         self._default_fmt = self._fmt_from_canvas(canvas, color_activo)
         self._default_fmt.alignment = Qt.AlignmentFlag.AlignLeft
@@ -1074,35 +1083,45 @@ class TextTool(BaseTool, QObject):
 
     def draw_preview(self, painter: QPainter, canvas):
         if not self.is_editing:
-            if hasattr(self, '_preview_rect'):
-                painter.setPen(QPen(QColor(80, 140, 220), 1, Qt.PenStyle.DashLine))
-                painter.setBrush(Qt.BrushStyle.NoBrush)
-                painter.drawRect(self._preview_rect)
             return
-
         self._render(painter, canvas, is_commit=False)
 
     def draw_handles(self, painter: QPainter, canvas):
         if not self.is_editing:
+            if hasattr(self, '_preview_rect') and self._preview_rect:
+                painter.save()
+                pen = QPen(QColor(80, 140, 220), 1, Qt.PenStyle.DashLine)
+                pen.setCosmetic(True)
+                painter.setPen(pen)
+                painter.setBrush(Qt.BrushStyle.NoBrush)
+                painter.drawRect(self._preview_rect)
+                painter.restore()
             return
 
         # Contorno delimitador del cuadro de texto y tiradores (visibles en primer plano fuera del lienzo)
         rect = self._get_content_rect()
         painter.save()
-        painter.setPen(QPen(QColor(0, 120, 215), 1, Qt.PenStyle.DashLine))
+        pen_dash = QPen(QColor(0, 120, 215), 1, Qt.PenStyle.DashLine)
+        pen_dash.setCosmetic(True)
+        painter.setPen(pen_dash)
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawRect(rect)
 
+        pen_move = QPen(QColor(0, 50, 160), 1)
+        pen_move.setCosmetic(True)
+        pen_resize = QPen(QColor(0, 120, 215), 1)
+        pen_resize.setCosmetic(True)
+
         # Dibujar tiradores 0..7 (Resize) y 8 (Move)
-        for idx, hr in self._handle_rects():
+        for idx, hr in self._handle_rects(canvas.scale_factor):
             if idx == 8:
                 # Handle de mover: Cuadradito celeste con borde azul delgado de 1px (idéntico al de Línea)
-                painter.setPen(QPen(QColor(0, 50, 160), 1))
+                painter.setPen(pen_move)
                 painter.setBrush(QBrush(QColor(0, 120, 215)))
-                painter.drawRect(QRectF(hr.x() + 0.5, hr.y() + 0.5, hr.width() - 1, hr.height() - 1))
+                painter.drawRect(hr)
             else:
                 # Tiradores de redimensión (cuadritos blancos con borde azul)
-                painter.setPen(QPen(QColor(0, 120, 215), 1))
+                painter.setPen(pen_resize)
                 painter.setBrush(QBrush(QColor(255, 255, 255)))
                 painter.drawRect(hr)
         painter.restore()
@@ -1279,6 +1298,8 @@ class TextTool(BaseTool, QObject):
         if self.current_canvas:
             self.current_canvas.removeEventFilter(self)
         self.is_editing = False
+        if canvas:
+            canvas.setAttribute(Qt.WidgetAttribute.WA_InputMethodEnabled, False)
         self.text_rect  = None
         self.rich_lines = [_empty_line(self._default_fmt)]
         self._clear_sel()

@@ -20,7 +20,9 @@ class BrushTool(BaseTool):
     def draw_handles(self, painter, canvas):
         if canvas.cursor_pos is None:
             return
-        pos = canvas.cursor_pos
+        px = math.floor(canvas.cursor_pos.x())
+        py = math.floor(canvas.cursor_pos.y())
+        pos = QPointF(px + 0.5, py + 0.5)
         size = max(1, getattr(canvas, 'grosor_pincel', 3))
         r = size / 2.0
         forma = getattr(canvas, 'forma_pincel', 'Redondo')
@@ -31,12 +33,15 @@ class BrushTool(BaseTool):
 
         col_pri = QColor(canvas.color_primario)
         pen_outer = QPen(QColor(0, 0, 0, 180), 1.5)
+        pen_outer.setCosmetic(True)
         painter.setPen(pen_outer)
         painter.setBrush(Qt.BrushStyle.NoBrush)
         _draw_cursor(painter, pos, r + 0.5, forma)
 
         col_rim = QColor(col_pri); col_rim.setAlpha(255)
-        painter.setPen(QPen(col_rim, 1.0))
+        pen_rim = QPen(col_rim, 1.0)
+        pen_rim.setCosmetic(True)
+        painter.setPen(pen_rim)
         col_fill = QColor(col_pri); col_fill.setAlpha(40)
         painter.setBrush(QBrush(col_fill))
         _draw_cursor(painter, pos, r, forma)
@@ -47,7 +52,9 @@ class BrushTool(BaseTool):
             self.is_drawing = True
             self._has_moved = False
             self.shift_anchor = None
-            pos = event.position()
+            px = math.floor(event.position().x())
+            py = math.floor(event.position().y())
+            pos = QPointF(px + 0.5, py + 0.5)
             self._press_pos = pos
             self._points = [pos]
             self._last_drawn_index = 0
@@ -73,7 +80,9 @@ class BrushTool(BaseTool):
     def mouse_move(self, canvas, event, color_activo=None):
         if not self.is_drawing:
             return
-        raw_pos = event.position()
+        px = math.floor(event.position().x())
+        py = math.floor(event.position().y())
+        raw_pos = QPointF(px + 0.5, py + 0.5)
         modifiers = QApplication.keyboardModifiers()
         is_shift = bool(modifiers & Qt.KeyboardModifier.ShiftModifier)
 
@@ -114,11 +123,12 @@ class BrushTool(BaseTool):
             canvas.capa_trazo_temp.fill(Qt.GlobalColor.transparent)
             if hasattr(canvas.layer_mgr, 'active_stroke_alpha'):
                 canvas.layer_mgr.active_stroke_alpha = 1.0
+            if hasattr(canvas.layer_mgr, 'invalidate_cache'):
+                canvas.layer_mgr.invalidate_cache()
 
             self.path = None
             self._points = []
             self._last_drawn_index = 0
-            self._press_pos = None
             self.shift_anchor = None
             self.is_drawing = False
             canvas.update()

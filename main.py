@@ -179,6 +179,11 @@ class PaintNotNet(QMainWindow):
         self.shortcut_esc.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
         self.shortcut_esc.activated.connect(self._ejecutar_escape_global)
 
+        # Instalar eventFilter global para capturar atajos de teclado sin interrupción de widgets de barra superior
+        app_inst = QApplication.instance()
+        if app_inst:
+            app_inst.installEventFilter(self)
+
         # Verificar si existen autoguardados de emergencia al iniciar
         QTimer.singleShot(150, self._verificar_respaldos_emergencia_inicio)
 
@@ -470,10 +475,13 @@ class PaintNotNet(QMainWindow):
                 if herramienta is not None:
                     canvas.set_active_tool(herramienta)
 
-            if hasattr(self, 'bottom_bar') and hasattr(self.bottom_bar, 'chk_grid'):
-                self.bottom_bar.chk_grid.blockSignals(True)
-                self.bottom_bar.chk_grid.setChecked(getattr(canvas, 'show_pixel_grid', False))
-                self.bottom_bar.chk_grid.blockSignals(False)
+            if hasattr(self, 'bottom_bar') and self.bottom_bar:
+                if hasattr(self.bottom_bar, 'chk_grid'):
+                    self.bottom_bar.chk_grid.blockSignals(True)
+                    self.bottom_bar.chk_grid.setChecked(getattr(canvas, 'show_pixel_grid', False))
+                    self.bottom_bar.chk_grid.blockSignals(False)
+                self.bottom_bar.sync_zoom_from_canvas(canvas.scale_factor)
+                self.bottom_bar.actualizar_tamano_lienzo(canvas.ancho, canvas.alto)
 
             self.actualizar_titulo_ventana()
 
@@ -650,25 +658,83 @@ class PaintNotNet(QMainWindow):
 
         self.actualizar_titulo_ventana()
 
-    def keyPressEvent(self, event):
-        focus_widget = QApplication.focusWidget()
-        from PyQt6.QtWidgets import QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox
-        if focus_widget and isinstance(focus_widget, (QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox)):
-            super().keyPressEvent(event)
-            return
+    def eventFilter(self, watched, event):
+        from PyQt6.QtCore import QEvent, Qt
+        if event.type() == QEvent.Type.KeyPress:
+            # 1. Si se está editando texto activamente en la herramienta Texto del lienzo, no interceptar
+            if hasattr(self, 'lienzo') and self.lienzo and hasattr(self.lienzo, 'active_tool_obj'):
+                from tools.text import TextTool
+                if isinstance(self.lienzo.active_tool_obj, TextTool) and getattr(self.lienzo.active_tool_obj, 'is_editing', False):
+                    return super().eventFilter(watched, event)
 
-        key_text = event.text().upper()
+            # 2. Si el foco está en un cuadro de diálogo secundario o en un campo de texto editable de la GUI, no interceptar
+            from PyQt6.QtWidgets import QDialog, QLineEdit, QTextEdit, QPlainTextEdit
+            focus_w = QApplication.focusWidget()
+            if focus_w:
+                if focus_w.window() != self and isinstance(focus_w.window(), QDialog):
+                    return super().eventFilter(watched, event)
+                if isinstance(focus_w, (QLineEdit, QTextEdit, QPlainTextEdit)):
+                    return super().eventFilter(watched, event)
+
+            # 3. Evaluar si la tecla presionada es un atajo simple de 1 letra (sin Ctrl/Alt)
+            from PyQt6.QtGui import QKeySequence
+            key = event.key()
+            key_text = QKeySequence(key).toString().upper()
+            if not key_text:
+                key_text = event.text().upper()
+
+            if key_text and len(key_text) == 1 and not (event.modifiers() & (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier)):
+                from gui.dialogo_atajos import cargar_atajos
+                atajos = cargar_atajos()
+
+                for tool_name, char in atajos.items():
+                    if char and char.upper() == key_text:
+                        if hasattr(self, 'tool_panel') and self.tool_panel:
+                            for btn in self.tool_panel.button_group.buttons():
+                                tool = btn.property("tool_obj")
+                                if tool and hasattr(tool, 'name') and tool.name == tool_name:
+                                    self.tool_panel.select_tool(tool)
+                                    if hasattr(self, 'lienzo') and self.lienzo:
+                                        self.lienzo.setFocus()
+                                    return True  # Atajo procesado exitosamente
+
+        return super().eventFilter(watched, event)
+
+    def keyPressEvent(self, event):
+        # Si la herramienta Texto está activa Y el usuario está editando activamente un cuadro de texto en el lienzo,
+        # las teclas corresponden al texto que se está escribiendo en la imagen.
+        if hasattr(self, 'lienzo') and self.lienzo and hasattr(self.lienzo, 'active_tool_obj'):
+            from tools.text import TextTool
+            if isinstance(self.lienzo.active_tool_obj, TextTool) and getattr(self.lienzo.active_tool_obj, 'is_editing', False):
+                super().keyPressEvent(event)
+                return
+
+        from PyQt6.QtGui import QKeySequence
+        key = event.key()
+        key_text = QKeySequence(key).toString().upper()
+        if not key_text:
+            key_text = event.text().upper()
+
         if key_text and len(key_text) == 1 and not (event.modifiers() & (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier)):
             from gui.dialogo_atajos import cargar_atajos
             atajos = cargar_atajos()
 
             for tool_name, char in atajos.items():
                 if char and char.upper() == key_text:
-                    for btn in self.tool_panel.button_group.buttons():
-                        tool = btn.property("tool_obj")
-                        if tool and hasattr(tool, 'name') and tool.name == tool_name:
-                            self.tool_panel.select_tool(tool)
-                            return
+                    if hasattr(self, 'tool_panel') and self.tool_panel:
+                        for btn in self.tool_panel.button_group.buttons():
+                            tool = btn.property("tool_obj")
+                            if tool and hasattr(tool, 'name') and tool.name == tool_name:
+                                self.tool_panel.select_tool(tool)
+                                if hasattr(self, 'lienzo') and self.lienzo:
+                                    self.lienzo.setFocus()
+                                return
+
+        focus_widget = QApplication.focusWidget()
+        from PyQt6.QtWidgets import QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox
+        if focus_widget and isinstance(focus_widget, (QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox)):
+            super().keyPressEvent(event)
+            return
 
         super().keyPressEvent(event)
 
@@ -713,6 +779,17 @@ class PaintNotNet(QMainWindow):
             for btn in panel.button_group.buttons():
                 tool = btn.property("tool_obj")
                 if isinstance(tool, MoveSelectPixelsTool):
+                    btn.setChecked(True)
+                    panel.select_tool(tool)
+                    return
+
+    def activar_herramienta_transformar(self):
+        from tools.transform import TransformTool
+        panel = getattr(self, 'tool_panel', None)
+        if panel:
+            for btn in panel.button_group.buttons():
+                tool = btn.property("tool_obj")
+                if isinstance(tool, TransformTool):
                     btn.setChecked(True)
                     panel.select_tool(tool)
                     return
@@ -892,7 +969,7 @@ if __name__ == '__main__':
     from core.i18n import I18nManager
 
     app.setWindowIcon(QIcon(obtener_ruta_icono_app()))
-    app.setDesktopFileName("io.github.adrianandin0.PaintNotNet.desktop")
+    app.setDesktopFileName("io.github.adrianandin0.PaintNotNet")
     I18nManager().cargar_idioma_configurado()
 
     ventana = PaintNotNet()

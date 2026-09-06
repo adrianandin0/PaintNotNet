@@ -78,7 +78,20 @@ class LayerManager:
 
         self.indice_activo = min_idx
 
+    def invalidate_cache(self):
+        self._cached_pixmap = None
+        self._cached_pixmap_img_id = None
+
     def get_qimage(self, capa_trazo_temp=None, draw_layer_preview_callback=None, selection_path=None):
+        has_temp_stroke = bool(capa_trazo_temp and not capa_trazo_temp.isNull())
+        has_preview_callback = bool(draw_layer_preview_callback)
+
+        # Si sólo hay 1 capa visible, opacidad 1.0, sin trazo temporal ni preview, devolver directamente el buffer de esa capa
+        if (len(self.capas) == 1 and self.capas[0].visible and
+            getattr(self.capas[0], 'opacity', 1.0) == 1.0 and
+            not has_temp_stroke and not has_preview_callback):
+            return self.capas[0].image
+
         imagen_final = QImage(self.width, self.height, QImage.Format.Format_ARGB32_Premultiplied)
         imagen_final.fill(Qt.GlobalColor.transparent)
 
@@ -90,7 +103,7 @@ class LayerManager:
                 painter.drawImage(0, 0, capa.image)
                 idx_real = len(self.capas) - 1 - i
                 if idx_real == self.indice_activo:
-                    if capa_trazo_temp and not capa_trazo_temp.isNull():
+                    if has_temp_stroke:
                         painter.save()
                         if selection_path and not selection_path.isEmpty():
                             painter.setClipPath(selection_path)
@@ -98,7 +111,7 @@ class LayerManager:
                         painter.setOpacity(alpha_trazo)
                         painter.drawImage(0, 0, capa_trazo_temp)
                         painter.restore()
-                    if draw_layer_preview_callback:
+                    if has_preview_callback:
                         painter.save()
                         if selection_path and not selection_path.isEmpty():
                             painter.setClipPath(selection_path)
@@ -109,7 +122,16 @@ class LayerManager:
         return imagen_final
 
     def get_qpixmap(self, capa_trazo_temp=None, draw_layer_preview_callback=None, selection_path=None):
-        return QPixmap.fromImage(self.get_qimage(capa_trazo_temp=capa_trazo_temp, draw_layer_preview_callback=draw_layer_preview_callback, selection_path=selection_path))
+        img = self.get_qimage(capa_trazo_temp=capa_trazo_temp, draw_layer_preview_callback=draw_layer_preview_callback, selection_path=selection_path)
+        has_transient = bool(capa_trazo_temp or draw_layer_preview_callback)
+        if not has_transient and getattr(self, '_cached_pixmap', None) is not None and getattr(self, '_cached_pixmap_img_id', None) == id(img):
+            return self._cached_pixmap
+
+        pixmap = QPixmap.fromImage(img)
+        if not has_transient:
+            self._cached_pixmap = pixmap
+            self._cached_pixmap_img_id = id(img)
+        return pixmap
 
     def resize_canvas(self, new_width, new_height):
         for capa in self.capas:
