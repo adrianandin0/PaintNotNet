@@ -250,6 +250,11 @@ class BottomStatusBarWidget(QWidget):
         self.sep_size.setStyleSheet(sep_style)
         self.sep2.setStyleSheet(sep_style)
 
+    def minimumSizeHint(self):
+        from PyQt6.QtCore import QSize
+        sh = super().minimumSizeHint()
+        return QSize(200, sh.height() if sh.height() > 0 else 30)
+
     def _on_toggle_grid(self, checked: bool):
         self.settings.setValue("show_pixel_grid", checked)
         if self.main_window and hasattr(self.main_window, 'tab_widget'):

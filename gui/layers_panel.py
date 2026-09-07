@@ -233,6 +233,9 @@ class LayersPanelWidget(QWidget):
         self.btn_del.clicked.connect(self.borrar_capa)
         self.lista_capas.currentRowChanged.connect(self.cambiar_capa_activa)
 
+        from core.i18n import I18nManager
+        I18nManager().language_changed.connect(lambda *args: self.retraducir_panel())
+
     def set_canvas(self, canvas):
         self.canvas_override = canvas
         self.reconstruir_lista_capas()

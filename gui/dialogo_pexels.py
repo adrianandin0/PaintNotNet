@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
     QPushButton, QCheckBox, QComboBox, QScrollArea, QWidget, QGridLayout,
     QProgressBar, QMessageBox
 )
-from PyQt6.QtCore import Qt, QSize, QThread, pyqtSignal, QRect, QRectF
+from PyQt6.QtCore import Qt, QSize, QThread, pyqtSignal, QRect, QRectF, QObject, QRunnable, QThreadPool
 from PyQt6.QtGui import QIcon, QPixmap, QImage, QPainter, QColor, QPen, QFont, QBrush
 from core.i18n import t
 from core.pexels import PexelsAPIClient
@@ -40,6 +40,42 @@ class _SearchWorker(QThread):
                 self.results_ready.emit([], str(e))
 
 
+class _DownloadSignals(QObject):
+    download_finished = pyqtSignal(bytes, str)
+
+
+class _DownloadRunnable(QRunnable):
+    def __init__(self, url: str):
+        super().__init__()
+        self.url = url
+        self.signals = _DownloadSignals()
+        self._is_cancelled = False
+
+    def cancel(self):
+        self._is_cancelled = True
+
+    def run(self):
+        if self._is_cancelled:
+            return
+        try:
+            data = PexelsAPIClient.download_bytes(self.url)
+            if self._is_cancelled:
+                return
+            try:
+                if data:
+                    self.signals.download_finished.emit(data, "")
+                else:
+                    self.signals.download_finished.emit(b"", "Error al descargar la imagen.")
+            except (RuntimeError, AttributeError):
+                pass
+        except Exception as e:
+            if not self._is_cancelled:
+                try:
+                    self.signals.download_finished.emit(b"", str(e))
+                except (RuntimeError, AttributeError):
+                    pass
+
+
 class _DownloadWorker(QThread):
     download_finished = pyqtSignal(bytes, str)
 
@@ -54,15 +90,19 @@ class _DownloadWorker(QThread):
     def run(self):
         try:
             data = PexelsAPIClient.download_bytes(self.url)
-            if self._is_cancelled:
-                return
-            if data:
-                self.download_finished.emit(data, "")
-            else:
-                self.download_finished.emit(b"", "Error al descargar la imagen.")
+            if not self._is_cancelled:
+                if data:
+                    self.download_finished.emit(data, "")
+                else:
+                    self.download_finished.emit(b"", "Error al descargar la imagen.")
         except Exception as e:
             if not self._is_cancelled:
                 self.download_finished.emit(b"", str(e))
+
+
+# Pool global para limitar concurrencia a máximo 6 hilos simultáneos
+_THUMB_POOL = QThreadPool()
+_THUMB_POOL.setMaxThreadCount(6)
 
 
 # Tarjeta de Imagen limpia con cancelación de hilo
@@ -77,7 +117,7 @@ class _ImageCardWidget(QPushButton):
         self.parent_dialog = parent_dialog
         self.is_selected = False
         self.pixmap: QPixmap | None = None
-        self.worker: _DownloadWorker | None = None
+        self.runnable: _DownloadRunnable | None = None
         self.setFixedSize(140, 105)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
@@ -88,23 +128,21 @@ class _ImageCardWidget(QPushButton):
         url = self.photo_data.get("preview_url")
         if not url:
             return
-        self.worker = _DownloadWorker(url)
-        self.worker.download_finished.connect(self._on_preview_loaded)
-        if self.parent_dialog and hasattr(self.parent_dialog, '_track_worker'):
-            self.parent_dialog._track_worker(self.worker)
-        self.worker.start()
+        self.runnable = _DownloadRunnable(url)
+        self._download_signals = self.runnable.signals
+        self._download_signals.download_finished.connect(self._on_preview_loaded)
+        _THUMB_POOL.start(self.runnable)
 
     def cancel_download(self):
-        if self.worker:
+        if hasattr(self, '_download_signals') and self._download_signals:
             try:
-                self.worker.download_finished.disconnect()
+                self._download_signals.download_finished.disconnect()
             except Exception:
                 pass
-            self.worker.cancel()
-            if self.worker.isRunning():
-                self.worker.quit()
-                self.worker.wait(50)
-            self.worker = None
+            self._download_signals = None
+        if self.runnable:
+            self.runnable.cancel()
+            self.runnable = None
 
     def _on_preview_loaded(self, data: bytes, err: str):
         if data:
@@ -264,12 +302,11 @@ class DialogoBusquedaPexels(QDialog):
 
         self.combo_source = QComboBox()
         self.combo_source.addItems([
-            t("Todas las fuentes (Auto)"),
-            "Bing",
-            "Google",
-            "DuckDuckGo",
-            "Wikimedia",
-            "Unsplash"
+            t("Todas las fuentes activas"),
+            "Wikimedia Commons",
+            "Pexels",
+            "Unsplash",
+            "Pixabay"
         ])
         self.combo_source.setToolTip(t("Motor de búsqueda de imágenes"))
         self.combo_source.currentIndexChanged.connect(self._on_new_search)
@@ -368,7 +405,17 @@ class DialogoBusquedaPexels(QDialog):
 
         layout.addLayout(btn_layout)
 
-        # Sin búsqueda predeterminada por defecto
+        self._update_status_bar()
+
+    def _update_status_bar(self):
+        status = PexelsAPIClient.get_search_status()
+        if not status["enabled"]:
+            self.lbl_status.setText(t("Búsqueda online desactivada. Actívala en Preferencias de usuario -> Búsqueda de imágenes online."))
+        elif not status["active_sources"]:
+            self.lbl_status.setText(t("Sin fuentes ni claves activas. Configura tu API Key en Preferencias de usuario."))
+        else:
+            fuentes_str = ", ".join(status["active_sources"])
+            self.lbl_status.setText(t("Fuentes activas: %1. Escribe para buscar.").replace("%1", fuentes_str))
 
     def _track_worker(self, worker):
         if not worker:
@@ -410,6 +457,16 @@ class DialogoBusquedaPexels(QDialog):
         self._fetch_page()
 
     def _fetch_page(self):
+        status = PexelsAPIClient.get_search_status()
+        if not status["enabled"]:
+            self.lbl_status.setText(t("Búsqueda online desactivada. Actívala en Preferencias de usuario -> Búsqueda de imágenes online."))
+            QMessageBox.information(
+                self,
+                t("Búsqueda online desactivada"),
+                t("La búsqueda de imágenes desde internet está desactivada.\n\nPuedes activarla y configurar fuentes o claves de API gratuitas ingresando a Preferencias de usuario (Opciones -> Preferencias...).")
+            )
+            return
+
         query = self.input_search.text().strip()
         if not query:
             return

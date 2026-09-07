@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import (
     QPushButton, QLabel, QSizePolicy, QAbstractItemView,
     QFileIconProvider, QMessageBox, QWidget, QToolButton, QFrame,
     QStackedWidget, QTreeWidget, QTreeWidgetItem, QHeaderView, QButtonGroup,
-    QMenu
+    QMenu, QCheckBox, QSpinBox
 )
 from PyQt6.QtCore import Qt, QSize, QFileInfo, QDir, QSettings, QTimer
 from PyQt6.QtGui import QPixmap, QIcon, QFont, QColor
@@ -526,6 +526,17 @@ class DialogoArchivo(QDialog):
 
         root.addLayout(fila_nombre)
 
+        # 4b. Frame de Opciones dinámicas de Formato (Sólo en modo "guardar")
+        if self._modo == "guardar":
+            self.frame_opciones_formato = QFrame()
+            self.frame_opciones_formato.setObjectName("frame_opciones_formato")
+            self.layout_opciones_formato = QHBoxLayout(self.frame_opciones_formato)
+            self.layout_opciones_formato.setContentsMargins(10, 6, 10, 6)
+            self.layout_opciones_formato.setSpacing(10)
+            root.addWidget(self.frame_opciones_formato)
+            self.edit_nombre.textChanged.connect(self._al_cambiar_nombre_archivo)
+            self._actualizar_opciones_formato()
+
         # 5. Botones de acción inferiores
         fila_btns = QHBoxLayout()
         fila_btns.setSpacing(8)
@@ -654,6 +665,11 @@ class DialogoArchivo(QDialog):
                 QSplitter::handle {
                     background-color: #C0C0C0;
                 }
+                QFrame#frame_opciones_formato {
+                    background-color: #E8E8E8;
+                    border: 1px solid #C0C0C0;
+                    border-radius: 4px;
+                }
             """)
         else:
             self.setStyleSheet("""
@@ -747,6 +763,11 @@ class DialogoArchivo(QDialog):
                 }
                 QSplitter::handle {
                     background-color: #454545;
+                }
+                QFrame#frame_opciones_formato {
+                    background-color: #1e1e1e;
+                    border: 1px solid #484848;
+                    border-radius: 4px;
                 }
             """)
 
@@ -973,12 +994,248 @@ class DialogoArchivo(QDialog):
             exts = set()
             for parte in patron.split():
                 if parte.startswith('*.'):
-                    exts.add(parte[1:].lower())
+                    exts.add(parte[2:].lower())
                 elif parte == '*':
                     exts = set()
                     break
             resultado.append((desc_trad, exts))
         return resultado
+
+    def _cambiar_filtro(self, idx):
+        self._filtro_activo = idx
+        self._cargar_directorio(self._directorio)
+        if self._modo == "guardar":
+            nombre_actual = self.edit_nombre.text().strip()
+            if 0 <= idx < len(self._filtros):
+                _, exts = self._filtros[idx]
+                if exts:
+                    nueva_ext = sorted(list(exts))[0]
+                    if "." in nombre_actual:
+                        base = nombre_actual.rsplit(".", 1)[0]
+                        self.edit_nombre.blockSignals(True)
+                        self.edit_nombre.setText(f"{base}.{nueva_ext}")
+                        self.edit_nombre.blockSignals(False)
+                    elif nombre_actual:
+                        self.edit_nombre.blockSignals(True)
+                        self.edit_nombre.setText(f"{nombre_actual}.{nueva_ext}")
+                        self.edit_nombre.blockSignals(False)
+            self._actualizar_opciones_formato()
+
+    def _obtener_extension_activa(self):
+        nombre = self.edit_nombre.text().strip()
+        if "." in nombre:
+            ext = nombre.rsplit(".", 1)[1].lower()
+            if ext in ("png", "jpg", "jpeg", "webp", "gif", "pnn", "tiff", "tif", "bmp", "ico", "tga"):
+                return ext
+
+        if 0 <= self._filtro_activo < len(self._filtros):
+            _, exts = self._filtros[self._filtro_activo]
+            if exts:
+                return sorted(list(exts))[0]
+
+        return "png"
+
+    def _al_cambiar_nombre_archivo(self, texto):
+        if self._modo == "guardar":
+            ext = self._obtener_extension_activa()
+            if hasattr(self, '_ext_actual_opciones') and self._ext_actual_opciones != ext:
+                self._actualizar_opciones_formato()
+
+    def _actualizar_opciones_formato(self):
+        if not hasattr(self, 'frame_opciones_formato') or not self.frame_opciones_formato:
+            return
+
+        # Limpiar widgets anteriores
+        while self.layout_opciones_formato.count() > 0:
+            item = self.layout_opciones_formato.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        ext = self._obtener_extension_activa()
+        self._ext_actual_opciones = ext
+        self._opciones_widgets = {}
+
+        lbl_titulo = QLabel(f"<b>{t('Opciones de')} {ext.upper()}:</b>")
+        lbl_titulo.setStyleSheet("font-size: 11px;")
+        self.layout_opciones_formato.addWidget(lbl_titulo)
+
+        if ext == "png":
+            chk_alfa = QCheckBox(t("Transparencia"))
+            chk_alfa.setChecked(True)
+            self.layout_opciones_formato.addWidget(chk_alfa)
+            self._opciones_widgets["alpha"] = chk_alfa
+
+            lbl_comp = QLabel(t("Compresión (0-9):"))
+            spin_comp = QSpinBox()
+            spin_comp.setRange(0, 9)
+            spin_comp.setValue(6)
+            self.layout_opciones_formato.addWidget(lbl_comp)
+            self.layout_opciones_formato.addWidget(spin_comp)
+            self._opciones_widgets["compression"] = spin_comp
+
+            chk_interlaced = QCheckBox(t("Entrelazado"))
+            chk_interlaced.setChecked(False)
+            self.layout_opciones_formato.addWidget(chk_interlaced)
+            self._opciones_widgets["interlaced"] = chk_interlaced
+
+        elif ext in ("jpg", "jpeg"):
+            lbl_calidad = QLabel(t("Calidad:"))
+            spin_calidad = QSpinBox()
+            spin_calidad.setRange(1, 100)
+            spin_calidad.setValue(90)
+            spin_calidad.setSuffix("%")
+            self.layout_opciones_formato.addWidget(lbl_calidad)
+            self.layout_opciones_formato.addWidget(spin_calidad)
+            self._opciones_widgets["quality"] = spin_calidad
+
+            lbl_fondo = QLabel(t("Color de fondo:"))
+            combo_fondo = QComboBox()
+            combo_fondo.addItem(t("Blanco"), "#FFFFFF")
+            combo_fondo.addItem(t("Negro"), "#000000")
+            combo_fondo.addItem(t("Gris"), "#808080")
+            self.layout_opciones_formato.addWidget(lbl_fondo)
+            self.layout_opciones_formato.addWidget(combo_fondo)
+            self._opciones_widgets["bg_color"] = combo_fondo
+
+            lbl_chroma = QLabel(t("Croma:"))
+            combo_chroma = QComboBox()
+            combo_chroma.addItem("4:4:4", "4:4:4")
+            combo_chroma.addItem("4:2:2", "4:2:2")
+            combo_chroma.addItem("4:2:0", "4:2:0")
+            self.layout_opciones_formato.addWidget(lbl_chroma)
+            self.layout_opciones_formato.addWidget(combo_chroma)
+            self._opciones_widgets["subsampling"] = combo_chroma
+
+            chk_prog = QCheckBox(t("Progresivo"))
+            chk_prog.setChecked(False)
+            self.layout_opciones_formato.addWidget(chk_prog)
+            self._opciones_widgets["progressive"] = chk_prog
+
+        elif ext == "webp":
+            lbl_modo = QLabel(t("Modo:"))
+            combo_modo = QComboBox()
+            combo_modo.addItem(t("Con pérdida"), "lossy")
+            combo_modo.addItem(t("Sin pérdida"), "lossless")
+            self.layout_opciones_formato.addWidget(lbl_modo)
+            self.layout_opciones_formato.addWidget(combo_modo)
+            self._opciones_widgets["mode"] = combo_modo
+
+            lbl_calidad = QLabel(t("Calidad:"))
+            spin_calidad = QSpinBox()
+            spin_calidad.setRange(1, 100)
+            spin_calidad.setValue(90)
+            spin_calidad.setSuffix("%")
+            self.layout_opciones_formato.addWidget(lbl_calidad)
+            self.layout_opciones_formato.addWidget(spin_calidad)
+            self._opciones_widgets["quality"] = spin_calidad
+
+            chk_alfa = QCheckBox(t("Transparencia"))
+            chk_alfa.setChecked(True)
+            self.layout_opciones_formato.addWidget(chk_alfa)
+            self._opciones_widgets["alpha"] = chk_alfa
+
+        elif ext == "gif":
+            lbl_paleta = QLabel(t("Colores:"))
+            combo_paleta = QComboBox()
+            combo_paleta.addItems(["256", "128", "64", "32"])
+            self.layout_opciones_formato.addWidget(lbl_paleta)
+            self.layout_opciones_formato.addWidget(combo_paleta)
+            self._opciones_widgets["colors"] = combo_paleta
+
+            chk_dither = QCheckBox(t("Tramado"))
+            chk_dither.setChecked(True)
+            self.layout_opciones_formato.addWidget(chk_dither)
+            self._opciones_widgets["dithering"] = chk_dither
+
+            lbl_umbral = QLabel(t("Umbral Alfa:"))
+            spin_umbral = QSpinBox()
+            spin_umbral.setRange(0, 255)
+            spin_umbral.setValue(128)
+            self.layout_opciones_formato.addWidget(lbl_umbral)
+            self.layout_opciones_formato.addWidget(spin_umbral)
+            self._opciones_widgets["alpha_threshold"] = spin_umbral
+
+        elif ext == "pnn":
+            lbl_zip = QLabel(t("Compresión:"))
+            combo_zip = QComboBox()
+            combo_zip.addItem(t("Estándar"), "deflate")
+            combo_zip.addItem(t("Máxima"), "maximum")
+            combo_zip.addItem(t("Sin compresión"), "store")
+            self.layout_opciones_formato.addWidget(lbl_zip)
+            self.layout_opciones_formato.addWidget(combo_zip)
+            self._opciones_widgets["zip_compression"] = combo_zip
+
+            chk_thumb = QCheckBox(t("Vista previa"))
+            chk_thumb.setChecked(True)
+            self.layout_opciones_formato.addWidget(chk_thumb)
+            self._opciones_widgets["include_thumbnail"] = chk_thumb
+
+        elif ext in ("tiff", "tif"):
+            chk_lzw = QCheckBox(t("Compresión LZW"))
+            chk_lzw.setChecked(True)
+            self.layout_opciones_formato.addWidget(chk_lzw)
+            self._opciones_widgets["compression_algorithm"] = chk_lzw
+
+            chk_alfa = QCheckBox(t("Transparencia"))
+            chk_alfa.setChecked(True)
+            self.layout_opciones_formato.addWidget(chk_alfa)
+            self._opciones_widgets["alpha"] = chk_alfa
+
+        elif ext == "bmp":
+            lbl_bits = QLabel(t("Profundidad:"))
+            combo_bits = QComboBox()
+            combo_bits.addItem("32 bits", 32)
+            combo_bits.addItem("24 bits", 24)
+            combo_bits.addItem("8 bits (" + t("Grises") + ")", 8)
+            self.layout_opciones_formato.addWidget(lbl_bits)
+            self.layout_opciones_formato.addWidget(combo_bits)
+            self._opciones_widgets["bit_depth"] = combo_bits
+
+        elif ext == "ico":
+            lbl_ico = QLabel(t("Tamaño:"))
+            combo_ico = QComboBox()
+            combo_ico.addItems(["512x512", "256x256", "128x128", "64x64", "48x48", "32x32", "16x16"])
+            self.layout_opciones_formato.addWidget(lbl_ico)
+            self.layout_opciones_formato.addWidget(combo_ico)
+            self._opciones_widgets["icon_size"] = combo_ico
+
+        elif ext == "tga":
+            chk_rle = QCheckBox(t("Compresión RLE"))
+            chk_rle.setChecked(True)
+            self.layout_opciones_formato.addWidget(chk_rle)
+            self._opciones_widgets["rle"] = chk_rle
+
+            lbl_bits = QLabel(t("Profundidad:"))
+            combo_bits = QComboBox()
+            combo_bits.addItem("32 bits", 32)
+            combo_bits.addItem("24 bits", 24)
+            self.layout_opciones_formato.addWidget(lbl_bits)
+            self.layout_opciones_formato.addWidget(combo_bits)
+            self._opciones_widgets["bit_depth"] = combo_bits
+
+        self.layout_opciones_formato.addStretch()
+
+    def opciones_exportacion(self):
+        opts = {"ext": self._obtener_extension_activa()}
+        if not hasattr(self, '_opciones_widgets'):
+            return opts
+
+        for key, widget in self._opciones_widgets.items():
+            if isinstance(widget, QCheckBox):
+                val = widget.isChecked()
+                if key == "dithering":
+                    opts[key] = "floyd" if val else "none"
+                elif key == "compression_algorithm":
+                    opts[key] = "lzw" if val else "none"
+                else:
+                    opts[key] = val
+            elif isinstance(widget, QSpinBox):
+                opts[key] = widget.value()
+            elif isinstance(widget, QComboBox):
+                data = widget.currentData()
+                opts[key] = data if data is not None else widget.currentText()
+
+        return opts
 
     def _archivo_visible(self, nombre):
         _, exts = self._filtros[self._filtro_activo]
@@ -1167,10 +1424,6 @@ class DialogoArchivo(QDialog):
             item.setTextAlignment(2, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
 
             self.tabla_archivos.addTopLevelItem(item)
-
-    def _cambiar_filtro(self, idx):
-        self._filtro_activo = idx
-        self._cargar_directorio(self._directorio)
 
     # Interacción con la vista
 

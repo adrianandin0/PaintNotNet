@@ -102,26 +102,26 @@ echo -e "${COLOR_YELLOW}${MSG_STEP1}${COLOR_RESET}"
 
 if command -v apt-get &> /dev/null; then
     echo -e "${MSG_DISTRO_DEBIAN}"
-    apt-get update -qq || true
+    apt-get update -qq
     apt-get install -y -qq python3 python3-pip python3-venv build-essential \
         libxcb-cursor0 libegl1 libgl1 libdbus-1-3 \
         libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 \
-        libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xfixes0 &> /dev/null || true
+        libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xfixes0 &> /dev/null
 
 elif command -v dnf &> /dev/null; then
     echo -e "${MSG_DISTRO_FEDORA}"
     dnf install -y -q python3 python3-pip gcc gcc-c++ \
-        libxcb libX11-xcb mesa-libEGL mesa-libGL dbus-libs &> /dev/null || true
+        libxcb libX11-xcb mesa-libEGL mesa-libGL dbus-libs &> /dev/null
 
 elif command -v pacman &> /dev/null; then
     echo -e "${MSG_DISTRO_ARCH}"
     pacman -Sy --needed --noconfirm python python-pip base-devel \
-        libxcb libegl libgl dbus &> /dev/null || true
+        libxcb libegl libgl dbus &> /dev/null
 
 elif command -v zypper &> /dev/null; then
     echo -e "${MSG_DISTRO_SUSE}"
     zypper install -y -q python3 python3-pip gcc \
-        libxcb-cursor0 libEGL1 libGL1 libdbus-1-3 &> /dev/null || true
+        libxcb-cursor0 libEGL1 libGL1 libdbus-1-3 &> /dev/null
 fi
 
 # 4. Verificación y preparación del entorno de Python + PyInstaller

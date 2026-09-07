@@ -81,16 +81,34 @@ class LayerManager:
     def invalidate_cache(self):
         self._cached_pixmap = None
         self._cached_pixmap_img_id = None
+        self._cached_active_stroke_base = None
 
     def get_qimage(self, capa_trazo_temp=None, draw_layer_preview_callback=None, selection_path=None):
         has_temp_stroke = bool(capa_trazo_temp and not capa_trazo_temp.isNull())
         has_preview_callback = bool(draw_layer_preview_callback)
+
+        if not has_temp_stroke and not has_preview_callback:
+            self._cached_active_stroke_base = None
 
         # Si sólo hay 1 capa visible, opacidad 1.0, sin trazo temporal ni preview, devolver directamente el buffer de esa capa
         if (len(self.capas) == 1 and self.capas[0].visible and
             getattr(self.capas[0], 'opacity', 1.0) == 1.0 and
             not has_temp_stroke and not has_preview_callback):
             return self.capas[0].image
+
+        # Reutilizar el lienzo base compuesto si estamos en medio de un trazo activo continuo
+        if has_temp_stroke and getattr(self, '_cached_active_stroke_base', None) is not None:
+            imagen_final = self._cached_active_stroke_base.copy()
+            painter = QPainter(imagen_final)
+            if selection_path and not selection_path.isEmpty():
+                painter.setClipPath(selection_path)
+            alpha_trazo = float(getattr(self, 'active_stroke_alpha', 1.0))
+            painter.setOpacity(alpha_trazo)
+            painter.drawImage(0, 0, capa_trazo_temp)
+            if has_preview_callback:
+                draw_layer_preview_callback(painter)
+            painter.end()
+            return imagen_final
 
         imagen_final = QImage(self.width, self.height, QImage.Format.Format_ARGB32_Premultiplied)
         imagen_final.fill(Qt.GlobalColor.transparent)
@@ -118,6 +136,17 @@ class LayerManager:
                         draw_layer_preview_callback(painter)
                         painter.restore()
         painter.end()
+
+        if has_temp_stroke:
+            base_img = QImage(self.width, self.height, QImage.Format.Format_ARGB32_Premultiplied)
+            base_img.fill(Qt.GlobalColor.transparent)
+            p_base = QPainter(base_img)
+            for i, capa in enumerate(reversed(self.capas)):
+                if capa.visible:
+                    p_base.setOpacity(float(getattr(capa, 'opacity', 1.0)))
+                    p_base.drawImage(0, 0, capa.image)
+            p_base.end()
+            self._cached_active_stroke_base = base_img
 
         return imagen_final
 

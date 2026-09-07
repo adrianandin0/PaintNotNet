@@ -118,8 +118,10 @@ class ToolPanelWidget(QWidget):
                 grid.addWidget(btn, row_idx, col_idx)
 
         layout.addLayout(grid)
-        layout.addStretch()
         self.setLayout(layout)
+
+        from core.i18n import I18nManager
+        I18nManager().language_changed.connect(lambda *args: self.retraducir_tooltips())
         self.setFixedWidth(118)
 
         self.actualizar_insignias_atajos()

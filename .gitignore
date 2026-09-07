@@ -66,6 +66,9 @@ temp/
 *.tmp
 *.log
 descargar.py
+pref_*
+save_dialog_*
+test_export.*
 
 # IDE & Editor files
 .idea/

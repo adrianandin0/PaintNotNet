@@ -225,11 +225,11 @@ class MenuArchivo:
         self.actualizar_menu_recientes()
 
         accion_insertar = self.menu_archivo.addAction(QIcon("gui/iconos/picture.png"), t("Insertar..."))
-        accion_insertar.setShortcut("Ctrl+I")
+        accion_insertar.setShortcut("Ctrl+Shift+O")
         accion_insertar.triggered.connect(self.insertar_imagen)
 
         accion_insertar_internet = self.menu_archivo.addAction(QIcon("gui/iconos/internet.png"), t("Insertar desde Internet..."))
-        accion_insertar_internet.setShortcut("Ctrl+Shift+I")
+        accion_insertar_internet.setShortcut("Ctrl+Shift+W")
         accion_insertar_internet.triggered.connect(self.insertar_desde_internet)
 
         self.menu_archivo.addSeparator()
@@ -475,13 +475,12 @@ class MenuArchivo:
             ("Imagen BMP",          "*.bmp"),
             ("Icono ICO",           "*.ico"),
             ("Imagen TGA",          "*.tga"),
-            ("Imagen PPM",          "*.ppm"),
         ]
         # Poner el filtro por defecto primero
         _orden = {
             "png": 0, "pnn": 1, "jpg": 2, "jpeg": 2, "webp": 3,
             "gif": 4, "tiff": 5, "tif": 5, "bmp": 6, "ico": 7,
-            "tga": 8, "ppm": 9
+            "tga": 8
         }
         idx_defecto = _orden.get(ext_defecto.lstrip('.'), 0)
         filtros_dialogo = (
@@ -500,9 +499,10 @@ class MenuArchivo:
         if dialogo.exec() != QDialog.DialogCode.Accepted:
             return False
         ruta_elegida = dialogo.ruta_seleccionada()
+        opciones = dialogo.opciones_exportacion() if hasattr(dialogo, 'opciones_exportacion') else None
 
         if ruta_elegida:
-            if canvas.guardar_imagen(ruta_elegida):
+            if canvas.guardar_imagen(ruta_elegida, opciones=opciones):
                 canvas.archivo_actual = ruta_elegida
                 canvas.lienzo_modificado = False
                 self.ventana.actualizar_titulo_ventana()

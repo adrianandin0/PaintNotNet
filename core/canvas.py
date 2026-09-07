@@ -116,6 +116,11 @@ class CanvasWidget(QWidget):
         self.scale_factor = 1.0
 
         # Módulos principales del core
+        from core.canvas_input_handler import CanvasInputHandler
+        from core.canvas_renderer import CanvasRenderer
+        self.input_handler = CanvasInputHandler(self)
+        self.renderer = CanvasRenderer(self)
+
         self.layer_mgr = LayerManager(width, height)
         self._ajustar_tamano_widget(width, height)
         self.history_mgr = HistoryManager(200)
@@ -197,8 +202,9 @@ class CanvasWidget(QWidget):
         total_w = max(vw, content_w)
         total_h = max(vh, content_h)
 
-        self.setMinimumSize(total_w, total_h)
-        self.setFixedSize(total_w, total_h)
+        self.setMinimumSize(0, 0)
+        self.setMaximumSize(16777215, 16777215)
+        self.resize(total_w, total_h)
 
         if hasattr(self, 'main_window') and self.main_window and hasattr(self.main_window, 'bottom_bar') and self.main_window.bottom_bar:
             self.main_window.bottom_bar.actualizar_tamano_lienzo(w, h)
@@ -211,6 +217,8 @@ class CanvasWidget(QWidget):
         return super().eventFilter(watched, event)
 
     def _canvas_event(self, event):
+        if hasattr(self, 'input_handler'):
+            return self.input_handler.map_canvas_event(event)
         off_x, off_y = self.obtener_offset_canvas()
         raw = event.position() - QPointF(float(off_x), float(off_y))
         sf = self.scale_factor if self.scale_factor > 0 else 1.0
@@ -853,7 +861,8 @@ class CanvasWidget(QWidget):
             self.main_window.layers_panel.reconstruir_lista_capas()
         self.update()
 
-    def guardar_imagen(self, ruta):
+    def guardar_imagen(self, ruta, opciones=None):
+        opciones = opciones or {}
         _, ext = os.path.splitext(ruta)
         ext = ext.lower()
         if ext == '.pnn':
@@ -861,18 +870,29 @@ class CanvasWidget(QWidget):
             return guardar_proyecto_pnn(self, ruta)
 
         img_a_guardar = self.layer_mgr.get_qimage()
+        quality = opciones.get('quality', 90)
+
         if ext in ['.jpg', '.jpeg']:
+            bg_hex = opciones.get('bg_color', '#FFFFFF')
+            bg_col = QColor(bg_hex) if isinstance(bg_hex, str) else Qt.GlobalColor.white
+
             img_jpg = QImage(img_a_guardar.size(), QImage.Format.Format_RGB32)
-            img_jpg.fill(Qt.GlobalColor.white)
+            img_jpg.fill(bg_col)
 
             painter = QPainter(img_jpg)
             painter.drawImage(0, 0, img_a_guardar)
             painter.end()
 
-            if img_jpg.save(ruta):
+            if img_jpg.save(ruta, "JPG", quality):
                 return True
 
-        if img_a_guardar.save(ruta):
+        if ext == '.png':
+            # Mapear compresión (0-9) a calidad QImage
+            comp = opciones.get('compression', 6)
+            png_quality = max(0, min(100, 100 - (comp * 10)))
+            if img_a_guardar.save(ruta, "PNG", png_quality):
+                return True
+        elif img_a_guardar.save(ruta):
             return True
 
         # Fallback a PIL para formatos adicionales (GIF, TIFF, TGA, ICO, etc.)
@@ -884,9 +904,20 @@ class CanvasWidget(QWidget):
             pil_img = Image.frombytes('RGBA', (qimg_conv.width(), qimg_conv.height()), bytes(ptr))
 
             if ext in ['.jpg', '.jpeg']:
-                pil_img.convert('RGB').save(ruta)
+                pil_img.convert('RGB').save(ruta, quality=quality)
             elif ext == '.gif':
-                pil_img.convert('P', palette=Image.Palette.ADAPTIVE).save(ruta)
+                colors_str = str(opciones.get('colors', 256))
+                num_colors = int(colors_str.split()[0]) if colors_str and colors_str[0].isdigit() else 256
+                dither_opt = Image.Dither.FLOYDSTEINBERG if opciones.get('dithering') == 'floyd' else Image.Dither.NONE
+                pil_img.convert('P', palette=Image.Palette.ADAPTIVE, colors=num_colors, dither=dither_opt).save(ruta)
+            elif ext == '.ico':
+                sz_str = opciones.get('icon_size', '256x256')
+                try:
+                    w_s, h_s = map(int, sz_str.split('x'))
+                    ico_img = pil_img.resize((w_s, h_s), Image.Resampling.LANCZOS)
+                    ico_img.save(ruta)
+                except Exception:
+                    pil_img.save(ruta)
             else:
                 pil_img.save(ruta)
             return True
@@ -930,8 +961,22 @@ class CanvasWidget(QWidget):
                 print(f"[canvas] Error al cargar con PIL: {e}")
                 return False
 
+        w, h = img_temp.width(), img_temp.height()
+        if w * h > 50_000_000:
+            from PyQt6.QtWidgets import QMessageBox
+            est_mb = (w * h * 4) // (1024 * 1024)
+            ret = QMessageBox.warning(
+                self,
+                "Imagen de Alta Resolución",
+                f"La imagen seleccionada mide {w}x{h} ({w*h//1_000_000} MP) y requiere aproximadamente {est_mb} MB de memoria por capa.\n\n"
+                "¿Deseas continuar abriendo esta imagen?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No
+            )
+            if ret != QMessageBox.StandardButton.Yes:
+                return False
+
         img_format = img_temp.convertToFormat(QImage.Format.Format_ARGB32_Premultiplied)
-        w, h = img_format.width(), img_format.height()
 
         self._ajustar_tamano_widget(w, h)
 
@@ -1287,9 +1332,34 @@ class CanvasWidget(QWidget):
         self.actualizar_historial_gui()
         self.update()
 
+    def actualizar_region_sucia(self, rect_canvas):
+        """
+        Solicita el repintado únicamente de la región dirty_rect (en coordenadas del lienzo)
+        convertida a coordenadas físicas del widget/pantalla con el factor de zoom actual.
+        """
+        if rect_canvas is None or rect_canvas.isEmpty():
+            self.update()
+            return
+
+        off_x, off_y = self.obtener_offset_canvas()
+        sf = self.scale_factor if self.scale_factor > 0 else 1.0
+
+        if isinstance(rect_canvas, QRectF):
+            r = rect_canvas.toRect()
+        else:
+            r = rect_canvas
+
+        margin = 6
+        rx = int(r.x() * sf) + off_x - margin
+        ry = int(r.y() * sf) + off_y - margin
+        rw = int(r.width() * sf) + (margin * 2)
+        rh = int(r.height() * sf) + (margin * 2)
+
+        self.update(QRect(rx, ry, rw, rh))
+
     # --- HISTORIAL Y CAPAS MULTIPLE ---
     def obtener_snapshot_documento(self):
-        """Genera una captura completa e independiente del estado de todas las capas del documento."""
+        """Genera una captura del documento creando copias independientes de las imágenes de las capas para el historial."""
         capas_copy = []
         for c in self.layer_mgr.capas:
             capas_copy.append({

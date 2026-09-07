@@ -2,6 +2,7 @@ import math
 from PyQt6.QtCore import Qt, QPointF, QRectF, QPoint
 from PyQt6.QtGui import QPainter, QPen, QColor, QImage, QBrush
 from tools.base_tool import BaseTool
+from core.stroke_smoother import generate_smooth_stroke_points, smooth_mouse_input
 
 
 class SmudgeTool(BaseTool):
@@ -12,6 +13,8 @@ class SmudgeTool(BaseTool):
         self.last_pos = None
         self.intensidad = 50  # 1-100%
         self.smudge_buffer = None
+        self._points = []
+        self._last_drawn_index = 0
 
     def draw_handles(self, painter, canvas):
         if canvas.cursor_pos is None:
@@ -39,24 +42,52 @@ class SmudgeTool(BaseTool):
     def mouse_press(self, canvas, event, color_activo=None):
         if event.button() in (Qt.MouseButton.LeftButton, Qt.MouseButton.RightButton):
             self.is_drawing = True
-            self.last_pos = event.position()
-            self._capture_buffer(canvas, event.position())
+            pos = event.position()
+            self.last_pos = pos
+            self._points = [pos]
+            self._last_drawn_index = 0
+            self._capture_buffer(canvas, pos)
 
     def mouse_move(self, canvas, event, color_activo=None):
         if self.is_drawing and self.last_pos:
-            curr_pos = event.position()
-            self._smudge_segment(canvas, self.last_pos, curr_pos)
-            self.last_pos = curr_pos
+            raw_pos = event.position()
+            pos = smooth_mouse_input(self.last_pos, raw_pos)
+            self._points.append(pos)
+            self._smudge_stroke(canvas, is_final=False)
+            self.last_pos = pos
             canvas.update()
 
     def mouse_release(self, canvas, event, color_activo=None):
         if self.is_drawing:
+            self._smudge_stroke(canvas, is_final=True)
             self.is_drawing = False
             self.last_pos = None
             self.smudge_buffer = None
+            self._points = []
+            self._last_drawn_index = 0
             if hasattr(canvas, 'push_document_state'):
                 canvas.push_document_state(self.name)
             canvas.update()
+
+    def _smudge_stroke(self, canvas, is_final=False):
+        pts = getattr(self, '_points', [])
+        if not pts:
+            return
+
+        grosor = max(2, getattr(canvas, 'grosor_pincel', 20))
+        radius = max(1, int(grosor / 2.0))
+        step_px = max(1.0, radius * 0.3)
+
+        sub_points, new_start_idx = generate_smooth_stroke_points(
+            pts, self._last_drawn_index, is_final=is_final, step_px=step_px
+        )
+
+        p_prev = pts[self._last_drawn_index] if self._last_drawn_index < len(pts) else pts[0]
+        for pt_f, _ in sub_points:
+            self._smudge_segment(canvas, p_prev, pt_f)
+            p_prev = pt_f
+
+        self._last_drawn_index = new_start_idx
 
     def _capture_buffer(self, canvas, pos: QPointF):
         active_layer = canvas.layer_mgr.get_active_layer()

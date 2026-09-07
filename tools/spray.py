@@ -4,6 +4,7 @@ from PyQt6.QtCore import Qt, QPointF, QRectF
 from PyQt6.QtGui import QPainter, QPen, QColor, QBrush, QImage
 from tools.base_tool import BaseTool
 from PyQt6.QtWidgets import QApplication
+from core.stroke_smoother import generate_smooth_stroke_points, smooth_mouse_input
 
 
 class SprayTool(BaseTool):
@@ -77,42 +78,15 @@ class SprayTool(BaseTool):
                     pos = QPointF(self.shift_anchor.x(), raw_pos.y())
             else:
                 self.shift_anchor = None
-                pos = raw_pos
+                pos = smooth_mouse_input(self._last_pos, raw_pos)
 
             if not hasattr(self, '_points') or not self._points:
                 self._points = [self._last_pos if self._last_pos else pos]
                 self._last_drawn_index = 0
 
             self._points.append(pos)
-            n = len(self._points)
-            start_idx = max(0, getattr(self, '_last_drawn_index', 0))
-
             color = color_activo if color_activo else (canvas.color_primario if event.buttons() & Qt.MouseButton.LeftButton else canvas.color_secundario)
-            grosor = max(2, getattr(canvas, 'grosor_pincel', 15))
-            radius = grosor / 2.0
-            step_px = max(2.0, radius * 0.4)
-
-            if start_idx < n - 1:
-                for i in range(start_idx, n - 1):
-                    p0 = self._points[max(0, i - 1)]
-                    p1 = self._points[i]
-                    p2 = self._points[i + 1]
-                    p3 = self._points[min(n - 1, i + 2)]
-
-                    dx = p2.x() - p1.x()
-                    dy = p2.y() - p1.y()
-                    dist = math.hypot(dx, dy)
-                    steps = max(1, int(math.ceil(dist / step_px)))
-
-                    for s in range(steps):
-                        t = (s + 1) / steps
-                        t2 = t * t
-                        t3 = t2 * t
-                        x = 0.5 * ((2 * p1.x()) + (-p0.x() + p2.x()) * t + (2 * p0.x() - 5 * p1.x() + 4 * p2.x() - p3.x()) * t2 + (-p0.x() + 3 * p1.x() - 3 * p2.x() + p3.x()) * t3)
-                        y = 0.5 * ((2 * p1.y()) + (-p0.y() + p2.y()) * t + (2 * p0.y() - 5 * p1.y() + 4 * p2.y() - p3.y()) * t2 + (-p0.y() + 3 * p1.y() - 3 * p2.y() + p3.y()) * t3)
-                        self._spray_at(canvas, QPointF(x, y), color)
-
-                self._last_drawn_index = n - 1
+            self._spray_stroke(canvas, color, is_final=False)
 
             self._last_pos = pos
             if hasattr(canvas.layer_mgr, 'invalidate_cache'):
@@ -121,6 +95,8 @@ class SprayTool(BaseTool):
 
     def mouse_release(self, canvas, event, color_activo=None):
         if self.is_drawing:
+            color = color_activo if color_activo else canvas.color_primario
+            self._spray_stroke(canvas, color, is_final=True)
             self.is_drawing = False
             self.shift_anchor = None
             self._last_pos = None
@@ -132,6 +108,24 @@ class SprayTool(BaseTool):
             if hasattr(canvas, 'push_document_state'):
                 canvas.push_document_state(self.name)
             canvas.update()
+
+    def _spray_stroke(self, canvas, color: QColor, is_final=False):
+        pts = getattr(self, '_points', [])
+        if not pts:
+            return
+
+        grosor = max(2, getattr(canvas, 'grosor_pincel', 15))
+        radius = grosor / 2.0
+        step_px = max(2.0, radius * 0.4)
+
+        sub_points, new_start_idx = generate_smooth_stroke_points(
+            pts, self._last_drawn_index, is_final=is_final, step_px=step_px
+        )
+
+        for pt, _ in sub_points:
+            self._spray_at(canvas, pt, color)
+
+        self._last_drawn_index = new_start_idx
 
     def _is_area_fully_covered(self, qimage: QImage, cx: float, cy: float, radius: float, target_color: QColor) -> bool:
         """

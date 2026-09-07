@@ -1518,7 +1518,6 @@ class MenuAjustes:
 
         accion_posterizado = self.menu_ajustes.addAction(
             QIcon("gui/iconos/posterized.png"), t("Posterizado..."))
-        accion_posterizado.setShortcut("Ctrl+Shift+O")
         accion_posterizado.triggered.connect(self.posterizado)
 
         accion_curvas = self.menu_ajustes.addAction(
@@ -1547,7 +1546,7 @@ class MenuAjustes:
 
         accion_invertir = self.menu_ajustes.addAction(
             QIcon("gui/iconos/negative.png"), t("Invertir colores"))
-        accion_invertir.setShortcut("Ctrl+Shift+I")
+        accion_invertir.setShortcut("Ctrl+I")
         accion_invertir.triggered.connect(self.invertir_colores)
 
     # ── acciones ──────────────────────────────────────────────────────────────

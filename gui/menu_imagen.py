@@ -234,9 +234,11 @@ class MenuImagen:
         self.menu_img = self.menu_bar.addMenu(t("Imagen"))
 
         accion_tam_img = self.menu_img.addAction(QIcon("gui/iconos/image_size.png"), t("Cambiar Tamaño de Imagen..."))
+        accion_tam_img.setShortcut("Ctrl+R")
         accion_tam_img.triggered.connect(self.cambiar_tamano_imagen)
 
         accion_tam_lienzo = self.menu_img.addAction(QIcon("gui/iconos/canvas.png"), t("Cambiar Tamaño de Lienzo..."))
+        accion_tam_lienzo.setShortcut("Ctrl+Shift+R")
         accion_tam_lienzo.triggered.connect(self.cambiar_tamano_lienzo)
 
         self.menu_img.addSeparator()

@@ -5,6 +5,7 @@ from tools.base_tool import BaseTool
 
 
 from PyQt6.QtWidgets import QApplication
+from core.stroke_smoother import generate_smooth_stroke_points, smooth_mouse_input
 
 class BrushTool(BaseTool):
     def __init__(self):
@@ -23,62 +24,57 @@ class BrushTool(BaseTool):
         px = math.floor(canvas.cursor_pos.x())
         py = math.floor(canvas.cursor_pos.y())
         pos = QPointF(px + 0.5, py + 0.5)
-        size = max(1, getattr(canvas, 'grosor_pincel', 3))
+        size = max(1, getattr(canvas, 'grosor_pincel', 5))
         r = size / 2.0
         forma = getattr(canvas, 'forma_pincel', 'Redondo')
 
         painter.save()
-        suavizado = getattr(canvas, 'suavizado_pincel', True)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing, suavizado)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
 
-        col_pri = QColor(canvas.color_primario)
         pen_outer = QPen(QColor(0, 0, 0, 180), 1.5)
         pen_outer.setCosmetic(True)
         painter.setPen(pen_outer)
         painter.setBrush(Qt.BrushStyle.NoBrush)
         _draw_cursor(painter, pos, r + 0.5, forma)
 
-        col_rim = QColor(col_pri); col_rim.setAlpha(255)
-        pen_rim = QPen(col_rim, 1.0)
-        pen_rim.setCosmetic(True)
-        painter.setPen(pen_rim)
-        col_fill = QColor(col_pri); col_fill.setAlpha(40)
+        col_pri = QColor(canvas.color_primario)
+        col_rim = QColor(col_pri)
+        col_rim.setAlpha(255)
+        pen_inner = QPen(col_rim, 1.0)
+        pen_inner.setCosmetic(True)
+        painter.setPen(pen_inner)
+
+        col_fill = QColor(col_pri)
+        col_fill.setAlpha(40)
         painter.setBrush(QBrush(col_fill))
+
         _draw_cursor(painter, pos, r, forma)
         painter.restore()
 
     def mouse_press(self, canvas, event, color_activo=None):
         if event.button() in (Qt.MouseButton.LeftButton, Qt.MouseButton.RightButton):
             self.is_drawing = True
-            self._has_moved = False
-            self.shift_anchor = None
             px = math.floor(event.position().x())
             py = math.floor(event.position().y())
             pos = QPointF(px + 0.5, py + 0.5)
             self._press_pos = pos
+            self._has_moved = False
             self._points = [pos]
             self._last_drawn_index = 0
+            self.shift_anchor = None
 
-            if canvas.capa_trazo_temp.size() != canvas.layer_mgr.buffer.size():
-                canvas.capa_trazo_temp = QImage(canvas.layer_mgr.buffer.size(),
-                                                QImage.Format.Format_ARGB32_Premultiplied)
-            canvas.capa_trazo_temp.fill(Qt.GlobalColor.transparent)
+            if not hasattr(canvas, 'capa_trazo_temp') or canvas.capa_trazo_temp.isNull():
+                canvas.capa_trazo_temp = QImage(canvas.layer_mgr.width, canvas.layer_mgr.height, QImage.Format.Format_ARGB32_Premultiplied)
+                canvas.capa_trazo_temp.fill(Qt.GlobalColor.transparent)
 
-            color = QColor(color_activo if color_activo else canvas.color_primario)
-            if hasattr(canvas.layer_mgr, 'active_stroke_alpha'):
-                canvas.layer_mgr.active_stroke_alpha = color.alpha() / 255.0
+            self._draw_incremental_stroke(canvas, color_activo, is_final=False)
 
-            suavizado = getattr(canvas, 'suavizado_pincel', True)
-            forma = getattr(canvas, 'forma_pincel', 'Redondo')
-            grosor = max(1, canvas.grosor_pincel)
-
-            color_solid = QColor(color)
-            color_solid.setAlpha(255)
-            _draw_dot(canvas.capa_trazo_temp, pos, grosor, color_solid, forma, suavizado)
+            if hasattr(canvas.layer_mgr, 'invalidate_cache'):
+                canvas.layer_mgr.invalidate_cache()
             canvas.update()
 
     def mouse_move(self, canvas, event, color_activo=None):
-        if not self.is_drawing:
+        if not self.is_drawing or not self._points:
             return
         px = math.floor(event.position().x())
         py = math.floor(event.position().y())
@@ -88,7 +84,7 @@ class BrushTool(BaseTool):
 
         if is_shift:
             if self.shift_anchor is None:
-                self.shift_anchor = self._points[-1] if self._points else raw_pos
+                self.shift_anchor = self._points[0]
             dx = raw_pos.x() - self.shift_anchor.x()
             dy = raw_pos.y() - self.shift_anchor.y()
             if abs(dx) >= abs(dy):
@@ -97,18 +93,22 @@ class BrushTool(BaseTool):
                 pos = QPointF(self.shift_anchor.x(), raw_pos.y())
         else:
             self.shift_anchor = None
-            pos = raw_pos
+            pos = smooth_mouse_input(self._points[-1], raw_pos)
 
         self._has_moved = True
         self._points.append(pos)
-        self._draw_incremental_stroke(canvas, color_activo)
+        self._draw_incremental_stroke(canvas, color_activo, is_final=False)
         if canvas.callback_modificado:
             canvas.callback_modificado()
-        canvas.update()
+
+        grosor = max(1, canvas.grosor_pincel)
+        p_last = self._points[-2] if len(self._points) >= 2 else pos
+        dirty_rect = QRectF(p_last, pos).normalized().toRect().adjusted(-grosor - 4, -grosor - 4, grosor + 8, grosor + 8)
+        canvas.actualizar_region_sucia(dirty_rect)
 
     def mouse_release(self, canvas, event, color_activo=None):
         if self.is_drawing:
-            self._draw_incremental_stroke(canvas, color_activo)
+            self._draw_incremental_stroke(canvas, color_activo, is_final=True)
 
             color = QColor(color_activo if color_activo else canvas.color_primario)
             alpha_norm = color.alpha() / 255.0
@@ -133,18 +133,19 @@ class BrushTool(BaseTool):
             self.is_drawing = False
             canvas.update()
 
-    def _draw_incremental_stroke(self, canvas, color_activo):
-        """Dibuja de forma incremental (O(1) por movimiento) únicamente los segmentos nuevos.
-        Esto garantiza cero lag y fluidez total sin pérdida de eventos de mouse en trazos largos.
-        """
+    def _draw_incremental_stroke(self, canvas, color_activo, is_final=False):
+        """Dibuja de forma incremental con suavizado Bézier C^1 continuo sin esquinas angulosas."""
         pts = self._points
-        n = len(pts)
-        if n <= 1:
+        if len(pts) == 0:
             return
 
-        start_idx = max(0, self._last_drawn_index)
-        if start_idx >= n - 1:
-            return
+        forma = getattr(canvas, 'forma_pincel', 'Redondo')
+        grosor = max(1, canvas.grosor_pincel)
+        step_px = max(0.5, grosor * 0.15)
+
+        sub_points, new_start_idx = generate_smooth_stroke_points(
+            pts, self._last_drawn_index, is_final=is_final, step_px=step_px
+        )
 
         painter = QPainter(canvas.capa_trazo_temp)
         canvas.aplicar_clip_seleccion(painter)
@@ -159,41 +160,26 @@ class BrushTool(BaseTool):
         suavizado = getattr(canvas, 'suavizado_pincel', True)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, suavizado)
 
-        forma = getattr(canvas, 'forma_pincel', 'Redondo')
-        grosor = max(1, canvas.grosor_pincel)
-
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QBrush(color_solid))
 
         r = grosor / 2.0
         hw = r
-        step_px = max(1.0, grosor * 0.15)
 
-        for i in range(start_idx, n - 1):
-            p0 = pts[max(0, i - 1)]
-            p1 = pts[i]
-            p2 = pts[i + 1]
-            p3 = pts[min(n - 1, i + 2)]
-
-            dx = p2.x() - p1.x()
-            dy = p2.y() - p1.y()
-            dist = math.sqrt(dx * dx + dy * dy)
-            steps = max(1, int(dist / step_px))
-
-            for s in range(steps):
-                t = s / steps
-                t2 = t * t
-                t3 = t2 * t
-                x = 0.5 * ((2 * p1.x()) + (-p0.x() + p2.x()) * t + (2 * p0.x() - 5 * p1.x() + 4 * p2.x() - p3.x()) * t2 + (-p0.x() + 3 * p1.x() - 3 * p2.x() + p3.x()) * t3)
-                y = 0.5 * ((2 * p1.y()) + (-p0.y() + p2.y()) * t + (2 * p0.y() - 5 * p1.y() + 4 * p2.y() - p3.y()) * t2 + (-p0.y() + 3 * p1.y() - 3 * p2.y() + p3.y()) * t3)
-
+        if len(pts) == 1 and self._last_drawn_index == 0:
+            p = pts[0]
+            if forma == 'Cuadrado':
+                painter.drawRect(QRectF(p.x() - hw, p.y() - hw, grosor, grosor))
+            else:
+                painter.drawEllipse(p, r, r)
+        else:
+            for pt, _ in sub_points:
                 if forma == 'Cuadrado':
-                    painter.drawRect(QRectF(x - hw, y - hw, grosor, grosor))
+                    painter.drawRect(QRectF(pt.x() - hw, pt.y() - hw, grosor, grosor))
                 else:
-                    painter.drawEllipse(QPointF(x, y), r, r)
+                    painter.drawEllipse(pt, r, r)
 
-        # Actualizar índice del último segmento dibujado
-        self._last_drawn_index = n - 1
+        self._last_drawn_index = new_start_idx
         painter.end()
 
 

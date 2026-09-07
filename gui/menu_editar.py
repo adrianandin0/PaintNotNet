@@ -170,7 +170,7 @@ class MenuEditar:
         accion_desel.triggered.connect(self.desechar_seleccion)
 
         accion_invertir = self.menu_editar.addAction(QIcon("gui/iconos/invert.png"), t("Invertir Selección"))
-        accion_invertir.setShortcut("Ctrl+I")
+        accion_invertir.setShortcut("Ctrl+Shift+I")
         accion_invertir.triggered.connect(self.invertir_seleccion)
 
         self.menu_editar.addSeparator()

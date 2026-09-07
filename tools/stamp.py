@@ -3,6 +3,7 @@ from PyQt6.QtCore import Qt, QPointF, QRectF, QRect, QPoint
 from PyQt6.QtGui import QPainter, QPen, QColor, QImage, QBrush, QBitmap, QPainterPath
 from tools.base_tool import BaseTool
 from core.i18n import t
+from core.stroke_smoother import generate_smooth_stroke_points, smooth_mouse_input
 
 
 class StampTool(BaseTool):
@@ -10,6 +11,9 @@ class StampTool(BaseTool):
     def __init__(self):
         super().__init__("Estampa", "gui/iconos/stamp.png")
         self.captured_texture: QImage | None = None
+        self.is_drawing = False
+        self._points = []
+        self._last_drawn_index = 0
 
     def draw_handles(self, painter, canvas):
         if canvas.cursor_pos is None:
@@ -72,10 +76,51 @@ class StampTool(BaseTool):
                     canvas.main_window.bottom_bar.mostrar_mensaje(t("Haz clic derecho para copiar una estampa primero"), 2500)
                 return
 
+            self.is_drawing = True
+            self._points = [pos]
+            self._last_drawn_index = 0
             self._apply_stamp(canvas, active_layer, pos, radius)
+            canvas.update()
+
+    def mouse_move(self, canvas, event, color_activo=None):
+        if self.is_drawing and self.captured_texture and not self.captured_texture.isNull():
+            raw_pos = event.position()
+            pos = smooth_mouse_input(self._points[-1] if self._points else None, raw_pos)
+            self._points.append(pos)
+            self._stamp_stroke(canvas, is_final=False)
+            canvas.update()
+
+    def mouse_release(self, canvas, event, color_activo=None):
+        if self.is_drawing:
+            self._stamp_stroke(canvas, is_final=True)
+            self.is_drawing = False
+            self._points = []
+            self._last_drawn_index = 0
             if hasattr(canvas, 'push_document_state'):
                 canvas.push_document_state(self.name)
             canvas.update()
+
+    def _stamp_stroke(self, canvas, is_final=False):
+        pts = getattr(self, '_points', [])
+        if not pts or not self.captured_texture:
+            return
+
+        active_layer = canvas.layer_mgr.get_active_layer()
+        if not active_layer:
+            return
+
+        grosor = max(2, getattr(canvas, 'grosor_pincel', 30))
+        radius = int(grosor / 2.0)
+        step_px = max(1.0, radius * 0.3)
+
+        sub_points, new_start_idx = generate_smooth_stroke_points(
+            pts, self._last_drawn_index, is_final=is_final, step_px=step_px
+        )
+
+        for pt_f, _ in sub_points:
+            self._apply_stamp(canvas, active_layer, pt_f, radius)
+
+        self._last_drawn_index = new_start_idx
 
     def _capture_stamp(self, canvas, active_layer, pos: QPointF, radius: int):
         img = active_layer.image

@@ -1,8 +1,9 @@
 import math
 import random
-from PyQt6.QtCore import Qt, QPoint, QPointF, QRectF
+from PyQt6.QtCore import Qt, QPoint, QPointF, QRect, QRectF
 from PyQt6.QtGui import QPainter, QPen, QColor, QBrush
 from PyQt6.QtWidgets import QApplication
+from core.stroke_smoother import generate_smooth_stroke_points, smooth_mouse_input
 from tools.base_tool import BaseTool
 
 
@@ -195,69 +196,65 @@ class PencilTool(BaseTool):
                     current_point = QPoint(self.shift_anchor.x(), raw_pos.y())
             else:
                 self.shift_anchor = None
-                current_point = raw_pos
+                sm_pos = smooth_mouse_input(self.last_point, QPointF(raw_pos))
+                current_point = QPoint(int(round(sm_pos.x())), int(round(sm_pos.y())))
 
             if not hasattr(self, '_points') or not self._points:
                 self._points = [self.last_point]
                 self._last_drawn_index = 0
 
             self._points.append(current_point)
-            n = len(self._points)
-            start_idx = max(0, getattr(self, '_last_drawn_index', 0))
-
-            if start_idx < n - 1:
-                modo = getattr(canvas, 'pencil_modo', 'pixelado')
-                color = QColor(color_activo if color_activo else canvas.color_primario)
-                color.setAlpha(255)
-                w = max(1, canvas.grosor_pincel)
-                dureza = getattr(canvas, 'pencil_dureza', 50)
-                polvo = getattr(canvas, 'pencil_polvo', True)
-
-                buffer = canvas.layer_mgr.buffer
-                painter = QPainter(buffer)
-                canvas.aplicar_clip_seleccion(painter)
-
-                if modo == 'pixelado':
-                    painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
-                    pen = QPen(color, w, Qt.PenStyle.SolidLine,
-                               Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
-                    painter.setPen(pen)
-
-                for i in range(start_idx, n - 1):
-                    p0 = self._points[max(0, i - 1)]
-                    p1 = self._points[i]
-                    p2 = self._points[i + 1]
-                    p3 = self._points[min(n - 1, i + 2)]
-
-                    dx = p2.x() - p1.x()
-                    dy = p2.y() - p1.y()
-                    dist = math.hypot(dx, dy)
-                    step_px = max(0.5, w * 0.25) if modo != 'pixelado' else 1.0
-                    steps = max(1, int(math.ceil(dist / step_px)))
-
-                    for s in range(steps):
-                        t = (s + 1) / steps
-                        t2 = t * t
-                        t3 = t2 * t
-                        x = 0.5 * ((2 * p1.x()) + (-p0.x() + p2.x()) * t + (2 * p0.x() - 5 * p1.x() + 4 * p2.x() - p3.x()) * t2 + (-p0.x() + 3 * p1.x() - 3 * p2.x() + p3.x()) * t3)
-                        y = 0.5 * ((2 * p1.y()) + (-p0.y() + p2.y()) * t + (2 * p0.y() - 5 * p1.y() + 4 * p2.y() - p3.y()) * t2 + (-p0.y() + 3 * p1.y() - 3 * p2.y() + p3.y()) * t3)
-                        pt = QPoint(int(round(x)), int(round(y)))
-
-                        if modo == 'pixelado':
-                            painter.drawPoint(pt)
-                        else:
-                            self._draw_realistic_stamp(painter, pt, w, color, dureza, polvo, is_slow=(dist <= 3.0))
-
-                painter.end()
-                self._last_drawn_index = n - 1
+            self._draw_pencil_stroke(canvas, color_activo, is_final=False)
 
             self.last_point = current_point
             if canvas.callback_modificado:
                 canvas.callback_modificado()
-            canvas.update()
+
+            w = max(1, canvas.grosor_pincel)
+            dirty_rect = QRect(self._points[-1], current_point).normalized().adjusted(-w - 4, -w - 4, w + 8, w + 8)
+            canvas.actualizar_region_sucia(dirty_rect)
 
     def mouse_release(self, canvas, event, color_activo=None):
-        self.is_drawing = False
-        self.shift_anchor = None
-        self._points = []
-        self._last_drawn_index = 0
+        if self.is_drawing:
+            self._draw_pencil_stroke(canvas, color_activo, is_final=True)
+            self.is_drawing = False
+            self.shift_anchor = None
+            self._points = []
+            self._last_drawn_index = 0
+
+    def _draw_pencil_stroke(self, canvas, color_activo, is_final=False):
+        pts = getattr(self, '_points', [])
+        if not pts:
+            return
+
+        modo = getattr(canvas, 'pencil_modo', 'pixelado')
+        color = QColor(color_activo if color_activo else canvas.color_primario)
+        color.setAlpha(255)
+        w = max(1, canvas.grosor_pincel)
+        dureza = getattr(canvas, 'pencil_dureza', 50)
+        polvo = getattr(canvas, 'pencil_polvo', True)
+        step_px = max(0.5, w * 0.25) if modo != 'pixelado' else 1.0
+
+        sub_points, new_start_idx = generate_smooth_stroke_points(
+            pts, self._last_drawn_index, is_final=is_final, step_px=step_px
+        )
+
+        buffer = canvas.layer_mgr.buffer
+        painter = QPainter(buffer)
+        canvas.aplicar_clip_seleccion(painter)
+
+        if modo == 'pixelado':
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
+            pen = QPen(color, w, Qt.PenStyle.SolidLine,
+                       Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+            painter.setPen(pen)
+
+        for pt_f, dist in sub_points:
+            pt = QPoint(int(round(pt_f.x())), int(round(pt_f.y())))
+            if modo == 'pixelado':
+                painter.drawPoint(pt)
+            else:
+                self._draw_realistic_stamp(painter, pt, w, color, dureza, polvo, is_slow=(dist <= 3.0))
+
+        painter.end()
+        self._last_drawn_index = new_start_idx

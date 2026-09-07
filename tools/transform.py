@@ -309,7 +309,8 @@ class TransformTool(BaseTool):
         w_src = float(src.width())
         h_src = float(src.height())
 
-        n = self.GRID_SUBDIVISIONS
+        # Adaptar subdivisiones durante el arrastre activo para respuesta instantánea (60+ FPS)
+        n = 4 if getattr(self, '_dragging_handle', self.HANDLE_NONE) != self.HANDLE_NONE else self.GRID_SUBDIVISIONS
         fine_grid = self._evaluate_fine_grid(n)
 
         all_xs = [pt.x() for row in fine_grid for pt in row]
@@ -550,6 +551,12 @@ class TransformTool(BaseTool):
         canvas.push_document_state("Transformar", force=True)
         canvas.update()
 
+    def cancel_transform(self, canvas) -> bool:
+        if self._is_active:
+            self._cancel(canvas)
+            return True
+        return False
+
     def _cancel(self, canvas):
         layer = canvas.layer_mgr.get_active_layer()
         if layer and layer.image and self._layer_backup:
@@ -566,6 +573,8 @@ class TransformTool(BaseTool):
             engine.set_path(QPainterPath(self._path_backup))
 
         self._reset_state()
+        from core.i18n import t
+        canvas.push_document_state(t("Cancelar transformación"), force=True)
         canvas.update()
 
     def draw_handles(self, painter, canvas):

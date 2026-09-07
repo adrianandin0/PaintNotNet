@@ -1,15 +1,18 @@
 import math
 import cv2
 import numpy as np
-from PyQt6.QtCore import Qt, QRect, QRectF, QPoint
+from PyQt6.QtCore import Qt, QRect, QRectF, QPoint, QPointF
 from PyQt6.QtGui import QPainter, QImage, QPen, QColor, QBrush, QPainterPath
 from tools.base_tool import BaseTool
+from core.stroke_smoother import generate_smooth_stroke_points, smooth_mouse_input
 
 
 class BlurTool(BaseTool):
     def __init__(self):
         super().__init__("Difuminar", "gui/iconos/blur.png")
         self.is_drawing = False
+        self._points = []
+        self._last_drawn_index = 0
 
     def _get_pixel_pos(self, event):
         return QPoint(int(math.floor(event.position().x())), int(math.floor(event.position().y())))
@@ -20,17 +23,44 @@ class BlurTool(BaseTool):
                 canvas.actualizar_preview_difuminado_seleccion()
             else:
                 self.is_drawing = True
-                self._apply_blur_at(canvas, self._get_pixel_pos(event))
+                pos = QPointF(event.position())
+                self._points = [pos]
+                self._last_drawn_index = 0
+                self._apply_blur_at(canvas, QPoint(int(pos.x()), int(pos.y())))
 
     def mouse_move(self, canvas, event, color_activo=None):
         if self.is_drawing:
-            self._apply_blur_at(canvas, self._get_pixel_pos(event))
+            raw_pos = event.position()
+            pos = smooth_mouse_input(self._points[-1] if self._points else None, raw_pos)
+            self._points.append(pos)
+            self._apply_blur_stroke(canvas, is_final=False)
 
     def mouse_release(self, canvas, event, color_activo=None):
         if self.is_drawing:
+            self._apply_blur_stroke(canvas, is_final=True)
             self.is_drawing = False
+            self._points = []
+            self._last_drawn_index = 0
             canvas.push_document_state("Difuminar")
             canvas.update()
+
+    def _apply_blur_stroke(self, canvas, is_final=False):
+        pts = getattr(self, '_points', [])
+        if not pts:
+            return
+
+        grosor = max(5, getattr(canvas, 'grosor_pincel', 15))
+        step_px = max(1.0, grosor * 0.25)
+
+        sub_points, new_start_idx = generate_smooth_stroke_points(
+            pts, self._last_drawn_index, is_final=is_final, step_px=step_px
+        )
+
+        for pt_f, _ in sub_points:
+            pt = QPoint(int(round(pt_f.x())), int(round(pt_f.y())))
+            self._apply_blur_at(canvas, pt)
+
+        self._last_drawn_index = new_start_idx
 
     def _apply_blur_at(self, canvas, pos):
         if not hasattr(canvas, 'main_window') or not canvas.main_window:
