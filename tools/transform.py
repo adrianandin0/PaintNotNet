@@ -548,6 +548,8 @@ class TransformTool(BaseTool):
         engine.unscaled_floating_image = None
         engine.clear_selection()
         self._reset_state()
+        if hasattr(canvas.layer_mgr, 'invalidate_cache'):
+            canvas.layer_mgr.invalidate_cache()
         canvas.push_document_state("Transformar", force=True)
         canvas.update()
 
@@ -569,10 +571,13 @@ class TransformTool(BaseTool):
         engine = canvas.selection_engine
         engine.floating_image = None
         engine.unscaled_floating_image = None
+        engine.clear_selection()
         if self._path_backup:
             engine.set_path(QPainterPath(self._path_backup))
 
         self._reset_state()
+        if hasattr(canvas.layer_mgr, 'invalidate_cache'):
+            canvas.layer_mgr.invalidate_cache()
         from core.i18n import t
         canvas.push_document_state(t("Cancelar transformación"), force=True)
         canvas.update()

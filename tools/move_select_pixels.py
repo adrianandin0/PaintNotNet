@@ -87,4 +87,6 @@ class MoveSelectPixelsTool(BaseTool):
             engine.is_new_content = False
             if hasattr(engine, 'original_selection_region'):
                 engine.original_selection_region = None
+            if hasattr(canvas.layer_mgr, 'invalidate_cache'):
+                canvas.layer_mgr.invalidate_cache()
             canvas.update()
