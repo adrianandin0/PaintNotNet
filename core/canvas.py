@@ -574,6 +574,11 @@ class CanvasWidget(QWidget):
         painter.save()
         painter.translate(off_x, off_y)
 
+        dpr = self.devicePixelRatioF() if hasattr(self, 'devicePixelRatioF') else 1.0
+        if self.scale_factor != 1.0 or dpr != 1.0:
+            painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+
         if self.scale_factor != 1.0:
             painter.scale(self.scale_factor, self.scale_factor)
 
@@ -1461,6 +1466,8 @@ class CanvasWidget(QWidget):
 
         if isinstance(snap, QImage):
             self.layer_mgr.buffer = snap.copy()
+            if hasattr(self.layer_mgr, 'invalidate_cache'):
+                self.layer_mgr.invalidate_cache()
             self.update()
             return
 
@@ -1468,6 +1475,8 @@ class CanvasWidget(QWidget):
             base_canvas, pkg = snap
             self.layer_mgr.buffer = base_canvas.copy()
             self.restaurar_paquete_flotante(pkg)
+            if hasattr(self.layer_mgr, 'invalidate_cache'):
+                self.layer_mgr.invalidate_cache()
             self.update()
             return
 
@@ -1509,6 +1518,9 @@ class CanvasWidget(QWidget):
                     self.selection_engine.set_path(QPainterPath(selection_path))
                 else:
                     self.selection_engine.clear_selection()
+
+            if hasattr(self.layer_mgr, 'invalidate_cache'):
+                self.layer_mgr.invalidate_cache()
 
             if hasattr(self, 'main_window') and self.main_window and hasattr(self.main_window, 'layers_panel'):
                 self.main_window.layers_panel.reconstruir_lista_capas()
