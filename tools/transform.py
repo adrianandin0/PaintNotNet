@@ -238,13 +238,15 @@ class TransformTool(BaseTool):
     def on_activate(self, canvas):
         self._reset_state()
         canvas.actualizar_cursor_herramienta(self)
-        if canvas.selection_engine.has_selection():
+        has_floating = bool(canvas.selection_engine.floating_image and not canvas.selection_engine.floating_image.isNull())
+        if canvas.selection_engine.has_selection() or has_floating:
             self._lift_selection(canvas)
             canvas.update()
 
     def _lift_selection(self, canvas) -> bool:
         engine = canvas.selection_engine
-        if not engine.has_selection():
+        has_floating = bool(engine.floating_image and not engine.floating_image.isNull())
+        if not engine.has_selection() and not has_floating:
             return False
 
         layer = canvas.layer_mgr.get_active_layer()
@@ -270,8 +272,11 @@ class TransformTool(BaseTool):
 
             if getattr(engine, 'rotation_center', None) and not engine.rotation_center.isNull():
                 cx, cy = engine.rotation_center.x(), engine.rotation_center.y()
-            else:
+            elif engine.active_rect and not engine.active_rect.isEmpty():
                 cx, cy = engine.active_rect.center().x(), engine.active_rect.center().y()
+            else:
+                pos = getattr(engine, 'original_image_pos', QPointF(0, 0))
+                cx, cy = pos.x() + W / 2.0, pos.y() + H / 2.0
 
             rad = math.radians(rot)
             cos_a, sin_a = math.cos(rad), math.sin(rad)
@@ -292,12 +297,13 @@ class TransformTool(BaseTool):
                 corners.append(QPointF(px, py))
 
             self._corners = corners
+            self._initial_corners = [QPointF(p) for p in corners]
             self._offsets = [[QPointF(0, 0) for _ in range(4)] for _ in range(4)]
             self._original_image = src.copy()
             self._original_pos = QPointF(corners[0])
 
             engine.unscaled_floating_image = src.copy()
-            engine.is_new_content = False
+            self._is_new_content = getattr(engine, 'is_new_content', False)
 
             self._undo_stack.clear()
             self._redo_stack.clear()
@@ -401,7 +407,7 @@ class TransformTool(BaseTool):
         h_src = float(src.height())
 
         # Adaptar subdivisiones durante el arrastre activo para respuesta instantánea (60+ FPS)
-        n = 4 if getattr(self, '_dragging_handle', self.HANDLE_NONE) != self.HANDLE_NONE else self.GRID_SUBDIVISIONS
+        n = 4 if getattr(self, '_active_handle', self.HANDLE_NONE) != self.HANDLE_NONE else self.GRID_SUBDIVISIONS
         fine_grid = self._evaluate_fine_grid(n)
 
         all_xs = [pt.x() for row in fine_grid for pt in row]
@@ -411,7 +417,7 @@ class TransformTool(BaseTool):
         out_w = max(int(max(all_xs) - out_x) + 2, 1)
         out_h = max(int(max(all_ys) - out_y) + 2, 1)
 
-        max_dim = max(int(w_src), int(h_src)) * 5
+        max_dim = max(16384, max(canvas.layer_mgr.width, canvas.layer_mgr.height) * 4)
         if out_w > max_dim or out_h > max_dim:
             return
 
@@ -440,23 +446,21 @@ class TransformTool(BaseTool):
                 d2 = fine_grid[r+1][c+1] - origin
                 d3 = fine_grid[r+1][c] - origin
 
-                e0_a, e1_a, e2_a = _expand_triangle(d0, d1, d2, 0.5)
                 t_a = _get_triangle_transform_2d(s0, s1, s2, d0, d1, d2)
                 if t_a:
                     p.save()
                     clip_a = QPainterPath()
-                    clip_a.addPolygon(QPolygonF([e0_a, e1_a, e2_a]))
+                    clip_a.addPolygon(QPolygonF([d0, d1, d2]))
                     p.setClipPath(clip_a)
                     p.setTransform(t_a)
                     p.drawImage(0, 0, src)
                     p.restore()
 
-                e0_b, e2_b, e3_b = _expand_triangle(d0, d2, d3, 0.5)
                 t_b = _get_triangle_transform_2d(s0, s2, s3, d0, d2, d3)
                 if t_b:
                     p.save()
                     clip_b = QPainterPath()
-                    clip_b.addPolygon(QPolygonF([e0_b, e2_b, e3_b]))
+                    clip_b.addPolygon(QPolygonF([d0, d2, d3]))
                     p.setClipPath(clip_b)
                     p.setTransform(t_b)
                     p.drawImage(0, 0, src)
@@ -509,23 +513,21 @@ class TransformTool(BaseTool):
                 d2 = fine_grid[r+1][c+1]
                 d3 = fine_grid[r+1][c]
 
-                e0_a, e1_a, e2_a = _expand_triangle(d0, d1, d2, 0.5)
                 t_a = _get_triangle_transform_2d(s0, s1, s2, d0, d1, d2)
                 if t_a:
                     painter.save()
                     clip_a = QPainterPath()
-                    clip_a.addPolygon(QPolygonF([e0_a, e1_a, e2_a]))
+                    clip_a.addPolygon(QPolygonF([d0, d1, d2]))
                     painter.setClipPath(clip_a)
                     painter.setTransform(t_a, True)
                     painter.drawImage(0, 0, src)
                     painter.restore()
 
-                e0_b, e2_b, e3_b = _expand_triangle(d0, d2, d3, 0.5)
                 t_b = _get_triangle_transform_2d(s0, s2, s3, d0, d2, d3)
                 if t_b:
                     painter.save()
                     clip_b = QPainterPath()
-                    clip_b.addPolygon(QPolygonF([e0_b, e2_b, e3_b]))
+                    clip_b.addPolygon(QPolygonF([d0, d2, d3]))
                     painter.setClipPath(clip_b)
                     painter.setTransform(t_b, True)
                     painter.drawImage(0, 0, src)
@@ -540,7 +542,8 @@ class TransformTool(BaseTool):
         doc_pos = event.position()
 
         if not self._is_active:
-            if canvas.selection_engine.has_selection():
+            has_floating = bool(canvas.selection_engine.floating_image and not canvas.selection_engine.floating_image.isNull())
+            if canvas.selection_engine.has_selection() or has_floating:
                 if self._lift_selection(canvas):
                     canvas.update()
             return
@@ -630,19 +633,29 @@ class TransformTool(BaseTool):
             if self._layer_backup:
                 layer.image = self._layer_backup.copy()
 
-            if self._path_backup and not self._path_backup.isEmpty():
-                p_clear = QPainter(layer.image)
-                p_clear.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
-                p_clear.setClipPath(self._path_backup)
-                p_clear.fillRect(self._path_backup.boundingRect(), Qt.GlobalColor.transparent)
-                p_clear.end()
-            elif self._original_pos and self._original_image:
-                p_clear = QPainter(layer.image)
-                p_clear.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
-                p_clear.fillRect(QRectF(self._original_pos.x(), self._original_pos.y(),
-                                        float(self._original_image.width()),
-                                        float(self._original_image.height())), Qt.GlobalColor.transparent)
-                p_clear.end()
+            is_new = getattr(self, '_is_new_content', False) or getattr(engine, 'is_new_content', False)
+            if not is_new:
+                if self._path_backup and not self._path_backup.isEmpty():
+                    p_clear = QPainter(layer.image)
+                    p_clear.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
+                    p_clear.setClipPath(self._path_backup)
+                    p_clear.fillRect(self._path_backup.boundingRect(), Qt.GlobalColor.transparent)
+                    p_clear.end()
+                elif hasattr(self, '_initial_corners') and self._initial_corners and len(self._initial_corners) >= 4:
+                    p_clear = QPainter(layer.image)
+                    p_clear.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
+                    poly_clear = QPainterPath()
+                    poly_clear.addPolygon(QPolygonF(self._initial_corners))
+                    p_clear.setClipPath(poly_clear)
+                    p_clear.fillRect(poly_clear.boundingRect(), Qt.GlobalColor.transparent)
+                    p_clear.end()
+                elif self._original_pos and self._original_image:
+                    p_clear = QPainter(layer.image)
+                    p_clear.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
+                    p_clear.fillRect(QRectF(self._original_pos.x(), self._original_pos.y(),
+                                            float(self._original_image.width()),
+                                            float(self._original_image.height())), Qt.GlobalColor.transparent)
+                    p_clear.end()
 
             if engine.floating_image and not engine.floating_image.isNull():
                 p = QPainter(layer.image)

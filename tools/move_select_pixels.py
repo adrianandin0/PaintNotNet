@@ -85,6 +85,7 @@ class MoveSelectPixelsTool(BaseTool):
             painter.end()
             engine.floating_image = None
             engine.unscaled_floating_image = None
+            engine.original_raw_image = None
             engine.is_new_content = False
             if hasattr(engine, 'original_selection_region'):
                 engine.original_selection_region = None

@@ -113,12 +113,16 @@ class SelectionEngine:
         self.is_moving = False
         self.is_rotating = False
 
-    def init_raw_image(self, img):
+    def init_raw_image(self, img, is_new_content=None):
         """Inicializa la imagen original sin degradación para transformaciones compuestas."""
         if img and not img.isNull():
             self.original_raw_image = img.copy()
             self.unscaled_floating_image = img.copy()
             self.floating_image = img.copy()
+            if is_new_content is not None:
+                self.is_new_content = is_new_content
+            elif not hasattr(self, 'is_new_content'):
+                self.is_new_content = False
             self.scale_x = 1.0
             self.scale_y = 1.0
             self.total_rotation = 0.0

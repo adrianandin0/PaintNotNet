@@ -406,7 +406,13 @@ class CanvasWidget(QWidget):
         from tools.text import TextTool
         from tools.line import LineTool
         from tools.shapes import ShapesTool
-        if hasattr(self, 'active_tool_obj'):
+        if hasattr(self, 'active_tool_obj') and self.active_tool_obj is not None:
+            if hasattr(self.active_tool_obj, 'on_deactivate'):
+                try:
+                    self.active_tool_obj.on_deactivate(self)
+                except Exception as e:
+                    print(f"[canvas] Error en on_deactivate: {e}")
+
             if isinstance(self.active_tool_obj, TextTool):
                 self.active_tool_obj.commit_text(self, self.color_primario)
             elif isinstance(self.active_tool_obj, LineTool):
@@ -1340,11 +1346,7 @@ class CanvasWidget(QWidget):
 
         rect = engine.active_rect.toRect().intersected(QRect(0, 0, self.layer_mgr.width, self.layer_mgr.height))
         if engine.floating_image and not engine.floating_image.isNull():
-            # Si hay una imagen flotante previa pero su tamaño o posición no coincide con la selección actual, consolidarla
-            if (hasattr(engine, 'original_image_pos') and engine.original_image_pos != QPointF(rect.topLeft())) or \
-               (hasattr(engine, 'unscaled_floating_image') and engine.unscaled_floating_image and engine.unscaled_floating_image.size() != rect.size()):
-                from tools.move_select_pixels import MoveSelectPixelsTool
-                MoveSelectPixelsTool.commit_floating_image(self)
+            return True
 
         if engine.floating_image is None or engine.floating_image.isNull():
             if rect.width() > 0 and rect.height() > 0:
@@ -2004,7 +2006,7 @@ class CanvasWidget(QWidget):
             pos_y = (lienzo_h - img_h) / 2.0 if img_h < lienzo_h else 0.0
             self.selection_engine.set_rectangle(QRectF(pos_x, pos_y, img_w, img_h))
             self.selection_engine.original_image_pos = QPointF(pos_x, pos_y)
-            self.selection_engine.init_raw_image(img_format)
+            self.selection_engine.init_raw_image(img_format, is_new_content=True)
 
         elif opcion == "adaptar_imagen":
             scaled_img = img_format.scaled(QSize(lienzo_w, lienzo_h), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
@@ -2014,14 +2016,14 @@ class CanvasWidget(QWidget):
             pos_y = (lienzo_h - scaled_h) / 2.0
             self.selection_engine.set_rectangle(QRectF(pos_x, pos_y, scaled_w, scaled_h))
             self.selection_engine.original_image_pos = QPointF(pos_x, pos_y)
-            self.selection_engine.init_raw_image(scaled_img)
+            self.selection_engine.init_raw_image(scaled_img, is_new_content=True)
 
         else:  # "sin_cambios"
             pos_x = (lienzo_w - img_w) / 2.0 if img_w < lienzo_w else 0.0
             pos_y = (lienzo_h - img_h) / 2.0 if img_h < lienzo_h else 0.0
             self.selection_engine.set_rectangle(QRectF(pos_x, pos_y, img_w, img_h))
             self.selection_engine.original_image_pos = QPointF(pos_x, pos_y)
-            self.selection_engine.init_raw_image(img_format)
+            self.selection_engine.init_raw_image(img_format, is_new_content=True)
 
         self.push_document_state(action_title, force=True)
 
