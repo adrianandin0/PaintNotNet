@@ -96,6 +96,7 @@ def _expand_triangle(d0: QPointF, d1: QPointF, d2: QPointF, amount: float = 0.5)
 class TransformTool(BaseTool):
 
     HANDLE_NONE = (-1, -1)
+    HANDLE_MOVE = (-2, -2)
     HANDLE_SIZE = 7   # píxeles de pantalla idénticos a los tiradores de selección
     GRID_SUBDIVISIONS = 12  # Subdivisión fina 12x12 para bordes totalmente curvos y orgánicos
 
@@ -113,6 +114,36 @@ class TransformTool(BaseTool):
         self._path_backup: QPainterPath | None = None
         self._undo_stack: list[tuple[list[QPointF], list[list[QPointF]]]] = []
         self._redo_stack: list[tuple[list[QPointF], list[list[QPointF]]]] = []
+
+    def _get_move_handle_info(self, scale_factor: float = 1.0) -> tuple[QPointF, QPointF, QRectF]:
+        """Calcula la posición del punto de anclaje de movimiento (top center exterior), la línea conectora y su QRectF."""
+        if not self._corners or len(self._corners) < 4:
+            return QPointF(), QPointF(), QRectF()
+
+        ctrl_grid = self._get_control_grid()
+        top_center = _evaluate_bicubic_surface(ctrl_grid, 0.5, 0.0)
+
+        tl = ctrl_grid[0][0]
+        tr = ctrl_grid[0][3]
+        vx = tr.x() - tl.x()
+        vy = tr.y() - tl.y()
+        length = math.hypot(vx, vy)
+
+        sf = max(0.001, scale_factor)
+        offset_dist = 18.0 / sf
+
+        if length > 1e-5:
+            nx = vy / length
+            ny = -vx / length
+            move_pt = QPointF(top_center.x() + nx * offset_dist, top_center.y() + ny * offset_dist)
+        else:
+            move_pt = QPointF(top_center.x(), top_center.y() - offset_dist)
+
+        move_sz = 10.0 / sf
+        half_sz = move_sz / 2.0
+        move_rect = QRectF(move_pt.x() - half_sz, move_pt.y() - half_sz, move_sz, move_sz)
+
+        return top_center, move_pt, move_rect
 
     def _reset_state(self):
         self._corners = []
@@ -206,6 +237,7 @@ class TransformTool(BaseTool):
 
     def on_activate(self, canvas):
         self._reset_state()
+        canvas.actualizar_cursor_herramienta(self)
         if canvas.selection_engine.has_selection():
             self._lift_selection(canvas)
             canvas.update()
@@ -214,12 +246,6 @@ class TransformTool(BaseTool):
         engine = canvas.selection_engine
         if not engine.has_selection():
             return False
-
-        # Si había otra selección flotante de otra herramienta, consolidarla primero
-        from tools.move_select_pixels import MoveSelectPixelsTool
-        if engine.floating_image is not None and not engine.floating_image.isNull():
-            if not getattr(self, '_is_active', False):
-                MoveSelectPixelsTool.commit_floating_image(canvas)
 
         layer = canvas.layer_mgr.get_active_layer()
         if layer and layer.image:
@@ -232,6 +258,54 @@ class TransformTool(BaseTool):
         canvas.floating_initial_canvas = None
         if hasattr(canvas, 'floating_sub_history'):
             canvas.floating_sub_history.clear()
+
+        raw = getattr(engine, 'original_raw_image', None) or engine.unscaled_floating_image or engine.floating_image
+        if raw and not raw.isNull():
+            src = raw.copy()
+            W = float(src.width())
+            H = float(src.height())
+            rot = getattr(engine, 'total_rotation', 0.0)
+            sx = getattr(engine, 'scale_x', 1.0)
+            sy = getattr(engine, 'scale_y', 1.0)
+
+            if getattr(engine, 'rotation_center', None) and not engine.rotation_center.isNull():
+                cx, cy = engine.rotation_center.x(), engine.rotation_center.y()
+            else:
+                cx, cy = engine.active_rect.center().x(), engine.active_rect.center().y()
+
+            rad = math.radians(rot)
+            cos_a, sin_a = math.cos(rad), math.sin(rad)
+            w_half = (W * sx) / 2.0
+            h_half = (H * sy) / 2.0
+
+            local_pts = [
+                (-w_half, -h_half),
+                ( w_half, -h_half),
+                ( w_half,  h_half),
+                (-w_half,  h_half)
+            ]
+
+            corners = []
+            for lx, ly in local_pts:
+                px = cx + (lx * cos_a - ly * sin_a)
+                py = cy + (lx * sin_a + ly * cos_a)
+                corners.append(QPointF(px, py))
+
+            self._corners = corners
+            self._offsets = [[QPointF(0, 0) for _ in range(4)] for _ in range(4)]
+            self._original_image = src.copy()
+            self._original_pos = QPointF(corners[0])
+
+            engine.unscaled_floating_image = src.copy()
+            engine.is_new_content = False
+
+            self._undo_stack.clear()
+            self._redo_stack.clear()
+            self._save_undo_step()
+
+            self._is_active = True
+            self._apply_warp(canvas)
+            return True
 
         active_rect = engine.active_rect.intersected(
             QRectF(0, 0, canvas.layer_mgr.width, canvas.layer_mgr.height)
@@ -289,10 +363,27 @@ class TransformTool(BaseTool):
         self._save_undo_step()
 
         self._is_active = True
+        self._apply_warp(canvas)
         return True
 
+    def on_deactivate(self, canvas):
+        if self._is_active:
+            self._commit(canvas)
+
     def _hit_test(self, doc_pos: QPointF, scale_factor: float) -> tuple[int, int]:
-        tol = 14.0 / max(0.001, scale_factor)
+        if not self._corners:
+            return self.HANDLE_NONE
+
+        sf = max(0.001, scale_factor)
+
+        # 1. Probar primero el punto de anclaje de movimiento (Move Anchor Handle)
+        top_center, move_pt, move_rect = self._get_move_handle_info(scale_factor)
+        tol_move = 4.0 / sf
+        if move_rect.adjusted(-tol_move, -tol_move, tol_move, tol_move).contains(doc_pos):
+            return self.HANDLE_MOVE
+
+        # 2. Probar los 16 tiradores de la malla 4x4
+        tol = 14.0 / sf
         for r in range(4):
             for c in range(4):
                 pt = self._get_mesh_point(r, c)
@@ -376,6 +467,16 @@ class TransformTool(BaseTool):
         engine.floating_image = result
         engine.original_image_pos = QPointF(out_x, out_y)
 
+        poly_path = QPainterPath()
+        poly_path.addPolygon(QPolygonF([
+            fine_grid[0][0],
+            fine_grid[0][n],
+            fine_grid[n][n],
+            fine_grid[n][0]
+        ]))
+        engine.active_path = poly_path
+        engine.active_rect = poly_path.boundingRect()
+
     def draw_preview(self, painter: QPainter, canvas):
         """Renderizado en tiempo real a 200+ FPS directamente con contornos curvos suaves."""
         if not self._is_active or not self._corners or not canvas.selection_engine.unscaled_floating_image:
@@ -452,6 +553,7 @@ class TransformTool(BaseTool):
             self._commit(canvas)
 
     def mouse_move(self, canvas, event, color_activo=None):
+        canvas.actualizar_cursor_herramienta(self)
         if not self._is_active or self._active_handle == self.HANDLE_NONE or self._last_doc_pos is None:
             return
 
@@ -459,29 +561,32 @@ class TransformTool(BaseTool):
         delta = doc_pos - self._last_doc_pos
         self._last_doc_pos = QPointF(doc_pos)
 
-        r0, c0 = self._active_handle
-
-        corner_idx = None
-        if (r0, c0) == (0, 0): corner_idx = 0
-        elif (r0, c0) == (0, 3): corner_idx = 1
-        elif (r0, c0) == (3, 3): corner_idx = 2
-        elif (r0, c0) == (3, 0): corner_idx = 3
-
-        if corner_idx is not None:
-            # Arrastre de Esquina: Deforma la envolvente 2D global de la imagen
-            self._corners[corner_idx] += delta
+        if self._active_handle == self.HANDLE_MOVE:
+            # Arrastre del punto de anclaje: desplaza todo el objeto sin modificar su forma ni curvas
+            for i in range(len(self._corners)):
+                self._corners[i] += delta
         else:
-            # Arrastre de Borde o Interior: Curva suavemente la malla 2D local
-            for r in range(4):
-                dr = abs(r - r0) / 3.0
-                wr = 0.5 * (1.0 + math.cos(math.pi * dr))
-                for c in range(4):
-                    dc = abs(c - c0) / 3.0
-                    wc = 0.5 * (1.0 + math.cos(math.pi * dc))
-                    w = wr * wc
-                    self._offsets[r][c] += delta * w
+            r0, c0 = self._active_handle
+            corner_idx = None
+            if (r0, c0) == (0, 0): corner_idx = 0
+            elif (r0, c0) == (0, 3): corner_idx = 1
+            elif (r0, c0) == (3, 3): corner_idx = 2
+            elif (r0, c0) == (3, 0): corner_idx = 3
 
-        # Actualización instantánea súper fluida del lienzo a 60+ FPS sin allocs pesados
+            if corner_idx is not None:
+                # Arrastre de Esquina: Deforma la envolvente 2D global de la imagen
+                self._corners[corner_idx] += delta
+            else:
+                # Arrastre de Borde o Interior: Curva suavemente la malla 2D local
+                for r in range(4):
+                    dr = abs(r - r0) / 3.0
+                    wr = 0.5 * (1.0 + math.cos(math.pi * dr))
+                    for c in range(4):
+                        dc = abs(c - c0) / 3.0
+                        wc = 0.5 * (1.0 + math.cos(math.pi * dc))
+                        w = wr * wc
+                        self._offsets[r][c] += delta * w
+
         canvas.update()
 
     def mouse_release(self, canvas, event, color_activo=None):
@@ -490,6 +595,7 @@ class TransformTool(BaseTool):
             self._apply_warp(canvas)
         self._active_handle = self.HANDLE_NONE
         self._last_doc_pos = None
+        canvas.actualizar_cursor_herramienta(self)
         canvas.update()
 
     def key_press(self, canvas, event, color_activo=None):
@@ -613,6 +719,21 @@ class TransformTool(BaseTool):
             for r in range(n):
                 painter.drawLine(fine_grid[r][sub_c], fine_grid[r+1][sub_c])
 
+        # 1. Dibujar el punto de anclaje de movimiento (Move Anchor Handle)
+        top_center, move_pt, move_rect = self._get_move_handle_info(canvas.scale_factor)
+        if not move_rect.isEmpty():
+            pen_stem = QPen(QColor(0, 120, 215), 1.0, Qt.PenStyle.DashLine)
+            pen_stem.setCosmetic(True)
+            painter.setPen(pen_stem)
+            painter.drawLine(top_center, move_pt)
+
+            pen_move_border = QPen(QColor(0, 50, 160), 1.0, Qt.PenStyle.SolidLine)
+            pen_move_border.setCosmetic(True)
+            painter.setPen(pen_move_border)
+            painter.setBrush(QBrush(QColor(0, 120, 215)))
+            painter.drawRect(move_rect)
+
+        # 2. Dibujar los 16 tiradores de la malla 4x4
         pen_border = QPen(QColor(0, 120, 215), 1.0, Qt.PenStyle.SolidLine)
         pen_border.setCosmetic(True)
 

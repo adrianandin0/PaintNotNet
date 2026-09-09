@@ -137,9 +137,11 @@ class SelectionEngine:
             raw_w = float(raw.width())
             raw_h = float(raw.height())
 
-            t_img = QTransform()
-            t_img.scale(self.scale_x, self.scale_y)
-            t_img.rotate(self.total_rotation)
+            t_img = (
+                QTransform()
+                .rotate(self.total_rotation)
+                .scale(self.scale_x, self.scale_y)
+            )
 
             # Renderizado suavizado directo desde el original de alta calidad
             self.floating_image = raw.transformed(t_img, Qt.TransformationMode.SmoothTransformation)

@@ -1641,14 +1641,21 @@ class CanvasWidget(QWidget):
             self.push_document_state("Cortar")
             self.active_tool_obj.copy_shape_to_clipboard(self)
             self.active_tool_obj.clear_active_shape(self)
+            if hasattr(self.layer_mgr, 'invalidate_cache'):
+                self.layer_mgr.invalidate_cache()
+            if self.callback_modificado:
+                self.callback_modificado()
+            self.update()
             return
 
-        if self.selection_engine.has_selection():
+        has_floating = bool(self.selection_engine.floating_image and not self.selection_engine.floating_image.isNull())
+        if self.selection_engine.has_selection() or has_floating:
             self.push_document_state("Cortar")
             self.copiar_seleccion()
-            if self.selection_engine.floating_image:
+            if has_floating:
                 self.selection_engine.floating_image = None
                 self.selection_engine.unscaled_floating_image = None
+                self.selection_engine.original_raw_image = None
             else:
                 rect = self.selection_engine.active_rect.toRect()
                 capa_activa = self.layer_mgr.capas[self.layer_mgr.indice_activo]
@@ -1658,14 +1665,37 @@ class CanvasWidget(QWidget):
                 painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
                 painter.fillRect(rect, Qt.GlobalColor.transparent)
                 painter.end()
+
+            if hasattr(self.layer_mgr, 'invalidate_cache'):
+                self.layer_mgr.invalidate_cache()
+
+            from tools.transform import TransformTool
+            if isinstance(self.active_tool_obj, TransformTool) and getattr(self.active_tool_obj, '_is_active', False):
+                self.active_tool_obj._reset_state()
+
+            if self.callback_modificado:
+                self.callback_modificado()
             self.update()
 
     def borrar_seleccion(self):
-        if self.selection_engine.has_selection():
+        from tools.shapes import ShapesTool
+        if isinstance(self.active_tool_obj, ShapesTool) and self.active_tool_obj.active_shape_rect:
             self.push_document_state("Borrar Selección")
-            if self.selection_engine.floating_image:
+            self.active_tool_obj.clear_active_shape(self)
+            if hasattr(self.layer_mgr, 'invalidate_cache'):
+                self.layer_mgr.invalidate_cache()
+            if self.callback_modificado:
+                self.callback_modificado()
+            self.update()
+            return
+
+        has_floating = bool(self.selection_engine.floating_image and not self.selection_engine.floating_image.isNull())
+        if self.selection_engine.has_selection() or has_floating:
+            self.push_document_state("Borrar Selección")
+            if has_floating:
                 self.selection_engine.floating_image = None
                 self.selection_engine.unscaled_floating_image = None
+                self.selection_engine.original_raw_image = None
             else:
                 rect = self.selection_engine.active_rect.toRect()
                 capa_activa = self.layer_mgr.capas[self.layer_mgr.indice_activo]
@@ -1675,6 +1705,16 @@ class CanvasWidget(QWidget):
                 painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
                 painter.fillRect(rect, Qt.GlobalColor.transparent)
                 painter.end()
+
+            if hasattr(self.layer_mgr, 'invalidate_cache'):
+                self.layer_mgr.invalidate_cache()
+
+            from tools.transform import TransformTool
+            if isinstance(self.active_tool_obj, TransformTool) and getattr(self.active_tool_obj, '_is_active', False):
+                self.active_tool_obj._reset_state()
+
+            if self.callback_modificado:
+                self.callback_modificado()
             self.update()
 
     def aplicar_clip_seleccion(self, painter):
@@ -1827,6 +1867,10 @@ class CanvasWidget(QWidget):
         MoveSelectPixelsTool.commit_floating_image(self)
         self.selection_engine.clear_selection()
         self.layer_mgr.buffer.fill(Qt.GlobalColor.transparent)
+        if hasattr(self.layer_mgr, 'invalidate_cache'):
+            self.layer_mgr.invalidate_cache()
+        if self.callback_modificado:
+            self.callback_modificado()
         self.update()
 
     def pegar_portapapeles(self):

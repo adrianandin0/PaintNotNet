@@ -100,9 +100,19 @@ class MenuEditar:
     seleccionar_todo_y_sincronizar = seleccionar_todo
 
     def borrar_seleccion(self):
+        from tools.text import TextTool
         c = self._get_canvas()
-        if c:
-            c.borrar_seleccion()
+        if not c: return
+        tool = getattr(c, 'active_tool_obj', None)
+        if isinstance(tool, TextTool) and tool.is_editing:
+            from PyQt6.QtCore import Qt, QEvent
+            from PyQt6.QtGui import QKeyEvent
+            tool.key_press(c,
+                QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Delete,
+                          Qt.KeyboardModifier.NoModifier),
+                c.color_primario)
+            return
+        c.borrar_seleccion()
 
     def borrar_todo(self):
         c = self._get_canvas()
