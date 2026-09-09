@@ -312,9 +312,20 @@ class PaintNotNet(QMainWindow):
         area_scroll.setStyleSheet(f"QScrollArea, QScrollArea > QWidget > QWidget {{ background-color: {c_bg}; border: none; }}")
         area_scroll.viewport().setStyleSheet(f"background-color: {c_bg};")
         area_scroll.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        area_scroll.setWidgetResizable(False)
+        use_gl = QSettings("PaintNotNet", "PaintNotNet").value("use_opengl", True, type=bool)
+        canvas = None
+        if use_gl:
+            from core.canvas import comprobar_soporte_opengl
+            if comprobar_soporte_opengl():
+                try:
+                    from core.opengl_canvas import OpenGLCanvasWidget
+                    canvas = OpenGLCanvasWidget(width, height)
+                except Exception:
+                    canvas = None
 
-        canvas = CanvasWidget(width, height)
+        if canvas is None:
+            canvas = CanvasWidget(width, height)
+
         if not transparent:
             canvas.layer_mgr.buffer.fill(Qt.GlobalColor.white)
 

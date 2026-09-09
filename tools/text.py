@@ -123,21 +123,52 @@ class TextSpan:
 
 RichLine = list[TextSpan]
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  Helpers de modelo
-# ─────────────────────────────────────────────────────────────────────────────
+def _span_fmt(span):
+    if hasattr(span, 'fmt'):
+        return span.fmt
+    if isinstance(span, (list, tuple)) and len(span) > 1:
+        f = span[1]
+        if isinstance(f, CharFormat):
+            return f
+        if isinstance(f, dict):
+            cf = CharFormat()
+            _apply_dict_to_fmt(cf, f)
+            return cf
+        if isinstance(span[0], CharFormat):
+            return span[0]
+    return CharFormat()
+
+
+def _span_text(span):
+    if hasattr(span, 'text'):
+        return span.text
+    if isinstance(span, (list, tuple)):
+        if isinstance(span[0], str):
+            return span[0]
+        if len(span) > 1 and isinstance(span[1], str):
+            return span[1]
+    return str(span)
+
 
 def _line_text(line: RichLine) -> str:
-    return "".join(s.text for s in line)
+    return "".join(_span_text(s) for s in line)
 
 
 def _fmt_at(line: RichLine, col: int) -> CharFormat:
     pos = 0
     for span in line:
-        if pos + len(span.text) > col:
-            return span.fmt.copy()
-        pos += len(span.text)
-    return line[-1].fmt.copy() if line else CharFormat()
+        txt = getattr(span, 'text', span[0] if isinstance(span, (list, tuple)) else "")
+        fmt = getattr(span, 'fmt', span[1] if isinstance(span, (list, tuple)) and len(span) > 1 else CharFormat())
+        if not isinstance(fmt, CharFormat):
+            fmt = CharFormat()
+        if pos + len(txt) > col:
+            return fmt.copy()
+        pos += len(txt)
+    if line:
+        last = line[-1]
+        fmt = getattr(last, 'fmt', last[1] if isinstance(last, (list, tuple)) and len(last) > 1 else CharFormat())
+        return fmt.copy() if isinstance(fmt, CharFormat) else CharFormat()
+    return CharFormat()
 
 
 def _merge_spans(line: RichLine):
@@ -290,23 +321,30 @@ class TextTool(BaseTool, QObject):
         """
         h = 0
         for span in self.rich_lines[li]:
-            m = QFontMetrics(span.fmt.build_base_font())
-            h = max(h, m.height())
+            fmt = getattr(span, 'fmt', span[0] if isinstance(span, (list, tuple)) else None)
+            if fmt and hasattr(fmt, 'build_base_font'):
+                m = QFontMetrics(fmt.build_base_font())
+                h = max(h, m.height())
         return h if h else 20
 
     def _line_ascent(self, li: int) -> int:
         """Ascent de la fuente BASE para posición de cursor coherente."""
         a = 0
         for span in self.rich_lines[li]:
-            m = QFontMetrics(span.fmt.build_base_font())
-            a = max(a, m.ascent())
+            fmt = getattr(span, 'fmt', span[0] if isinstance(span, (list, tuple)) else None)
+            if fmt and hasattr(fmt, 'build_base_font'):
+                m = QFontMetrics(fmt.build_base_font())
+                a = max(a, m.ascent())
         return a if a else 16
 
     def _line_width(self, li: int) -> int:
         w = 0
         for span in self.rich_lines[li]:
-            m = QFontMetrics(span.fmt.build_font())
-            w += m.horizontalAdvance(span.text)
+            fmt = getattr(span, 'fmt', span[0] if isinstance(span, (list, tuple)) else None)
+            txt = getattr(span, 'text', span[1] if isinstance(span, (list, tuple)) else "")
+            if fmt and hasattr(fmt, 'build_font'):
+                m = QFontMetrics(fmt.build_font())
+                w += m.horizontalAdvance(txt)
         return w
 
     def _max_line_width(self) -> int:
@@ -397,7 +435,7 @@ class TextTool(BaseTool, QObject):
                         is_last_visual: bool) -> int:
         """X de inicio de una línea visual, según alignment."""
         line      = self.rich_lines[li]
-        alignment = line[0].fmt.alignment if line else Qt.AlignmentFlag.AlignLeft
+        alignment = _span_fmt(line[0]).alignment if line else Qt.AlignmentFlag.AlignLeft
         ox        = self.text_rect.left() if self.text_rect else self.pos.x()
 
         if alignment == Qt.AlignmentFlag.AlignLeft:
@@ -484,6 +522,7 @@ class TextTool(BaseTool, QObject):
             for line in self.rich_lines:
                 _apply_fmt_to_range(line, 0, len(_line_text(line)), fmt_dict)
         if self.current_canvas:
+            self.current_canvas.invalidate_cache()
             self.current_canvas.update()
 
     def on_format_changed(self, canvas, fmt_dict: dict):
@@ -497,6 +536,7 @@ class TextTool(BaseTool, QObject):
 
         self.apply_format_to_selection(fmt_dict)
         if canvas:
+            canvas.invalidate_cache()
             canvas.update()
 
     def align_text_box(self, canvas, alignment: str):
@@ -547,7 +587,7 @@ class TextTool(BaseTool, QObject):
 
     def _calc_extra_per_space(self, li: int, seg_s: int, seg_e: int, is_last_v: bool) -> float:
         line = self.rich_lines[li]
-        alignment = line[0].fmt.alignment if line else Qt.AlignmentFlag.AlignLeft
+        alignment = _span_fmt(line[0]).alignment if line else Qt.AlignmentFlag.AlignLeft
         if alignment == Qt.AlignmentFlag.AlignJustify and not is_last_v and self.text_rect:
             seg_txt = _line_text(line)[seg_s:seg_e]
             lw = self._measure_text_width(li, seg_s, seg_e)
@@ -591,21 +631,23 @@ class TextTool(BaseTool, QObject):
         pos  = 0
         x    = 0.0
         for span in line:
-            l = len(span.text)
+            s_txt = _span_text(span)
+            s_fmt = _span_fmt(span)
+            l = len(s_txt)
             if pos + l <= seg_s:
                 pos += l; continue
-            m       = QFontMetrics(span.fmt.build_font())
+            m       = QFontMetrics(s_fmt.build_font())
             t_start = max(seg_s, pos) - pos
             t_end   = min(seg_e, pos + l) - pos
             for i in range(t_start, t_end):
-                sub_prev = span.text[t_start:i]
-                sub_curr = span.text[t_start:i + 1]
+                sub_prev = s_txt[t_start:i]
+                sub_curr = s_txt[t_start:i + 1]
                 cw_prev = m.horizontalAdvance(sub_prev) + (sub_prev.count(" ") * extra_space)
                 cw_curr = m.horizontalAdvance(sub_curr) + (sub_curr.count(" ") * extra_space)
                 mid = x + (cw_prev + cw_curr) / 2.0
                 if rel_x < mid:
                     return pos + i
-            x   += m.horizontalAdvance(span.text[t_start:t_end]) + (span.text[t_start:t_end].count(" ") * extra_space)
+            x   += m.horizontalAdvance(s_txt[t_start:t_end]) + (s_txt[t_start:t_end].count(" ") * extra_space)
             pos += l
             if pos >= seg_e:
                 break
@@ -622,18 +664,20 @@ class TextTool(BaseTool, QObject):
         extra_space = self._calc_extra_per_space(li, seg_s, seg_e, is_last_v)
         pos, x = 0, 0.0
         for span in line:
-            l = len(span.text)
+            s_txt = _span_text(span)
+            s_fmt = _span_fmt(span)
+            l = len(s_txt)
             if pos + l <= seg_s:
                 pos += l; continue
-            m       = QFontMetrics(span.fmt.build_font())
+            m       = QFontMetrics(s_fmt.build_font())
             t_start = max(seg_s, pos) - pos
             t_end   = min(seg_e, pos + l) - pos
             col_in  = col - pos
             if t_start <= col_in <= t_end:
-                sub = span.text[t_start:col_in]
+                sub = s_txt[t_start:col_in]
                 x += m.horizontalAdvance(sub) + (sub.count(" ") * extra_space)
                 return x
-            sub = span.text[t_start:t_end]
+            sub = s_txt[t_start:t_end]
             x   += m.horizontalAdvance(sub) + (sub.count(" ") * extra_space)
             pos += l
             if pos >= seg_e: break
@@ -1042,7 +1086,9 @@ class TextTool(BaseTool, QObject):
             return False
 
         self._update_panel_ui(canvas)
-        canvas.update()
+        if canvas:
+            canvas.invalidate_cache()
+            canvas.update()
         return True
 
     def _insert_text(self, text: str):
@@ -1131,10 +1177,13 @@ class TextTool(BaseTool, QObject):
         oy = self._origin().y()
 
         # Clipear al text_rect solo si ninguna línea/span tiene efectos activos
-        has_effects = any(
-            span.fmt.borde_enabled or span.fmt.glow_enabled or span.fmt.shadow_enabled
-            for line in self.rich_lines for span in line
-        )
+        has_effects = False
+        for line in self.rich_lines:
+            for span in line:
+                fmt = getattr(span, 'fmt', span[0] if isinstance(span, (list, tuple)) else None)
+                if fmt and (getattr(fmt, 'borde_enabled', False) or getattr(fmt, 'glow_enabled', False) or getattr(fmt, 'shadow_enabled', False)):
+                    has_effects = True
+                    break
         clip_applied = False
         if self.text_rect and not has_effects:
             painter.setClipRect(self.text_rect)
@@ -1175,7 +1224,7 @@ class TextTool(BaseTool, QObject):
                 bx = self._visual_line_x(li, seg_s, seg_e, is_last_v)
                 baseline = y + asc
 
-                alignment = rich_line[0].fmt.alignment if rich_line else Qt.AlignmentFlag.AlignLeft
+                alignment = _span_fmt(rich_line[0]).alignment if rich_line else Qt.AlignmentFlag.AlignLeft
                 extra_per_space = 0.0
                 if (alignment == Qt.AlignmentFlag.AlignJustify and not is_last_v and
                         self.text_rect):
@@ -1188,29 +1237,31 @@ class TextTool(BaseTool, QObject):
                 x_acc = 0.0
                 pos   = 0
                 for span in rich_line:
-                    l = len(span.text)
+                    s_txt = _span_text(span)
+                    s_fmt = _span_fmt(span)
+                    l = len(s_txt)
                     if pos + l <= seg_s:
                         pos += l; continue
                     if pos >= seg_e:
                         break
-                    font = span.fmt.build_font()
+                    font = s_fmt.build_font()
                     m    = QFontMetrics(font)
                     t_s  = max(seg_s, pos) - pos
                     t_e  = min(seg_e, pos + l) - pos
-                    sub  = span.text[t_s:t_e]
+                    sub  = s_txt[t_s:t_e]
                     painter.setFont(font)
 
-                    b_en  = span.fmt.borde_enabled
-                    b_w   = span.fmt.borde_width
-                    b_col = span.fmt.borde_color
-                    g_en  = span.fmt.glow_enabled
-                    g_r   = span.fmt.glow_width
-                    g_col = span.fmt.glow_color
-                    s_en  = span.fmt.shadow_enabled
-                    s_w   = span.fmt.shadow_width
-                    s_col = span.fmt.shadow_color
-                    s_dx  = int(span.fmt.shadow_dx * s_w * 0.5)
-                    s_dy  = int(span.fmt.shadow_dy * s_w * 0.5)
+                    b_en  = s_fmt.borde_enabled
+                    b_w   = s_fmt.borde_width
+                    b_col = s_fmt.borde_color
+                    g_en  = s_fmt.glow_enabled
+                    g_r   = s_fmt.glow_width
+                    g_col = s_fmt.glow_color
+                    s_en  = s_fmt.shadow_enabled
+                    s_w   = s_fmt.shadow_width
+                    s_col = s_fmt.shadow_color
+                    s_dx  = int(s_fmt.shadow_dx * s_w * 0.5)
+                    s_dy  = int(s_fmt.shadow_dy * s_w * 0.5)
 
                     def _build_span_path(text_str, x_pos):
                         path = QPainterPath()
@@ -1219,11 +1270,11 @@ class TextTool(BaseTool, QObject):
                         sw = m.horizontalAdvance(text_str)
                         line_w = max(1, m.lineWidth())
 
-                        if span.fmt.strike:
+                        if s_fmt.strike:
                             strike_y = baseline - max(1, m.strikeOutPos())
                             path.addRect(QRectF(x_pos, strike_y, sw, line_w))
 
-                        if span.fmt.underline:
+                        if s_fmt.underline:
                             under_y = baseline + max(1, m.underlinePos())
                             path.addRect(QRectF(x_pos, under_y, sw, line_w))
 
@@ -1233,7 +1284,7 @@ class TextTool(BaseTool, QObject):
                     if extra_per_space > 0:
                         for ch in sub:
                             path = _build_span_path(ch, bx + x_acc)
-                            self._draw_path(painter, path, span.fmt.color,
+                            self._draw_path(painter, path, s_fmt.color,
                                             b_en, b_w, b_col,
                                             g_en, g_r, g_col,
                                             s_en, s_w, s_col, s_dx, s_dy)
@@ -1241,7 +1292,7 @@ class TextTool(BaseTool, QObject):
                             x_acc += cw + (extra_per_space if ch == " " else 0)
                     else:
                         path = _build_span_path(sub, bx + x_acc)
-                        self._draw_path(painter, path, span.fmt.color,
+                        self._draw_path(painter, path, s_fmt.color,
                                         b_en, b_w, b_col,
                                         g_en, g_r, g_col,
                                         s_en, s_w, s_col, s_dx, s_dy)

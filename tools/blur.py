@@ -57,12 +57,12 @@ class BlurTool(BaseTool):
             path = QPainterPath()
 
             if self.tipo_area == "Rectangulo":
-                if self.start_pos and self.current_pos:
+                if self.start_pos is not None and self.current_pos is not None:
                     rect = QRectF(self.start_pos, self.current_pos).normalized()
                     if rect.width() >= 3 and rect.height() >= 3:
                         path.addRect(rect)
             elif self.tipo_area == "Elipse":
-                if self.start_pos and self.current_pos:
+                if self.start_pos is not None and self.current_pos is not None:
                     rect = QRectF(self.start_pos, self.current_pos).normalized()
                     if rect.width() >= 3 and rect.height() >= 3:
                         path.addEllipse(rect)
@@ -90,10 +90,10 @@ class BlurTool(BaseTool):
             painter.setPen(pen)
             painter.setBrush(Qt.BrushStyle.NoBrush)
 
-            if self.tipo_area == "Rectangulo" and self.start_pos and self.current_pos:
+            if self.tipo_area == "Rectangulo" and self.start_pos is not None and self.current_pos is not None:
                 rect = QRectF(self.start_pos, self.current_pos).normalized()
                 painter.drawRect(rect)
-            elif self.tipo_area == "Elipse" and self.start_pos and self.current_pos:
+            elif self.tipo_area == "Elipse" and self.start_pos is not None and self.current_pos is not None:
                 rect = QRectF(self.start_pos, self.current_pos).normalized()
                 painter.drawEllipse(rect)
             elif self.tipo_area == "Lazo" and len(self.area_points) >= 2:

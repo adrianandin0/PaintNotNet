@@ -88,6 +88,13 @@ class LayerManager:
         self._cached_pixmap = None
         self._cached_pixmap_img_id = None
         self._cached_active_stroke_base = None
+        self._cached_active_stroke_below = None
+        self._cached_active_stroke_above = None
+        if hasattr(self, 'on_cache_invalidated') and callable(self.on_cache_invalidated):
+            try:
+                self.on_cache_invalidated()
+            except Exception:
+                pass
 
     def get_qimage(self, capa_trazo_temp=None, draw_layer_preview_callback=None, selection_path=None):
         has_temp_stroke = bool(capa_trazo_temp and not capa_trazo_temp.isNull())
@@ -95,6 +102,8 @@ class LayerManager:
 
         if not has_temp_stroke and not has_preview_callback:
             self._cached_active_stroke_base = None
+            self._cached_active_stroke_below = None
+            self._cached_active_stroke_above = None
 
         # Si sólo hay 1 capa visible, opacidad 1.0, sin trazo temporal ni preview, devolver directamente el buffer de esa capa
         if (len(self.capas) == 1 and self.capas[0].visible and
@@ -102,9 +111,9 @@ class LayerManager:
             not has_temp_stroke and not has_preview_callback):
             return self.capas[0].image
 
-        # Reutilizar el lienzo base compuesto si estamos en medio de un trazo activo continuo
-        if has_temp_stroke and getattr(self, '_cached_active_stroke_base', None) is not None:
-            imagen_final = self._cached_active_stroke_base.copy()
+        # Reutilizar los bloques compuestos inferior y superior si estamos en medio de un trazo activo continuo
+        if has_temp_stroke and getattr(self, '_cached_active_stroke_below', None) is not None:
+            imagen_final = self._cached_active_stroke_below.copy()
             painter = QPainter(imagen_final)
             if selection_path and not selection_path.isEmpty():
                 painter.setClipPath(selection_path)
@@ -114,6 +123,12 @@ class LayerManager:
             if has_preview_callback:
                 draw_layer_preview_callback(painter)
             painter.end()
+
+            if getattr(self, '_cached_active_stroke_above', None) is not None:
+                p_top = QPainter(imagen_final)
+                p_top.drawImage(0, 0, self._cached_active_stroke_above)
+                p_top.end()
+
             return imagen_final
 
         imagen_final = QImage(self.width, self.height, QImage.Format.Format_ARGB32_Premultiplied)
@@ -137,22 +152,34 @@ class LayerManager:
                         painter.restore()
                     if has_preview_callback:
                         painter.save()
-                        if selection_path and not selection_path.isEmpty():
-                            painter.setClipPath(selection_path)
                         draw_layer_preview_callback(painter)
                         painter.restore()
         painter.end()
 
         if has_temp_stroke:
-            base_img = QImage(self.width, self.height, QImage.Format.Format_ARGB32_Premultiplied)
-            base_img.fill(Qt.GlobalColor.transparent)
-            p_base = QPainter(base_img)
+            # Caché de capas en o por debajo de la capa activa
+            below_img = QImage(self.width, self.height, QImage.Format.Format_ARGB32_Premultiplied)
+            below_img.fill(Qt.GlobalColor.transparent)
+            p_below = QPainter(below_img)
             for i, capa in enumerate(reversed(self.capas)):
-                if capa.visible:
-                    p_base.setOpacity(float(getattr(capa, 'opacity', 1.0)))
-                    p_base.drawImage(0, 0, capa.image)
-            p_base.end()
-            self._cached_active_stroke_base = base_img
+                idx_real = len(self.capas) - 1 - i
+                if idx_real >= self.indice_activo and capa.visible:
+                    p_below.setOpacity(float(getattr(capa, 'opacity', 1.0)))
+                    p_below.drawImage(0, 0, capa.image)
+            p_below.end()
+            self._cached_active_stroke_below = below_img
+
+            # Caché de capas estrictamente por encima de la capa activa
+            above_img = QImage(self.width, self.height, QImage.Format.Format_ARGB32_Premultiplied)
+            above_img.fill(Qt.GlobalColor.transparent)
+            p_above = QPainter(above_img)
+            for i, capa in enumerate(reversed(self.capas)):
+                idx_real = len(self.capas) - 1 - i
+                if idx_real < self.indice_activo and capa.visible:
+                    p_above.setOpacity(float(getattr(capa, 'opacity', 1.0)))
+                    p_above.drawImage(0, 0, capa.image)
+            p_above.end()
+            self._cached_active_stroke_above = above_img
 
         return imagen_final
 

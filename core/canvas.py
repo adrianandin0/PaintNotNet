@@ -7,7 +7,24 @@ from core.layers import LayerManager
 from core.history import HistoryManager
 from core.selection import SelectionEngine
 from tools.pencil import PencilTool
-from tools.text import TextTool
+def comprobar_soporte_opengl() -> bool:
+    """Verifica si el sistema soporta inicialización válida de contexto OpenGL."""
+    try:
+        from PyQt6.QtWidgets import QApplication
+        from PyQt6.QtOpenGLWidgets import QOpenGLWidget
+        app = QApplication.instance()
+        if not app:
+            return False
+        w = QOpenGLWidget()
+        w.resize(10, 10)
+        w.show()
+        app.processEvents()
+        valid = w.isValid()
+        w.close()
+        w.deleteLater()
+        return valid
+    except Exception:
+        return False
 
 
 class DialogoOpcionesInsercion(QDialog):
@@ -122,6 +139,9 @@ class CanvasWidget(QWidget):
         self.renderer = CanvasRenderer(self)
 
         self.layer_mgr = LayerManager(width, height)
+        self.content_dirty = True
+        self._cached_composite_pixmap = None
+        self.layer_mgr.on_cache_invalidated = self._on_layer_cache_invalidated
         self._ajustar_tamano_widget(width, height)
         from PyQt6.QtCore import QSettings
         max_ram_mb = QSettings("PaintNotNet", "PaintNotNet").value("max_history_ram_mb", 512, type=int)
@@ -210,6 +230,18 @@ class CanvasWidget(QWidget):
 
         if hasattr(self, 'main_window') and self.main_window and hasattr(self.main_window, 'bottom_bar') and self.main_window.bottom_bar:
             self.main_window.bottom_bar.actualizar_tamano_lienzo(w, h)
+
+    def _on_layer_cache_invalidated(self):
+        self.content_dirty = True
+        self._cached_composite_pixmap = None
+
+    def invalidate_cache(self):
+        """Invalida la caché de capas y solicita redibujado del lienzo."""
+        self.content_dirty = True
+        self._cached_composite_pixmap = None
+        if hasattr(self, 'layer_mgr') and self.layer_mgr and hasattr(self.layer_mgr, 'invalidate_cache'):
+            self.layer_mgr.invalidate_cache()
+        self.update()
 
     def eventFilter(self, watched, event):
         from PyQt6.QtCore import QEvent
@@ -496,6 +528,7 @@ class CanvasWidget(QWidget):
                     painter.setClipPath(engine.active_path)
                 painter.fillRect(rect, Qt.GlobalColor.transparent)
                 painter.end()
+                self.invalidate_cache()
 
         # Desplazar engine por (dx, dy)
         engine.translate(dx, dy)
@@ -552,6 +585,7 @@ class CanvasWidget(QWidget):
                     tool.rich_lines[tool.cursor_line],
                     tool.cursor_col, commit_str, tool._default_fmt)
                 tool._clear_sel()
+                self.invalidate_cache()
                 self.update()
             event.accept()
             return
@@ -565,9 +599,35 @@ class CanvasWidget(QWidget):
     def alto(self):
         return self.layer_mgr.height
 
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        
+    def _necesita_recomposicion_en_vivo(self) -> bool:
+        """Determina si hay una acción interactiva en vivo que requiere actualizar la previsualización del lienzo."""
+        if getattr(self, 'content_dirty', True):
+            return True
+        if getattr(self, 'drawing', False):
+            return True
+        tool = getattr(self, 'active_tool_obj', None)
+        if tool:
+            tool_name = getattr(tool, 'name', '')
+            if tool_name == "Transformar" and getattr(tool, '_is_active', False):
+                return True
+            if tool_name == "Texto" and getattr(tool, 'is_editing', False):
+                return True
+            if (
+                getattr(tool, '_is_active', False) or
+                getattr(tool, 'state', 0) != 0 or
+                getattr(tool, 'is_dragging', False) or
+                getattr(tool, 'is_drawing', False) or
+                getattr(tool, 'is_selecting_area', False) or
+                getattr(tool, 'active_shape_rect', None) is not None
+            ):
+                return True
+        engine = getattr(self, 'selection_engine', None)
+        if engine and engine.floating_image and not engine.floating_image.isNull():
+            return True
+        return False
+
+    def render_canvas(self, painter: QPainter):
+        """Renderiza todo el contenido del lienzo (capas, fondo, selección, reglas y herramientas)."""
         # Fondo uniforme según el tema activo
         from core.theme import ThemeManager
         bg_col = ThemeManager().obtener_color_area_canvas()
@@ -577,8 +637,10 @@ class CanvasWidget(QWidget):
         painter.save()
         painter.translate(off_x, off_y)
 
-        dpr = self.devicePixelRatioF() if hasattr(self, 'devicePixelRatioF') else 1.0
-        if self.scale_factor != 1.0 or dpr != 1.0:
+        if self.scale_factor >= 2.0:
+            painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, False)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
+        else:
             painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
             painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
 
@@ -589,7 +651,7 @@ class CanvasWidget(QWidget):
         l_width = self.layer_mgr.width
         l_height = self.layer_mgr.height
 
-        # --- DIBUJAR FONDO CUADRICULADO DEL LIENZO (optimizado con textura QBrush) ---
+        # --- DIBUJAR FONDO CUADRICULADO DEL LIENZO ---
         if not hasattr(self, '_bg_checker_brush') or self._bg_checker_brush is None:
             pm = QPixmap(32, 32)
             p_pm = QPainter(pm)
@@ -602,7 +664,6 @@ class CanvasWidget(QWidget):
 
         painter.fillRect(0, 0, l_width, l_height, self._bg_checker_brush)
 
-        # Callback para dibujar la previsualización del contenido en el orden Z de la capa activa
         def _dibujar_preview_capa_activa(p_capa):
             is_transforming = (getattr(self.active_tool_obj, 'name', '') == "Transformar" and getattr(self.active_tool_obj, '_is_active', False))
             if not is_transforming and self.selection_engine.floating_image and not self.selection_engine.floating_image.isNull():
@@ -613,14 +674,25 @@ class CanvasWidget(QWidget):
             if hasattr(self.active_tool_obj, 'draw_preview'):
                 self.active_tool_obj.draw_preview(p_capa, self)
 
-        # 1. Dibujar lienzo real (componiendo las capas de abajo hacia arriba e insertando el trazo/previsualización en la capa activa)
-        sel_path = self.selection_engine.active_path if (self.selection_engine.has_selection() and not self.selection_engine.active_path.isEmpty()) else None
-        pixmap = self.layer_mgr.get_qpixmap(
-            capa_trazo_temp=self.capa_trazo_temp,
-            draw_layer_preview_callback=_dibujar_preview_capa_activa,
-            selection_path=sel_path
-        )
-        painter.drawPixmap(0, 0, pixmap)
+        live_recomp = self._necesita_recomposicion_en_vivo()
+        if (
+            live_recomp or
+            getattr(self, 'content_dirty', False) or
+            not hasattr(self, '_cached_composite_pixmap') or
+            self._cached_composite_pixmap is None or
+            self._cached_composite_pixmap.isNull()
+        ):
+            sel_path = self.selection_engine.active_path if (self.selection_engine.has_selection() and not self.selection_engine.active_path.isEmpty()) else None
+            self._cached_composite_pixmap = self.layer_mgr.get_qpixmap(
+                capa_trazo_temp=self.capa_trazo_temp,
+                draw_layer_preview_callback=_dibujar_preview_capa_activa,
+                selection_path=sel_path
+            )
+            if not live_recomp:
+                self.content_dirty = False
+
+        if self._cached_composite_pixmap and not self._cached_composite_pixmap.isNull():
+            painter.drawPixmap(0, 0, self._cached_composite_pixmap)
 
         # 2. Dibujar cuadrícula de píxeles si está activada y el zoom es suficiente (>= 150%)
         if getattr(self, 'show_pixel_grid', False) and self.scale_factor >= 1.5:
@@ -644,11 +716,11 @@ class CanvasWidget(QWidget):
 
             painter.restore()
 
-        # 3. Tiradores y controles interactivos de herramientas (visibles en primer plano)
+        # 3. Tiradores y controles interactivos de herramientas
         if hasattr(self.active_tool_obj, 'draw_handles'):
             self.active_tool_obj.draw_handles(painter, self)
 
-        # 4. Marco de selección activo y tiradores (VISIBLES INCLUSO FUERA DEL LIENZO)
+        # 4. Marco de selección activo y tiradores
         if self.selection_engine.has_selection() and getattr(self.active_tool_obj, 'name', '') != "Transformar":
             pen = QPen(QColor(0, 120, 215), 1, Qt.PenStyle.DashLine)
             pen.setCosmetic(True)
@@ -660,7 +732,6 @@ class CanvasWidget(QWidget):
             else:
                 painter.drawRect(self.selection_engine.active_rect)
 
-            # Dibujar los 8 tiradores de selección (visibles en el área externa)
             handles = self.selection_engine.get_handles(self.scale_factor)
             pen_handle = QPen(QColor(0, 120, 215), 1, Qt.PenStyle.SolidLine)
             pen_handle.setCosmetic(True)
@@ -671,7 +742,7 @@ class CanvasWidget(QWidget):
 
         painter.restore()
 
-        # 5. Previsualización del tamaño de trazo pegada 1:1 al puntero del mouse (en coordenadas de pantalla del widget)
+        # 5. Previsualización del tamaño de trazo pegada 1:1 al puntero del mouse
         if hasattr(self, 'widget_cursor_pos') and self.widget_cursor_pos is not None and getattr(self, 'active_tool_obj', None):
             tool_name = getattr(self.active_tool_obj, 'name', getattr(self.active_tool_obj, 'nombre', ''))
             if tool_name in ("Pincel", "Lápiz", "Goma de Borrar", "Línea"):
@@ -699,6 +770,10 @@ class CanvasWidget(QWidget):
                 else:
                     painter.drawEllipse(rect)
                 painter.restore()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        self.render_canvas(painter)
 
     def _obtener_icono_herramienta_gris(self, tool_obj):
         """Devuelve un QPixmap de 16x16 en escala de grises para la herramienta activa."""
@@ -795,7 +870,10 @@ class CanvasWidget(QWidget):
         if self.drawing and self.callback_modificado:
             self.callback_modificado()
 
-        if self.drawing and hasattr(self, 'cursor_pos') and self.cursor_pos:
+        tool_name = getattr(self.active_tool_obj, 'name', getattr(self.active_tool_obj, 'nombre', ''))
+        es_herramienta_trazo = tool_name in ("Pincel", "Lápiz", "Goma de Borrar", "Spray", "Tampón de Clonado", "Acuarela")
+
+        if self.drawing and es_herramienta_trazo and hasattr(self, 'cursor_pos') and self.cursor_pos:
             grosor = max(30, int(getattr(self, 'grosor_pincel', 5) * 4))
             cx, cy = self.cursor_pos.x(), self.cursor_pos.y()
             sf = self.scale_factor
@@ -1004,6 +1082,8 @@ class CanvasWidget(QWidget):
         self.floating_sub_index = -1
 
         self.history_mgr.clear()
+        self.push_document_state("Abrir Imagen", force=True)
+        self.marcar_modificado(False)
 
         if hasattr(self, 'main_window') and self.main_window and hasattr(self.main_window, 'layers_panel'):
             self.main_window.layers_panel.reconstruir_lista_capas()
@@ -1539,6 +1619,10 @@ class CanvasWidget(QWidget):
         snap = self.history_mgr.jump_to_index(index)
         if snap is not None:
             self.restaurar_snapshot_documento(snap)
+            if self.history_mgr.current_index <= 0:
+                self.marcar_modificado(False)
+            else:
+                self.marcar_modificado(True)
 
     def deshacer(self): self.undo()
     def rehacer(self): self.redo()
@@ -1563,6 +1647,10 @@ class CanvasWidget(QWidget):
         prev_state = self.history_mgr.undo()
         if prev_state is not None:
             self.restaurar_snapshot_documento(prev_state)
+            if self.history_mgr.current_index <= 0:
+                self.marcar_modificado(False)
+            else:
+                self.marcar_modificado(True)
 
     def redo(self):
         if hasattr(self, 'active_tool_obj') and self.active_tool_obj:
@@ -1574,6 +1662,10 @@ class CanvasWidget(QWidget):
         next_state = self.history_mgr.redo()
         if next_state is not None:
             self.restaurar_snapshot_documento(next_state)
+            if self.history_mgr.current_index <= 0:
+                self.marcar_modificado(False)
+            else:
+                self.marcar_modificado(True)
 
     def cancelar_o_deseleccionar(self):
         engine = self.selection_engine

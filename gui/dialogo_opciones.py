@@ -13,7 +13,7 @@ class DialogoOpciones(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle(t("Preferencias de usuario"))
-        self.setMinimumSize(580, 520)
+        self.setMinimumSize(580, 550)
 
         self.setStyleSheet("""
             QDialog {
@@ -146,9 +146,12 @@ class DialogoOpciones(QDialog):
         # ── Grupo: Rendimiento y Memoria ──
         group_perf = QGroupBox(t("Rendimiento y memoria"))
         group_perf.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
-        layout_perf = QHBoxLayout()
+        layout_perf = QVBoxLayout()
         layout_perf.setContentsMargins(10, 8, 10, 8)
         layout_perf.setSpacing(8)
+
+        row_ram = QHBoxLayout()
+        row_ram.setSpacing(8)
 
         lbl_ram = QLabel(t("Límite de memoria del historial:"))
         self.slider_history_ram = QSlider(Qt.Orientation.Horizontal)
@@ -179,11 +182,18 @@ class DialogoOpciones(QDialog):
         lbl_ram_hint = QLabel(f"({t('512 MB recomendado')})")
         lbl_ram_hint.setStyleSheet("color: #999999; font-size: 11px;")
 
-        layout_perf.addWidget(lbl_ram)
-        layout_perf.addWidget(self.slider_history_ram)
-        layout_perf.addWidget(self.lbl_ram_val)
-        layout_perf.addWidget(lbl_ram_hint)
-        layout_perf.addStretch()
+        row_ram.addWidget(lbl_ram)
+        row_ram.addWidget(self.slider_history_ram)
+        row_ram.addWidget(self.lbl_ram_val)
+        row_ram.addWidget(lbl_ram_hint)
+        row_ram.addStretch()
+
+        self.chk_use_opengl = QCheckBox(t("Usar aceleración por hardware (OpenGL)"))
+        use_opengl = self.settings.value("use_opengl", True, type=bool)
+        self.chk_use_opengl.setChecked(use_opengl)
+
+        layout_perf.addLayout(row_ram)
+        layout_perf.addWidget(self.chk_use_opengl)
         group_perf.setLayout(layout_perf)
         layout.addWidget(group_perf)
 
@@ -483,7 +493,7 @@ class DialogoOpciones(QDialog):
         self.btn_show_unsplash.setEnabled(keys_editable)
         self.btn_show_pixabay.setEnabled(keys_editable)
 
-        # Mantener los botones de obtener clave habilitados siempre que la búsqueda online esté activa
+        # Mantener los botones de obtener key habilitados siempre que la búsqueda online esté activa
         self.btn_link_serper.setEnabled(enabled)
         self.btn_link_pexels.setEnabled(enabled)
         self.btn_link_unsplash.setEnabled(enabled)
@@ -509,10 +519,11 @@ class DialogoOpciones(QDialog):
         self.settings.setValue("show_pixel_grid", self.chk_show_grid.isChecked())
         self.settings.setValue("show_rulers", self.chk_show_rulers.isChecked())
 
-        # Guardar límite de memoria del historial
+        # Guardar límite de memoria del historial y aceleración GPU
         max_ram_mb = self.slider_history_ram.value()
         max_ram_mb = max(128, min(8192, round(max_ram_mb / 128.0) * 128))
         self.settings.setValue("max_history_ram_mb", max_ram_mb)
+        self.settings.setValue("use_opengl", self.chk_use_opengl.isChecked())
 
         # Guardar Opciones de Búsqueda de Imágenes Online
         self.settings.setValue("online_search_enabled", self.chk_online_enabled.isChecked())

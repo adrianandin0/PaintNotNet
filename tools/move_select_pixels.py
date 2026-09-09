@@ -51,6 +51,7 @@ class MoveSelectPixelsTool(BaseTool):
                     painter.setClipPath(engine.active_path)
                 painter.fillRect(rect, Qt.GlobalColor.transparent)
                 painter.end()
+                canvas.invalidate_cache()
 
         engine.begin_transform(pos, event.button(), hit)
 
