@@ -88,7 +88,7 @@ class DialogoOpciones(QDialog):
         lbl_icon_lang = QLabel()
         lbl_icon_lang.setPixmap(QIcon("gui/iconos/languages.png").pixmap(QSize(16, 16)))
         self.combo_lang = QComboBox()
-        self.combo_lang.addItems(["Español", "English"])
+        self.combo_lang.addItems(["Español", "English", "Português", "Français"])
         default_lang = self.settings.value("language", "Español")
         idx_lang = self.combo_lang.findText(str(default_lang))
         if idx_lang >= 0:

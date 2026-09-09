@@ -44,8 +44,10 @@ class I18nManager:
         lang_lower = str(nombre_idioma).lower()
         if "english" in lang_lower or "inglés" in lang_lower or "ingles" in lang_lower:
             codigo = "en"
-        elif "português" in lang_lower or "portugues" in lang_lower:
+        elif "português" in lang_lower or "portugues" in lang_lower or "portugues" in lang_lower:
             codigo = "pt"
+        elif "français" in lang_lower or "francais" in lang_lower or "francés" in lang_lower or "frances" in lang_lower or "french" in lang_lower:
+            codigo = "fr"
         elif "中文" in lang_lower or "chino" in lang_lower or "chinese" in lang_lower:
             codigo = "zh"
         elif "deutsch" in lang_lower or "alemán" in lang_lower or "aleman" in lang_lower:

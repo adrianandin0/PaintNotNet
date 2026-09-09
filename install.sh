@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# PaintNotNet v1.0.7 - Instalador Universal para Distribuciones Linux
+# PaintNotNet v1.0.9dev - Instalador Universal para Distribuciones Linux
 # (Debian, Ubuntu, Linux Mint, Fedora, RHEL, CentOS, Arch, Manjaro, openSUSE, etc.)
 # ==============================================================================
 
@@ -22,7 +22,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 echo -e "${COLOR_BLUE}==============================================================${COLOR_RESET}"
-echo -e "${COLOR_BLUE}        PaintNotNet v1.0.6 - Linux Installer / Instalador    ${COLOR_RESET}"
+echo -e "${COLOR_BLUE}        PaintNotNet v1.0.9dev - Linux Installer / Instalador ${COLOR_RESET}"
 echo -e "${COLOR_BLUE}==============================================================${COLOR_RESET}"
 echo ""
 
@@ -30,12 +30,20 @@ echo ""
 echo -e "${COLOR_YELLOW}Language / Idioma:${COLOR_RESET}"
 echo "  01 - Español"
 echo "  02 - English"
+echo "  03 - Português"
+echo "  04 - Français"
 echo ""
 read -rp "Elija una opción / Choose an option [01]: " LANG_CHOICE
 
 case "$LANG_CHOICE" in
     2|02|[Ee][Nn]|[Ee][Nn][Gg][Ll][Ii][Ss][Hh]|[Ii][Nn][Gg][Ll][Ee][Ss]|[Ii][Nn][Gg][Ll][Éé][Ss])
         SELECTED_LANG="English"
+        ;;
+    3|03|[Pp][Tt]|[Pp][Oo][Rr][Tt][Uu][Gg][Uu][ÊêEe][Ss])
+        SELECTED_LANG="Português"
+        ;;
+    4|04|[Ff][Rr]|[Ff][Rr][Aa][Nn][ÇçCc][Aa][Ii][Ss]|[Ff][Rr][Aa][Nn][Cc][ÉéEe][Ss])
+        SELECTED_LANG="Français"
         ;;
     *)
         SELECTED_LANG="Español"
@@ -63,6 +71,46 @@ if [ "$SELECTED_LANG" = "English" ]; then
     MSG_UNINSTALL_DONE="PaintNotNet has been completely uninstalled from the system."
     MSG_DESKTOP_COMMENT="Lightweight, powerful, and modern image editor for Linux"
     MSG_MIME_COMMENT="PaintNotNet Image Project"
+elif [ "$SELECTED_LANG" = "Português" ]; then
+    HEADER_TITLE="         Instalador do PaintNotNet para Linux                "
+    MSG_COMPILING="[i] Compilando a versão mais recente do PaintNotNet..."
+    MSG_NO_PYINSTALLER="[i] Instalando dependências do Python e PyInstaller..."
+    MSG_STEP1="[1/4] Verificando dependências do sistema (Python / Pip / Qt6 / OpenGL)..."
+    MSG_DISTRO_DEBIAN="      Distribuição baseada em Debian/Ubuntu detectada (apt)."
+    MSG_DISTRO_FEDORA="      Distribuição baseada em Fedora/RedHat detectada (dnf)."
+    MSG_DISTRO_ARCH="      Distribuição baseada em Arch Linux/Manjaro detectada (pacman)."
+    MSG_DISTRO_SUSE="      Distribuição baseada em openSUSE detectada (zypper)."
+    MSG_STEP2="[2/4] Instalando arquivos do programa em"
+    MSG_STEP3="[3/4] Criando atalhos na área de trabalho e ícones do sistema..."
+    MSG_STEP4="[4/4] Finalizando instalação..."
+    MSG_SUCCESS="      O PaintNotNet foi instalado com sucesso!               "
+    MSG_LAUNCH=" Você pode iniciar o aplicativo a partir de:"
+    MSG_LAUNCH_1="   1. Menu de aplicativos do sistema (Gráficos -> PaintNotNet)"
+    MSG_LAUNCH_2="   2. Ou digitando em qualquer terminal:"
+    MSG_UNINSTALL=" Para desinstalar o programa no futuro, execute:"
+    MSG_UNINSTALL_DONE="O PaintNotNet foi completamente desinstalado do sistema."
+    MSG_DESKTOP_COMMENT="Editor de imagens leve, potente e moderno para Linux"
+    MSG_MIME_COMMENT="Projeto de Imagem PaintNotNet"
+elif [ "$SELECTED_LANG" = "Français" ]; then
+    HEADER_TITLE="         Installeur de PaintNotNet pour Linux                "
+    MSG_COMPILING="[i] Compilation de la dernière version de PaintNotNet..."
+    MSG_NO_PYINSTALLER="[i] Installation des dépendances Python et PyInstaller..."
+    MSG_STEP1="[1/4] Vérification des dépendances système (Python / Pip / Qt6 / OpenGL)..."
+    MSG_DISTRO_DEBIAN="      Distribution basée sur Debian/Ubuntu détectée (apt)."
+    MSG_DISTRO_FEDORA="      Distribution basée sur Fedora/RedHat détectée (dnf)."
+    MSG_DISTRO_ARCH="      Distribution basée sur Arch Linux/Manjaro détectée (pacman)."
+    MSG_DISTRO_SUSE="      Distribution basée sur openSUSE détectée (zypper)."
+    MSG_STEP2="[2/4] Installation des fichiers de l'application dans"
+    MSG_STEP3="[3/4] Création des raccourcis et installation des icônes du système..."
+    MSG_STEP4="[4/4] Finalisation de l'installation..."
+    MSG_SUCCESS="      PaintNotNet a été installé avec succès !               "
+    MSG_LAUNCH=" Vous pouvez lancer l'application depuis :"
+    MSG_LAUNCH_1="   1. Le menu d'applications système (Graphisme -> PaintNotNet)"
+    MSG_LAUNCH_2="   2. Ou en tapant dans n'importe quel terminal :"
+    MSG_UNINSTALL=" Pour désinstaller le programme à l'avenir, exécutez :"
+    MSG_UNINSTALL_DONE="PaintNotNet a été complètement désinstallé du système."
+    MSG_DESKTOP_COMMENT="Éditeur d'images léger, puissant et moderne pour Linux"
+    MSG_MIME_COMMENT="Projet d'image PaintNotNet"
 else
     HEADER_TITLE="         Instalador de PaintNotNet para Linux                "
     MSG_COMPILING="[i] Compilando la versión más reciente de PaintNotNet..."
@@ -144,7 +192,7 @@ if [ -z "$PYINSTALLER_BIN" ]; then
     elif [ -f "${SCRIPT_DIR}/requirements.txt" ]; then
         "${SCRIPT_DIR}/venv/bin/python" -m pip install -r "${SCRIPT_DIR}/requirements.txt"
     else
-        "${SCRIPT_DIR}/venv/bin/python" -m pip install PyQt6 numpy opencv-python pyinstaller
+        "${SCRIPT_DIR}/venv/bin/python" -m pip install PyQt6 numpy opencv-python Pillow requests pyinstaller
     fi
     PYINSTALLER_BIN="${SCRIPT_DIR}/venv/bin/pyinstaller"
 fi
