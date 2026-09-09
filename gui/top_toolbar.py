@@ -499,12 +499,6 @@ class TopToolBarWidget(QToolBar):
         self.sep_formas = self.addSeparator()
 
         # 12. Opciones de Difuminar / Blur
-        self.lbl_blur = QLabel()
-        self.lbl_blur.setPixmap(QIcon("gui/iconos/blur.png").pixmap(QSize(24, 24)))
-        self.lbl_blur.setToolTip(t("Difuminar"))
-        self.lbl_blur.setContentsMargins(4, 0, 2, 0)
-        self.act_lbl_blur = self.addWidget(self.lbl_blur)
-
         # Label "Selección:"
         self.lbl_blur_seleccion = QLabel(t("Selección:"))
         self.lbl_blur_seleccion.setStyleSheet("font-size: 11px; font-weight: normal;")
@@ -554,6 +548,8 @@ class TopToolBarWidget(QToolBar):
         else:
             self.btn_blur_rect.setChecked(True)
 
+        self.sep_blur_1 = self.addSeparator()
+
         # Label "Modo:"
         self.lbl_blur_modo = QLabel(t("Modo:"))
         self.lbl_blur_modo.setStyleSheet("font-size: 11px; font-weight: normal;")
@@ -590,6 +586,13 @@ class TopToolBarWidget(QToolBar):
             self.btn_blur_blurred.setChecked(True)
         else:
             self.btn_blur_pixelated.setChecked(True)
+
+        self.sep_blur_2 = self.addSeparator()
+
+        # Label "Intensidad:" y Slider
+        self.lbl_blur_intensidad = QLabel(t("Intensidad:"))
+        self.lbl_blur_intensidad.setStyleSheet("font-size: 11px; font-weight: normal;")
+        self.act_lbl_blur_intensidad = self.addWidget(self.lbl_blur_intensidad)
 
         saved_val = int(self.settings.value("blur_val", 20))
         if saved_val <= 0:
@@ -1088,17 +1091,18 @@ class TopToolBarWidget(QToolBar):
 
         # Blur
         self._set_group_visible([
-            getattr(self, 'lbl_blur', None),
             getattr(self, 'lbl_blur_seleccion', None),
             getattr(self, 'btn_blur_rect', None),
             getattr(self, 'btn_blur_lazo', None),
             getattr(self, 'btn_blur_elipse', None),
+            getattr(self, 'sep_blur_1', None),
             getattr(self, 'lbl_blur_modo', None),
             getattr(self, 'btn_blur_pixelated', None),
             getattr(self, 'btn_blur_blurred', None),
+            getattr(self, 'sep_blur_2', None),
+            getattr(self, 'lbl_blur_intensidad', None),
             getattr(self, 'slider_blur', None),
             getattr(self, 'lbl_blur_val', None),
-            getattr(self, 'act_lbl_blur', None),
             getattr(self, 'act_lbl_blur_seleccion', None),
             getattr(self, 'act_btn_blur_rect', None),
             getattr(self, 'act_btn_blur_lazo', None),
@@ -1106,6 +1110,7 @@ class TopToolBarWidget(QToolBar):
             getattr(self, 'act_lbl_blur_modo', None),
             getattr(self, 'act_btn_blur_pixelated', None),
             getattr(self, 'act_btn_blur_blurred', None),
+            getattr(self, 'act_lbl_blur_intensidad', None),
             getattr(self, 'act_slider_blur', None),
             getattr(self, 'act_lbl_blur_val', None)
         ], uses_blur)
@@ -1588,6 +1593,8 @@ class TopToolBarWidget(QToolBar):
             self.btn_blur_pixelated.setToolTip(t("Pixelado"))
         if hasattr(self, 'btn_blur_blurred'):
             self.btn_blur_blurred.setToolTip(t("Gaussiano"))
+        if hasattr(self, 'lbl_blur_intensidad'):
+            self.lbl_blur_intensidad.setText(t("Intensidad:"))
 
     def contextMenuEvent(self, event):
         event.ignore()
