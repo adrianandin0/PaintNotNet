@@ -1,6 +1,6 @@
 import os
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
+    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QSpinBox, QSlider,
     QPushButton, QComboBox, QDialogButtonBox, QGroupBox, QCheckBox, QWidget, QSizePolicy
 )
 from PyQt6.QtCore import QSettings, QSize, Qt, QUrl
@@ -13,7 +13,7 @@ class DialogoOpciones(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle(t("Preferencias de usuario"))
-        self.setFixedSize(560, 460)
+        self.setMinimumSize(580, 520)
 
         self.setStyleSheet("""
             QDialog {
@@ -143,6 +143,50 @@ class DialogoOpciones(QDialog):
         group_workspace.setLayout(layout_ws)
         layout.addWidget(group_workspace)
 
+        # ── Grupo: Rendimiento y Memoria ──
+        group_perf = QGroupBox(t("Rendimiento y memoria"))
+        group_perf.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        layout_perf = QHBoxLayout()
+        layout_perf.setContentsMargins(10, 8, 10, 8)
+        layout_perf.setSpacing(8)
+
+        lbl_ram = QLabel(t("Límite de memoria del historial:"))
+        self.slider_history_ram = QSlider(Qt.Orientation.Horizontal)
+        self.slider_history_ram.setRange(128, 8192)
+        self.slider_history_ram.setSingleStep(128)
+        self.slider_history_ram.setPageStep(512)
+        self.slider_history_ram.setFixedWidth(130)
+
+        self.lbl_ram_val = QLabel("512 MB")
+        self.lbl_ram_val.setMinimumWidth(55)
+        self.lbl_ram_val.setStyleSheet("font-weight: bold;")
+
+        def _update_ram_label(val):
+            snapped = max(128, min(8192, round(val / 128.0) * 128))
+            if snapped != val:
+                self.slider_history_ram.blockSignals(True)
+                self.slider_history_ram.setValue(snapped)
+                self.slider_history_ram.blockSignals(False)
+            self.lbl_ram_val.setText(f"{snapped} MB")
+
+        self.slider_history_ram.valueChanged.connect(_update_ram_label)
+
+        current_ram = self.settings.value("max_history_ram_mb", 512, type=int)
+        current_ram = max(128, min(8192, round(current_ram / 128.0) * 128))
+        self.slider_history_ram.setValue(current_ram)
+        _update_ram_label(current_ram)
+
+        lbl_ram_hint = QLabel(f"({t('512 MB recomendado')})")
+        lbl_ram_hint.setStyleSheet("color: #999999; font-size: 11px;")
+
+        layout_perf.addWidget(lbl_ram)
+        layout_perf.addWidget(self.slider_history_ram)
+        layout_perf.addWidget(self.lbl_ram_val)
+        layout_perf.addWidget(lbl_ram_hint)
+        layout_perf.addStretch()
+        group_perf.setLayout(layout_perf)
+        layout.addWidget(group_perf)
+
         # ── 2. Grupo 2: Archivos y Guardado (Directorio, Formato, Guardar al cerrar) ──
         group_files = QGroupBox(t("Archivos y guardado"))
         group_files.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
@@ -232,10 +276,36 @@ class DialogoOpciones(QDialog):
         layout_keys.setContentsMargins(0, 2, 0, 2)
         layout_keys.setSpacing(8)
 
+        # Serper.dev Google Images API
+        row_serper = QHBoxLayout()
+        lbl_serper = QLabel("Serper API Key:")
+        lbl_serper.setFixedWidth(120)
+        self.input_api_serper = QLineEdit()
+        self.input_api_serper.setEchoMode(QLineEdit.EchoMode.Password)
+        self.input_api_serper.setPlaceholderText(t("Clave de API Serper (Google)..."))
+        self.input_api_serper.setText(str(self.settings.value("api_key_serper", "")))
+
+        self.btn_show_serper = QPushButton()
+        self.btn_show_serper.setIcon(QIcon("gui/iconos/eye.png"))
+        self.btn_show_serper.setIconSize(QSize(14, 14))
+        self.btn_show_serper.setFixedWidth(28)
+        self.btn_show_serper.setCheckable(True)
+        self.btn_show_serper.setToolTip(t("Mostrar/Ocultar clave"))
+        self.btn_show_serper.toggled.connect(lambda checked, w=self.input_api_serper: w.setEchoMode(QLineEdit.EchoMode.Normal if checked else QLineEdit.EchoMode.Password))
+
+        self.btn_link_serper = QPushButton(t("Obtener key gratis"))
+        self.btn_link_serper.setFixedWidth(135)
+        self.btn_link_serper.clicked.connect(lambda: self._abrir_url_externa("https://serper.dev/"))
+        row_serper.addWidget(lbl_serper)
+        row_serper.addWidget(self.input_api_serper)
+        row_serper.addWidget(self.btn_show_serper)
+        row_serper.addWidget(self.btn_link_serper)
+        layout_keys.addLayout(row_serper)
+
         # Pexels
         row_pexels = QHBoxLayout()
         lbl_pexels = QLabel("Pexels API Key:")
-        lbl_pexels.setFixedWidth(105)
+        lbl_pexels.setFixedWidth(120)
         self.input_api_pexels = QLineEdit()
         self.input_api_pexels.setEchoMode(QLineEdit.EchoMode.Password)
         self.input_api_pexels.setPlaceholderText(t("Clave de API Pexels..."))
@@ -261,7 +331,7 @@ class DialogoOpciones(QDialog):
         # Unsplash
         row_unsplash = QHBoxLayout()
         lbl_unsplash = QLabel("Unsplash API Key:")
-        lbl_unsplash.setFixedWidth(105)
+        lbl_unsplash.setFixedWidth(120)
         self.input_api_unsplash = QLineEdit()
         self.input_api_unsplash.setEchoMode(QLineEdit.EchoMode.Password)
         self.input_api_unsplash.setPlaceholderText(t("Clave de API Unsplash..."))
@@ -287,7 +357,7 @@ class DialogoOpciones(QDialog):
         # Pixabay
         row_pixabay = QHBoxLayout()
         lbl_pixabay = QLabel("Pixabay API Key:")
-        lbl_pixabay.setFixedWidth(105)
+        lbl_pixabay.setFixedWidth(120)
         self.input_api_pixabay = QLineEdit()
         self.input_api_pixabay.setEchoMode(QLineEdit.EchoMode.Password)
         self.input_api_pixabay.setPlaceholderText(t("Clave de API Pixabay..."))
@@ -403,15 +473,18 @@ class DialogoOpciones(QDialog):
         free_only = self.chk_online_free_only.isChecked()
 
         keys_editable = enabled and not free_only
+        self.input_api_serper.setEnabled(keys_editable)
         self.input_api_pexels.setEnabled(keys_editable)
         self.input_api_unsplash.setEnabled(keys_editable)
         self.input_api_pixabay.setEnabled(keys_editable)
 
+        self.btn_show_serper.setEnabled(keys_editable)
         self.btn_show_pexels.setEnabled(keys_editable)
         self.btn_show_unsplash.setEnabled(keys_editable)
         self.btn_show_pixabay.setEnabled(keys_editable)
 
         # Mantener los botones de obtener clave habilitados siempre que la búsqueda online esté activa
+        self.btn_link_serper.setEnabled(enabled)
         self.btn_link_pexels.setEnabled(enabled)
         self.btn_link_unsplash.setEnabled(enabled)
         self.btn_link_pixabay.setEnabled(enabled)
@@ -436,9 +509,15 @@ class DialogoOpciones(QDialog):
         self.settings.setValue("show_pixel_grid", self.chk_show_grid.isChecked())
         self.settings.setValue("show_rulers", self.chk_show_rulers.isChecked())
 
+        # Guardar límite de memoria del historial
+        max_ram_mb = self.slider_history_ram.value()
+        max_ram_mb = max(128, min(8192, round(max_ram_mb / 128.0) * 128))
+        self.settings.setValue("max_history_ram_mb", max_ram_mb)
+
         # Guardar Opciones de Búsqueda de Imágenes Online
         self.settings.setValue("online_search_enabled", self.chk_online_enabled.isChecked())
         self.settings.setValue("online_search_free_only", self.chk_online_free_only.isChecked())
+        self.settings.setValue("api_key_serper", self.input_api_serper.text().strip())
         self.settings.setValue("api_key_pexels", self.input_api_pexels.text().strip())
         self.settings.setValue("api_key_unsplash", self.input_api_unsplash.text().strip())
         self.settings.setValue("api_key_pixabay", self.input_api_pixabay.text().strip())
@@ -461,6 +540,8 @@ class DialogoOpciones(QDialog):
                 for i in range(parent.tab_widget.count()):
                     container = parent.tab_widget.widget(i)
                     if container:
+                        if hasattr(container, 'canvas') and container.canvas and hasattr(container.canvas, 'history_mgr'):
+                            container.canvas.history_mgr.set_max_memory_mb(max_ram_mb)
                         if hasattr(container, 'corner'):
                             container.corner.set_unit(ruler_unit)
                         if hasattr(container, 'top_ruler'):

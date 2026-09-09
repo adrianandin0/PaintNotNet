@@ -500,10 +500,17 @@
   "Pulgadas (in)": "Pulgadas (in)",
   "Píxeles (px)": "Píxeles (px)",
   "Muestra u oculta las reglas graduadas en los bordes del lienzo.": "Muestra u oculta las reglas graduadas en los bordes del lienzo.",
+  "Pincel": "Pincel",
+  "Área Rectangular": "Área Rectangular",
+  "Área Libre": "Área Libre",
+  "Área Elíptica": "Área Elíptica",
+  "Selección:": "Selección:",
   "Cancelar transformación": "Cancelar transformación",
   "Búsqueda de imágenes online": "Búsqueda de imágenes online",
   "Activar búsqueda de imágenes desde internet": "Activar búsqueda de imágenes desde internet",
   "Usar solo fuentes sin clave (Wikimedia Commons)": "Usar solo fuentes sin clave (Wikimedia Commons)",
+  "Clave de API Serper (Google)...": "Clave de API Serper (Google)...",
+  "Google Images (Serper)": "Google Images (Serper)",
   "Clave de API Pexels...": "Clave de API Pexels...",
   "Clave de API Unsplash...": "Clave de API Unsplash...",
   "Clave de API Pixabay...": "Clave de API Pixabay...",
@@ -549,5 +556,8 @@
   "Compresión:": "Compresión:",
   "Profundidad:": "Profundidad:",
   "Grises": "Grises",
-  "Compresión": "Compresión"
+  "Compresión": "Compresión",
+  "Rendimiento y memoria": "Rendimiento y memoria",
+  "Límite de memoria del historial:": "Límite de memoria del historial:",
+  "512 MB recomendado": "512 MB recomendado"
 }

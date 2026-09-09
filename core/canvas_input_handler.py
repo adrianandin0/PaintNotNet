@@ -40,6 +40,9 @@ class CanvasInputHandler(QObject):
         self.canvas.cursor_pos = ev.position()
         self.notify_cursor_position()
 
+        if hasattr(self.canvas, 'layer_mgr') and hasattr(self.canvas.layer_mgr, 'preparar_para_modificacion'):
+            self.canvas.layer_mgr.preparar_para_modificacion()
+
         tool = getattr(self.canvas, 'active_tool_obj', None)
         if tool and hasattr(tool, 'mouse_press'):
             tool.mouse_press(self.canvas, ev)

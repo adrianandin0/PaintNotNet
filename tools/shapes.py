@@ -118,6 +118,7 @@ class ShapesTool(BaseTool):
                     return
                 else:
                     self.commit_shape(canvas)
+                    return
 
             self.is_drawing = True
             self.start_point = pos

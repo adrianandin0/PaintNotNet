@@ -1241,7 +1241,7 @@ class DialogoArchivo(QDialog):
         _, exts = self._filtros[self._filtro_activo]
         if not exts:
             return True
-        ext = os.path.splitext(nombre)[1].lower()
+        ext = os.path.splitext(nombre)[1].lstrip('.').lower()
         return ext in exts
 
     # Carga de directorio

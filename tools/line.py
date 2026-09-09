@@ -206,6 +206,7 @@ class LineTool(BaseTool):
                 return
             else:
                 self.commit_line(canvas)
+                return
 
         if self.state == 0 and event.button() == Qt.MouseButton.LeftButton:
             self._init_points(pos, pos)

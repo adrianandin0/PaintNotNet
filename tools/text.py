@@ -1303,6 +1303,8 @@ class TextTool(BaseTool, QObject):
         self.text_rect  = None
         self.rich_lines = [_empty_line(self._default_fmt)]
         self._clear_sel()
+        if hasattr(canvas, 'layer_mgr') and hasattr(canvas.layer_mgr, 'invalidate_cache'):
+            canvas.layer_mgr.invalidate_cache()
         canvas.push_document_state("Cerrar texto", force=True)
         canvas.update()
 

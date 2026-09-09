@@ -13,13 +13,13 @@ def construir_img3_alpha(buffer, w, h):
     arr = np.frombuffer(ptr, dtype=np.uint8).reshape((h, stride))
     bgra = arr[:, :w * 4].reshape((h, w, 4))
 
-    b = bgra[:, :, 0].astype(np.int16)
-    g = bgra[:, :, 1].astype(np.int16)
-    r = bgra[:, :, 2].astype(np.int16)
+    b = bgra[:, :, 0].astype(np.uint16)
+    g = bgra[:, :, 1].astype(np.uint16)
+    r = bgra[:, :, 2].astype(np.uint16)
     a = bgra[:, :, 3]
 
-    gray = (0.114 * b + 0.587 * g + 0.299 * r).astype(np.uint8)
-    chroma = ((b - r + 256) // 2).astype(np.uint8)
+    gray = ((299 * r + 587 * g + 114 * b) >> 10).astype(np.uint8)
+    chroma = ((b.astype(np.int16) - r.astype(np.int16) + 256) >> 1).astype(np.uint8)
 
     return np.dstack((a, gray, chroma))
 

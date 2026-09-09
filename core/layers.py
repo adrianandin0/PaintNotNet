@@ -42,6 +42,12 @@ class LayerManager:
     def buffer(self, nueva_imagen):
         self.capas[self.indice_activo].image = nueva_imagen
 
+    def preparar_para_modificacion(self):
+        """Desconecta la imagen de la capa activa mediante Copy-On-Write antes de dibujarla."""
+        active = self.get_active_layer()
+        if active and active.image is not None:
+            active.image = active.image.copy()
+
     def agregar_capa(self, nombre="Nueva Capa"):
         nueva_capa = Layer(nombre, self.width, self.height, transparent=True)
         idx = max(0, self.indice_activo)
@@ -153,13 +159,14 @@ class LayerManager:
     def get_qpixmap(self, capa_trazo_temp=None, draw_layer_preview_callback=None, selection_path=None):
         img = self.get_qimage(capa_trazo_temp=capa_trazo_temp, draw_layer_preview_callback=draw_layer_preview_callback, selection_path=selection_path)
         has_transient = bool(capa_trazo_temp or draw_layer_preview_callback)
-        if not has_transient and getattr(self, '_cached_pixmap', None) is not None and getattr(self, '_cached_pixmap_img_id', None) == id(img):
+        img_key = img.cacheKey() if hasattr(img, 'cacheKey') else id(img)
+        if not has_transient and getattr(self, '_cached_pixmap', None) is not None and getattr(self, '_cached_pixmap_img_id', None) == img_key:
             return self._cached_pixmap
 
         pixmap = QPixmap.fromImage(img)
         if not has_transient:
             self._cached_pixmap = pixmap
-            self._cached_pixmap_img_id = id(img)
+            self._cached_pixmap_img_id = img_key
         return pixmap
 
     def resize_canvas(self, new_width, new_height):

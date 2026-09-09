@@ -91,7 +91,11 @@ class SprayTool(BaseTool):
             self._last_pos = pos
             if hasattr(canvas.layer_mgr, 'invalidate_cache'):
                 canvas.layer_mgr.invalidate_cache()
-            canvas.update()
+
+            grosor = max(2, getattr(canvas, 'grosor_pincel', 15))
+            p_prev = self._points[-2] if (hasattr(self, '_points') and len(self._points) >= 2) else pos
+            dirty_rect = QRectF(p_prev, pos).normalized().toRect().adjusted(-grosor - 10, -grosor - 10, grosor + 20, grosor + 20)
+            canvas.actualizar_region_sucia(dirty_rect)
 
     def mouse_release(self, canvas, event, color_activo=None):
         if self.is_drawing:

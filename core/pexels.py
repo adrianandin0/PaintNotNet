@@ -26,6 +26,7 @@ class PexelsAPIClient:
         settings = QSettings("PaintNotNet", "PaintNotNet")
         enabled = settings.value("online_search_enabled", False, type=bool)
         free_only = settings.value("online_search_free_only", False, type=bool)
+        key_serper = bool(str(settings.value("api_key_serper", "")).strip())
         key_pexels = bool(str(settings.value("api_key_pexels", "")).strip())
         key_unsplash = bool(str(settings.value("api_key_unsplash", "")).strip())
         key_pixabay = bool(str(settings.value("api_key_pixabay", "")).strip())
@@ -34,6 +35,8 @@ class PexelsAPIClient:
         if enabled:
             active_sources.append("Wikimedia Commons")
             if not free_only:
+                if key_serper:
+                    active_sources.append("Google Images (Serper)")
                 if key_pexels:
                     active_sources.append("Pexels")
                 if key_unsplash:
@@ -44,6 +47,7 @@ class PexelsAPIClient:
         return {
             "enabled": enabled,
             "free_only": free_only,
+            "has_serper": key_serper,
             "has_pexels": key_pexels,
             "has_unsplash": key_unsplash,
             "has_pixabay": key_pixabay,
@@ -64,6 +68,7 @@ class PexelsAPIClient:
         source_clean = source.lower() if source else "todas"
 
         settings = QSettings("PaintNotNet", "PaintNotNet")
+        key_serper = str(settings.value("api_key_serper", "")).strip()
         key_pexels = str(settings.value("api_key_pexels", "")).strip()
         key_unsplash = str(settings.value("api_key_unsplash", "")).strip()
         key_pixabay = str(settings.value("api_key_pixabay", "")).strip()
@@ -73,6 +78,8 @@ class PexelsAPIClient:
         engines = []
         if "wikimedia" in source_clean:
             engines = ["wikimedia"]
+        elif ("serper" in source_clean or "google" in source_clean) and key_serper and not free_only:
+            engines = ["serper"]
         elif "pexels" in source_clean and key_pexels and not free_only:
             engines = ["pexels"]
         elif "unsplash" in source_clean and key_unsplash and not free_only:
@@ -81,6 +88,8 @@ class PexelsAPIClient:
             engines = ["pixabay"]
         else:  # "Todas las fuentes"
             if not free_only:
+                if key_serper:
+                    engines.append("serper")
                 if key_pexels:
                     engines.append("pexels")
                 if key_unsplash:
@@ -91,7 +100,9 @@ class PexelsAPIClient:
 
         for engine in engines:
             try:
-                if engine == "wikimedia":
+                if engine == "serper":
+                    photos = PexelsAPIClient._search_serper_api(search_q, key_serper, is_transparent, page, per_page)
+                elif engine == "wikimedia":
                     photos = PexelsAPIClient._search_wikimedia(search_q, is_transparent, page, per_page)
                 elif engine == "pexels":
                     photos = PexelsAPIClient._search_pexels_api(search_q, key_pexels, is_transparent, page, per_page)
@@ -208,6 +219,49 @@ class PexelsAPIClient:
                                 "width": item.get("width") or 0,
                                 "height": item.get("height") or 0,
                                 "source": "Unsplash"
+                            })
+        except Exception:
+            pass
+        return photos
+
+    @staticmethod
+    def _search_serper_api(query: str, api_key: str, is_transparent: bool, page: int, per_page: int) -> list:
+        if not api_key:
+            return []
+        search_term = f"{query} png transparent" if is_transparent else query
+        url = "https://google.serper.dev/images"
+        headers = {
+            "X-API-KEY": api_key,
+            "Content-Type": "application/json",
+            "User-Agent": "PaintNotNet/2.0"
+        }
+        payload = json.dumps({
+            "q": search_term,
+            "page": page,
+            "num": min(per_page, 40)
+        }).encode("utf-8")
+
+        ctx = _get_ssl_context()
+        req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
+        photos = []
+        try:
+            with urllib.request.urlopen(req, context=ctx, timeout=8) as resp:
+                if resp.status == 200:
+                    data = json.loads(resp.read().decode("utf-8", errors="ignore"))
+                    for item in data.get("images", []):
+                        download = item.get("imageUrl") or item.get("thumbnailUrl")
+                        # Exclude GIF animations per user request
+                        if not download or download.lower().endswith(".gif"):
+                            continue
+                        preview = item.get("thumbnailUrl") or download
+                        if preview and download:
+                            photos.append({
+                                "id": f"serper_{len(photos)+1}_{page}",
+                                "preview_url": preview,
+                                "download_url": download,
+                                "width": item.get("imageWidth") or 0,
+                                "height": item.get("imageHeight") or 0,
+                                "source": "Google (Serper)"
                             })
         except Exception:
             pass

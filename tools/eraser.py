@@ -50,9 +50,7 @@ class EraserTool(BaseTool):
     def mouse_press(self, canvas, event, color_activo=None):
         if event.button() in (Qt.MouseButton.LeftButton, Qt.MouseButton.RightButton):
             self.is_drawing = True
-            px = math.floor(event.position().x())
-            py = math.floor(event.position().y())
-            pos = QPointF(px + 0.5, py + 0.5)
+            pos = QPointF(event.position().x(), event.position().y())
             self._last_pos = pos
             self._points = [pos]
             self._last_drawn_index = 0
@@ -65,9 +63,7 @@ class EraserTool(BaseTool):
     def mouse_move(self, canvas, event, color_activo=None):
         if not self.is_drawing or self._last_pos is None:
             return
-        px = math.floor(event.position().x())
-        py = math.floor(event.position().y())
-        raw_pos = QPointF(px + 0.5, py + 0.5)
+        raw_pos = QPointF(event.position().x(), event.position().y())
         modifiers = QApplication.keyboardModifiers()
         is_shift = bool(modifiers & Qt.KeyboardModifier.ShiftModifier)
 
@@ -82,7 +78,7 @@ class EraserTool(BaseTool):
                 pos = QPointF(self.shift_anchor.x(), raw_pos.y())
         else:
             self.shift_anchor = None
-            pos = smooth_mouse_input(self._last_pos, raw_pos)
+            pos = smooth_mouse_input(self._last_pos, raw_pos, weight=0.20)
 
         if not hasattr(self, '_points') or not self._points:
             self._points = [self._last_pos]
@@ -96,7 +92,11 @@ class EraserTool(BaseTool):
             canvas.layer_mgr.invalidate_cache()
         if canvas.callback_modificado:
             canvas.callback_modificado()
-        canvas.update()
+
+        grosor = max(1, getattr(canvas, 'grosor_pincel', 3))
+        p_prev = self._points[-2] if (hasattr(self, '_points') and len(self._points) >= 2) else pos
+        dirty_rect = QRectF(p_prev, pos).normalized().toRect().adjusted(-int(grosor) - 4, -int(grosor) - 4, int(grosor) + 8, int(grosor) + 8)
+        canvas.actualizar_region_sucia(dirty_rect)
 
     def mouse_release(self, canvas, event, color_activo=None):
         if self.is_drawing:
@@ -116,7 +116,7 @@ class EraserTool(BaseTool):
         grosor = max(1, getattr(canvas, 'grosor_pincel', 3))
         suavizado = getattr(canvas, 'suavizado_pincel', True)
         forma = getattr(canvas, 'forma_pincel', 'Redondo')
-        step_px = max(0.5, grosor * 0.25)
+        step_px = max(0.5, grosor * 0.10)
         hw = grosor / 2.0
 
         sub_points, new_start_idx = generate_smooth_stroke_points(
@@ -128,14 +128,29 @@ class EraserTool(BaseTool):
         if suavizado:
             painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QBrush(QColor(0, 0, 0, 255)))
-
-        for pt, _ in sub_points:
+        if len(pts) == 1 and self._last_drawn_index == 0:
+            p = pts[0]
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QBrush(QColor(0, 0, 0, 255)))
             if forma == 'Cuadrado':
-                painter.drawRect(QRectF(pt.x() - hw, pt.y() - hw, grosor, grosor))
+                painter.drawRect(QRectF(p.x() - hw, p.y() - hw, grosor, grosor))
             else:
-                painter.drawEllipse(pt, hw, hw)
+                painter.drawEllipse(p, hw, hw)
+        elif len(sub_points) > 0:
+            if forma == 'Cuadrado':
+                painter.setPen(Qt.PenStyle.NoPen)
+                painter.setBrush(QBrush(QColor(0, 0, 0, 255)))
+                for pt, _ in sub_points:
+                    painter.drawRect(QRectF(pt.x() - hw, pt.y() - hw, grosor, grosor))
+            else:
+                pen = QPen(QColor(0, 0, 0, 255), grosor, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+                painter.setPen(pen)
+                painter.setBrush(Qt.BrushStyle.NoBrush)
+                path = QPainterPath()
+                path.moveTo(sub_points[0][0])
+                for pt, _ in sub_points[1:]:
+                    path.lineTo(pt)
+                painter.drawPath(path)
 
         painter.end()
         self._last_drawn_index = new_start_idx

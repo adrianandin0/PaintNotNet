@@ -146,15 +146,19 @@ class PencilTool(BaseTool):
     def mouse_press(self, canvas, event, color_activo=None):
         if event.button() in (Qt.MouseButton.LeftButton, Qt.MouseButton.RightButton):
             self.is_drawing = True
-            px = int(math.floor(event.position().x()))
-            py = int(math.floor(event.position().y()))
-            pos = QPoint(px, py)
+            modo = getattr(canvas, 'pencil_modo', 'pixelado')
+            if modo == 'pixelado':
+                px = int(math.floor(event.position().x()))
+                py = int(math.floor(event.position().y()))
+                pos = QPoint(px, py)
+            else:
+                pos = QPointF(event.position().x(), event.position().y())
+
             self.last_point = pos
             self._points = [pos]
             self._last_drawn_index = 0
             self.shift_anchor = None
 
-            modo = getattr(canvas, 'pencil_modo', 'pixelado')
             color = QColor(color_activo if color_activo else canvas.color_primario)
             color.setAlpha(255)
 
@@ -172,32 +176,38 @@ class PencilTool(BaseTool):
             else:
                 dureza = getattr(canvas, 'pencil_dureza', 50)
                 polvo = getattr(canvas, 'pencil_polvo', True)
-                self._draw_realistic_stamp(painter, self.last_point, w, color, dureza, polvo, is_slow=True)
+                pt_int = QPoint(int(round(pos.x())), int(round(pos.y())))
+                self._draw_realistic_stamp(painter, pt_int, w, color, dureza, polvo, is_slow=True)
 
             painter.end()
             canvas.update()
 
     def mouse_move(self, canvas, event, color_activo=None):
         if self.is_drawing:
-            px = int(math.floor(event.position().x()))
-            py = int(math.floor(event.position().y()))
-            raw_pos = QPoint(px, py)
+            modo = getattr(canvas, 'pencil_modo', 'pixelado')
+            if modo == 'pixelado':
+                px = int(math.floor(event.position().x()))
+                py = int(math.floor(event.position().y()))
+                raw_pos = QPoint(px, py)
+            else:
+                raw_pos = QPointF(event.position().x(), event.position().y())
+
             modifiers = QApplication.keyboardModifiers()
             is_shift = bool(modifiers & Qt.KeyboardModifier.ShiftModifier)
 
             if is_shift:
                 if self.shift_anchor is None:
-                    self.shift_anchor = QPoint(self.last_point)
+                    self.shift_anchor = self.last_point
                 dx = raw_pos.x() - self.shift_anchor.x()
                 dy = raw_pos.y() - self.shift_anchor.y()
                 if abs(dx) >= abs(dy):
-                    current_point = QPoint(raw_pos.x(), self.shift_anchor.y())
+                    current_point = QPoint(int(round(raw_pos.x())), int(round(self.shift_anchor.y()))) if modo == 'pixelado' else QPointF(raw_pos.x(), self.shift_anchor.y())
                 else:
-                    current_point = QPoint(self.shift_anchor.x(), raw_pos.y())
+                    current_point = QPoint(int(round(self.shift_anchor.x())), int(round(raw_pos.y()))) if modo == 'pixelado' else QPointF(self.shift_anchor.x(), raw_pos.y())
             else:
                 self.shift_anchor = None
-                sm_pos = smooth_mouse_input(self.last_point, QPointF(raw_pos))
-                current_point = QPoint(int(round(sm_pos.x())), int(round(sm_pos.y())))
+                sm_pos = smooth_mouse_input(self.last_point, QPointF(raw_pos), weight=0.20)
+                current_point = QPoint(int(round(sm_pos.x())), int(round(sm_pos.y()))) if modo == 'pixelado' else sm_pos
 
             if not hasattr(self, '_points') or not self._points:
                 self._points = [self.last_point]
@@ -205,13 +215,16 @@ class PencilTool(BaseTool):
 
             self._points.append(current_point)
             self._draw_pencil_stroke(canvas, color_activo, is_final=False)
+            if hasattr(canvas.layer_mgr, 'invalidate_cache'):
+                canvas.layer_mgr.invalidate_cache()
 
             self.last_point = current_point
             if canvas.callback_modificado:
                 canvas.callback_modificado()
 
             w = max(1, canvas.grosor_pincel)
-            dirty_rect = QRect(self._points[-1], current_point).normalized().adjusted(-w - 4, -w - 4, w + 8, w + 8)
+            p_prev = self._points[-2] if len(self._points) >= 2 else current_point
+            dirty_rect = QRectF(QPointF(p_prev), QPointF(current_point)).normalized().toRect().adjusted(-int(w) - 4, -int(w) - 4, int(w) + 8, int(w) + 8)
             canvas.actualizar_region_sucia(dirty_rect)
 
     def mouse_release(self, canvas, event, color_activo=None):

@@ -54,9 +54,7 @@ class BrushTool(BaseTool):
     def mouse_press(self, canvas, event, color_activo=None):
         if event.button() in (Qt.MouseButton.LeftButton, Qt.MouseButton.RightButton):
             self.is_drawing = True
-            px = math.floor(event.position().x())
-            py = math.floor(event.position().y())
-            pos = QPointF(px + 0.5, py + 0.5)
+            pos = QPointF(event.position().x(), event.position().y())
             self._press_pos = pos
             self._has_moved = False
             self._points = [pos]
@@ -76,9 +74,7 @@ class BrushTool(BaseTool):
     def mouse_move(self, canvas, event, color_activo=None):
         if not self.is_drawing or not self._points:
             return
-        px = math.floor(event.position().x())
-        py = math.floor(event.position().y())
-        raw_pos = QPointF(px + 0.5, py + 0.5)
+        raw_pos = QPointF(event.position().x(), event.position().y())
         modifiers = QApplication.keyboardModifiers()
         is_shift = bool(modifiers & Qt.KeyboardModifier.ShiftModifier)
 
@@ -93,17 +89,19 @@ class BrushTool(BaseTool):
                 pos = QPointF(self.shift_anchor.x(), raw_pos.y())
         else:
             self.shift_anchor = None
-            pos = smooth_mouse_input(self._points[-1], raw_pos)
+            pos = smooth_mouse_input(self._points[-1], raw_pos, weight=0.20)
 
         self._has_moved = True
         self._points.append(pos)
         self._draw_incremental_stroke(canvas, color_activo, is_final=False)
+        if hasattr(canvas.layer_mgr, 'invalidate_cache'):
+            canvas.layer_mgr.invalidate_cache()
         if canvas.callback_modificado:
             canvas.callback_modificado()
 
         grosor = max(1, canvas.grosor_pincel)
         p_last = self._points[-2] if len(self._points) >= 2 else pos
-        dirty_rect = QRectF(p_last, pos).normalized().toRect().adjusted(-grosor - 4, -grosor - 4, grosor + 8, grosor + 8)
+        dirty_rect = QRectF(p_last, pos).normalized().toRect().adjusted(-int(grosor) - 4, -int(grosor) - 4, int(grosor) + 8, int(grosor) + 8)
         canvas.actualizar_region_sucia(dirty_rect)
 
     def mouse_release(self, canvas, event, color_activo=None):
@@ -141,7 +139,7 @@ class BrushTool(BaseTool):
 
         forma = getattr(canvas, 'forma_pincel', 'Redondo')
         grosor = max(1, canvas.grosor_pincel)
-        step_px = max(0.5, grosor * 0.15)
+        step_px = max(0.5, grosor * 0.10)
 
         sub_points, new_start_idx = generate_smooth_stroke_points(
             pts, self._last_drawn_index, is_final=is_final, step_px=step_px
@@ -160,24 +158,32 @@ class BrushTool(BaseTool):
         suavizado = getattr(canvas, 'suavizado_pincel', True)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, suavizado)
 
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QBrush(color_solid))
-
         r = grosor / 2.0
         hw = r
 
         if len(pts) == 1 and self._last_drawn_index == 0:
             p = pts[0]
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QBrush(color_solid))
             if forma == 'Cuadrado':
                 painter.drawRect(QRectF(p.x() - hw, p.y() - hw, grosor, grosor))
             else:
                 painter.drawEllipse(p, r, r)
-        else:
-            for pt, _ in sub_points:
-                if forma == 'Cuadrado':
+        elif len(sub_points) > 0:
+            if forma == 'Cuadrado':
+                painter.setPen(Qt.PenStyle.NoPen)
+                painter.setBrush(QBrush(color_solid))
+                for pt, _ in sub_points:
                     painter.drawRect(QRectF(pt.x() - hw, pt.y() - hw, grosor, grosor))
-                else:
-                    painter.drawEllipse(pt, r, r)
+            else:
+                pen = QPen(color_solid, grosor, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+                painter.setPen(pen)
+                painter.setBrush(Qt.BrushStyle.NoBrush)
+                path = QPainterPath()
+                path.moveTo(sub_points[0][0])
+                for pt, _ in sub_points[1:]:
+                    path.lineTo(pt)
+                painter.drawPath(path)
 
         self._last_drawn_index = new_start_idx
         painter.end()

@@ -1,4 +1,5 @@
 import math
+import numpy as np
 from PyQt6.QtCore import Qt, QPointF, QRectF, QPoint
 from PyQt6.QtGui import QPainter, QPen, QColor, QImage, QBrush
 from tools.base_tool import BaseTool
@@ -55,7 +56,13 @@ class SmudgeTool(BaseTool):
             self._points.append(pos)
             self._smudge_stroke(canvas, is_final=False)
             self.last_pos = pos
-            canvas.update()
+            if hasattr(canvas.layer_mgr, 'invalidate_cache'):
+                canvas.layer_mgr.invalidate_cache()
+
+            grosor = max(2, getattr(canvas, 'grosor_pincel', 20))
+            p_prev = self._points[-2] if len(self._points) >= 2 else pos
+            dirty_rect = QRectF(p_prev, pos).normalized().toRect().adjusted(-grosor - 6, -grosor - 6, grosor + 12, grosor + 12)
+            canvas.actualizar_region_sucia(dirty_rect)
 
     def mouse_release(self, canvas, event, color_activo=None):
         if self.is_drawing:
@@ -65,6 +72,8 @@ class SmudgeTool(BaseTool):
             self.smudge_buffer = None
             self._points = []
             self._last_drawn_index = 0
+            if hasattr(canvas.layer_mgr, 'invalidate_cache'):
+                canvas.layer_mgr.invalidate_cache()
             if hasattr(canvas, 'push_document_state'):
                 canvas.push_document_state(self.name)
             canvas.update()
@@ -101,24 +110,31 @@ class SmudgeTool(BaseTool):
         cx, cy = int(pos.x()), int(pos.y())
 
         buf_size = radius * 2 + 1
-        self.smudge_buffer = QImage(buf_size, buf_size, QImage.Format.Format_ARGB32)
-        self.smudge_buffer.fill(QColor(0, 0, 0, 0))
+        self.smudge_buffer = np.zeros((buf_size, buf_size, 4), dtype=np.float32)
 
-        for py in range(-radius, radius + 1):
-            for px in range(-radius, radius + 1):
-                if math.hypot(px, py) <= radius:
-                    ix, iy = cx + px, cy + py
-                    if 0 <= ix < w and 0 <= iy < h:
-                        self.smudge_buffer.setPixelColor(px + radius, py + radius, img.pixelColor(ix, iy))
-                    else:
-                        self.smudge_buffer.setPixelColor(px + radius, py + radius, QColor(0, 0, 0, 0))
+        rx = max(0, cx - radius)
+        ry = max(0, cy - radius)
+        rw = min(w - rx, radius * 2 + 1)
+        rh = min(h - ry, radius * 2 + 1)
+
+        if rw <= 0 or rh <= 0:
+            return
+
+        stride = img.bytesPerLine()
+        ptr = img.bits()
+        ptr.setsize(h * stride)
+        img_arr = np.frombuffer(ptr, dtype=np.uint8).reshape((h, stride // 4, 4))
+
+        bx = rx - (cx - radius)
+        by = ry - (cy - radius)
+        self.smudge_buffer[by:by+rh, bx:bx+rw] = img_arr[ry:ry+rh, rx:rx+rw, :4].astype(np.float32)
 
     def _smudge_segment(self, canvas, p1: QPointF, p2: QPointF):
         active_layer = canvas.layer_mgr.get_active_layer()
         if not active_layer or not active_layer.visible or active_layer.locked:
             return
 
-        if not self.smudge_buffer:
+        if self.smudge_buffer is None:
             self._capture_buffer(canvas, p1)
 
         grosor = max(2, getattr(canvas, 'grosor_pincel', 20))
@@ -138,45 +154,49 @@ class SmudgeTool(BaseTool):
 
         img = active_layer.image
         w, h = img.width(), img.height()
+        stride = img.bytesPerLine()
+        ptr = img.bits()
+        ptr.setsize(h * stride)
+        img_arr = np.frombuffer(ptr, dtype=np.uint8).reshape((h, stride // 4, 4))
+
+        buf_size = radius * 2 + 1
+        y, x = np.ogrid[-radius:radius+1, -radius:radius+1]
+        dist_c = np.hypot(x, y)
+        circle_mask = dist_c <= radius
+        falloff = np.clip(1.0 - (dist_c / float(radius)), 0.0, 1.0) ** 0.5
 
         for step in range(1, steps + 1):
             t = step / steps
             cx = int(p1.x() + dx * t)
             cy = int(p1.y() + dy * t)
 
-            # 1. Estampar el buffer capturado sobre la capa activa
-            for py in range(-radius, radius + 1):
-                for px in range(-radius, radius + 1):
-                    dist_c = math.hypot(px, py)
-                    if dist_c <= radius:
-                        ix, iy = cx + px, cy + py
-                        if 0 <= ix < w and 0 <= iy < h:
-                            buf_col = self.smudge_buffer.pixelColor(px + radius, py + radius)
-                            if buf_col.alpha() > 0:
-                                dst_col = img.pixelColor(ix, iy)
-                                falloff = (1.0 - (dist_c / radius)) ** 0.5
-                                alpha_factor = (buf_col.alpha() / 255.0) * falloff * strength * 0.5
+            rx = max(0, cx - radius)
+            ry = max(0, cy - radius)
+            rw = min(w - rx, buf_size)
+            rh = min(h - ry, buf_size)
 
-                                r_new = int(dst_col.red() * (1 - alpha_factor) + buf_col.red() * alpha_factor)
-                                g_new = int(dst_col.green() * (1 - alpha_factor) + buf_col.green() * alpha_factor)
-                                b_new = int(dst_col.blue() * (1 - alpha_factor) + buf_col.blue() * alpha_factor)
-                                a_new = int(dst_col.alpha() * (1 - alpha_factor) + buf_col.alpha() * alpha_factor)
+            if rw <= 0 or rh <= 0:
+                continue
 
-                                img.setPixelColor(ix, iy, QColor(r_new, g_new, b_new, a_new))
+            bx = rx - (cx - radius)
+            by = ry - (cy - radius)
 
-            # 2. Actualizar el buffer recogiendo color fresco del lienzo a medida que se desliza
+            sub_mask = circle_mask[by:by+rh, bx:bx+rw]
+            sub_falloff = falloff[by:by+rh, bx:bx+rw]
+            sub_buf = self.smudge_buffer[by:by+rh, bx:bx+rw]
+
+            alpha_factor = (sub_buf[:, :, 3] / 255.0) * sub_falloff * strength * 0.5
+            alpha_factor = np.expand_dims(alpha_factor, axis=-1)
+
+            target_roi = img_arr[ry:ry+rh, rx:rx+rw, :4].astype(np.float32)
+            blended = (target_roi * (1.0 - alpha_factor) + sub_buf * alpha_factor)
+            
+            # Apply blended back to target ROI for pixels in circle mask
+            mask_3d = np.repeat(sub_mask[:, :, np.newaxis], 4, axis=2)
+            np.copyto(img_arr[ry:ry+rh, rx:rx+rw, :4], np.clip(blended, 0, 255).astype(np.uint8), where=mask_3d)
+
+            # Update buffer with fresh color pickup
             pickup_rate = (1.0 - strength * 0.7) * 0.3
-            for py in range(-radius, radius + 1):
-                for px in range(-radius, radius + 1):
-                    if math.hypot(px, py) <= radius:
-                        ix, iy = cx + px, cy + py
-                        if 0 <= ix < w and 0 <= iy < h:
-                            curr_buf = self.smudge_buffer.pixelColor(px + radius, py + radius)
-                            canv_col = img.pixelColor(ix, iy)
-
-                            r_b = int(curr_buf.red() * (1 - pickup_rate) + canv_col.red() * pickup_rate)
-                            g_b = int(curr_buf.green() * (1 - pickup_rate) + canv_col.green() * pickup_rate)
-                            b_b = int(curr_buf.blue() * (1 - pickup_rate) + canv_col.blue() * pickup_rate)
-                            a_b = int(curr_buf.alpha() * (1 - pickup_rate) + canv_col.alpha() * pickup_rate)
-
-                            self.smudge_buffer.setPixelColor(px + radius, py + radius, QColor(r_b, g_b, b_b, a_b))
+            fresh_roi = img_arr[ry:ry+rh, rx:rx+rw, :4].astype(np.float32)
+            updated_buf = sub_buf * (1.0 - pickup_rate) + fresh_roi * pickup_rate
+            np.copyto(self.smudge_buffer[by:by+rh, bx:bx+rw], updated_buf, where=mask_3d)

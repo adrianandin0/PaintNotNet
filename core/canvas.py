@@ -123,7 +123,9 @@ class CanvasWidget(QWidget):
 
         self.layer_mgr = LayerManager(width, height)
         self._ajustar_tamano_widget(width, height)
-        self.history_mgr = HistoryManager(200)
+        from PyQt6.QtCore import QSettings
+        max_ram_mb = QSettings("PaintNotNet", "PaintNotNet").value("max_history_ram_mb", 512, type=int)
+        self.history_mgr = HistoryManager(200, max_memory_mb=max_ram_mb)
         self.selection_engine = SelectionEngine()
 
         # Instancia de la herramienta activa
@@ -390,6 +392,7 @@ class CanvasWidget(QWidget):
             from tools.transform import TransformTool
             if not isinstance(tool_object, (MoveSelectPixelsTool, TransformTool)):
                 MoveSelectPixelsTool.commit_floating_image(self)
+                self.selection_engine.clear_selection()
 
         self.herramienta_actual = getattr(tool_object, 'name', 'Herramienta')
 
@@ -765,6 +768,9 @@ class CanvasWidget(QWidget):
         if ev.button() in (Qt.MouseButton.LeftButton, Qt.MouseButton.RightButton):
             self.drawing = True
             color_activo = self.color_primario if ev.button() == Qt.MouseButton.LeftButton else self.color_secundario
+
+            if hasattr(self, 'layer_mgr') and hasattr(self.layer_mgr, 'preparar_para_modificacion'):
+                self.layer_mgr.preparar_para_modificacion()
 
             if hasattr(self.active_tool_obj, 'mouse_press'):
                 try:
@@ -1364,14 +1370,14 @@ class CanvasWidget(QWidget):
 
     # --- HISTORIAL Y CAPAS MULTIPLE ---
     def obtener_snapshot_documento(self):
-        """Genera una captura del documento creando copias independientes de las imágenes de las capas para el historial."""
+        """Genera una captura del documento utilizando Copy-on-Write (CoW) en las imágenes de las capas para optimizar RAM."""
         capas_copy = []
         for c in self.layer_mgr.capas:
             capas_copy.append({
                 'name': c.name,
                 'visible': c.visible,
                 'opacity': float(getattr(c, 'opacity', 1.0)),
-                'image': c.image.copy()
+                'image': c.image
             })
         path = QPainterPath(self.selection_engine.active_path) if (hasattr(self.selection_engine, 'active_path') and self.selection_engine.has_selection()) else None
         return {
@@ -1456,6 +1462,8 @@ class CanvasWidget(QWidget):
 
         self.history_mgr.push_state(snap, action_name=action_name)
         self.actualizar_historial_gui()
+        if hasattr(self, 'layer_mgr') and hasattr(self.layer_mgr, 'invalidate_cache'):
+            self.layer_mgr.invalidate_cache()
         if action_name != "Lienzo inicial":
             self.marcar_modificado(True)
 
@@ -1497,7 +1505,7 @@ class CanvasWidget(QWidget):
                 capa = Layer(l_info['name'], snap_w, snap_h, transparent=True)
                 capa.visible = l_info.get('visible', True)
                 capa.opacity = float(l_info.get('opacity', 1.0))
-                capa.image = l_info['image'].copy()
+                capa.image = l_info['image']
                 nuevas_capas.append(capa)
 
             self.layer_mgr.capas = nuevas_capas
@@ -1680,7 +1688,7 @@ class CanvasWidget(QWidget):
         if modo is None or val is None:
             if hasattr(self, 'main_window') and self.main_window and hasattr(self.main_window, 'top_toolbar'):
                 tb = self.main_window.top_toolbar
-                modo = tb.combo_blur_modo.currentData() or "Pixelado"
+                modo = tb.get_blur_modo() if hasattr(tb, 'get_blur_modo') else "Pixelado"
                 val = tb.slider_blur.value()
             else:
                 modo = "Pixelado"

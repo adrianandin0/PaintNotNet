@@ -304,6 +304,7 @@ class DialogoBusquedaPexels(QDialog):
         self.combo_source.addItems([
             t("Todas las fuentes activas"),
             "Wikimedia Commons",
+            "Google Images (Serper)",
             "Pexels",
             "Unsplash",
             "Pixabay"
