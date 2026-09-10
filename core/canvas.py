@@ -962,7 +962,10 @@ class CanvasWidget(QWidget):
         ext = ext.lower()
         if ext == '.pnn':
             from core.pnn_format import guardar_proyecto_pnn
-            return guardar_proyecto_pnn(self, ruta)
+            if guardar_proyecto_pnn(self, ruta):
+                self.marcar_modificado(False)
+                return True
+            return False
 
         img_a_guardar = self.layer_mgr.get_qimage()
         quality = opciones.get('quality', 90)
@@ -979,6 +982,7 @@ class CanvasWidget(QWidget):
             painter.end()
 
             if img_jpg.save(ruta, "JPG", quality):
+                self.marcar_modificado(False)
                 return True
 
         if ext == '.png':
@@ -986,8 +990,10 @@ class CanvasWidget(QWidget):
             comp = opciones.get('compression', 6)
             png_quality = max(0, min(100, 100 - (comp * 10)))
             if img_a_guardar.save(ruta, "PNG", png_quality):
+                self.marcar_modificado(False)
                 return True
         elif img_a_guardar.save(ruta):
+            self.marcar_modificado(False)
             return True
 
         # Fallback a PIL para formatos adicionales (GIF, TIFF, TGA, ICO, etc.)
@@ -1015,6 +1021,7 @@ class CanvasWidget(QWidget):
                     pil_img.save(ruta)
             else:
                 pil_img.save(ruta)
+            self.marcar_modificado(False)
             return True
         except Exception as e:
             print(f"[canvas] Error al guardar con PIL: {e}")
@@ -1529,7 +1536,10 @@ class CanvasWidget(QWidget):
     def marcar_modificado(self, val=True):
         self.lienzo_modificado = val
         if hasattr(self, 'callback_modificado') and callable(self.callback_modificado):
-            self.callback_modificado()
+            try:
+                self.callback_modificado(val)
+            except TypeError:
+                self.callback_modificado()
         elif hasattr(self, 'main_window') and self.main_window:
             self.main_window.actualizar_titulo_ventana()
 

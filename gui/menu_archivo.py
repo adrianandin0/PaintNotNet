@@ -500,11 +500,10 @@ class MenuArchivo:
             return False
         ruta_elegida = dialogo.ruta_seleccionada()
         opciones = dialogo.opciones_exportacion() if hasattr(dialogo, 'opciones_exportacion') else None
-
         if ruta_elegida:
             if canvas.guardar_imagen(ruta_elegida, opciones=opciones):
                 canvas.archivo_actual = ruta_elegida
-                canvas.lienzo_modificado = False
+                canvas.marcar_modificado(False)
                 self.ventana.actualizar_titulo_ventana()
                 self.agregar_archivo_reciente(ruta_elegida)
                 if hasattr(self.ventana, 'emergency_mgr') and self.ventana.emergency_mgr:
@@ -520,7 +519,7 @@ class MenuArchivo:
             return self.guardar_como(target_canvas=canvas)
 
         if canvas.guardar_imagen(canvas.archivo_actual):
-            canvas.lienzo_modificado = False
+            canvas.marcar_modificado(False)
             self.ventana.actualizar_titulo_ventana()
             self.agregar_archivo_reciente(canvas.archivo_actual)
             if hasattr(self.ventana, 'emergency_mgr') and self.ventana.emergency_mgr:
@@ -656,15 +655,14 @@ class MenuArchivo:
                                  t("No se pudo exportar el PDF.") + f"\n{e}")
 
     def salir_programa(self):
-        if getattr(self.ventana.lienzo, 'lienzo_modificado', False):
-            if self.confirmar_descarte_cambios():
-                self.ventana.close()
-        else:
-            self.ventana.close()
+        self.ventana.close()
 
     def confirmar_descarte_cambios(self, target_canvas=None):
         from core.i18n import t
-        canvas = target_canvas if target_canvas else self.ventana.lienzo
+        canvas = target_canvas if target_canvas else getattr(self.ventana, 'lienzo', None)
+        if not canvas or not getattr(canvas, 'lienzo_modificado', False):
+            return True
+
         msg_box = QMessageBox(self.ventana)
         msg_box.setWindowTitle(t("Cambios no guardados"))
 

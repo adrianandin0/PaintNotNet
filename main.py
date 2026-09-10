@@ -348,7 +348,7 @@ class PaintNotNet(QMainWindow):
 
         canvas.main_window = self
         canvas.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        canvas.callback_modificado = lambda: self.marcar_modificado_pestana(canvas)
+        canvas.callback_modificado = lambda val=True: self.marcar_modificado_pestana(canvas, es_modificado=val)
         canvas.archivo_actual = ruta
 
         if hasattr(self, 'color_panel'):
@@ -512,9 +512,22 @@ class PaintNotNet(QMainWindow):
             area_scroll = self.tab_widget.widget(index)
             canvas = area_scroll.widget() if area_scroll else getattr(self, 'canvas', None)
             if canvas:
-                canvas.crear_nuevo_lienzo(800, 600, es_transparente=True)
+                def_w = self.settings.value("default_canvas_w", 800, type=int)
+                def_h = self.settings.value("default_canvas_h", 600, type=int)
+                def_trans = self.settings.value("default_canvas_transparent", False, type=bool)
+                def_dpi = self.settings.value("default_canvas_dpi", 300, type=int)
+                def_profile = self.settings.value("default_canvas_profile", "sRGB", type=str)
+
+                canvas.crear_nuevo_lienzo(def_w, def_h, es_transparente=def_trans)
+                canvas.dpi = def_dpi
+                canvas.perfil_color = def_profile
+                dpm = int(round(def_dpi * 39.3701))
+                canvas.layer_mgr.buffer.setDotsPerMeterX(dpm)
+                canvas.layer_mgr.buffer.setDotsPerMeterY(dpm)
+
                 canvas.archivo_actual = None
-                canvas.lienzo_modificado = False
+                canvas.nombre_personalizado = None
+                canvas.marcar_modificado(False)
             self.actualizar_titulo_pestana(index)
             self.actualizar_titulo_ventana()
             return
@@ -548,15 +561,16 @@ class PaintNotNet(QMainWindow):
             return self.menu_archivo.confirmar_descarte_cambios(target_canvas=canvas)
         return True
 
-    def marcar_modificado_pestana(self, canvas=None):
+    def marcar_modificado_pestana(self, canvas=None, es_modificado=None):
         if not canvas:
-            canvas = self.canvas
+            canvas = getattr(self, 'canvas', None)
         if canvas:
-            canvas.lienzo_modificado = True
+            if es_modificado is not None:
+                canvas.lienzo_modificado = es_modificado
             idx = self._find_tab_index_for_canvas(canvas)
             if idx >= 0:
                 self.actualizar_titulo_pestana(idx)
-            if hasattr(self, 'emergency_mgr') and self.emergency_mgr:
+            if getattr(canvas, 'lienzo_modificado', False) and hasattr(self, 'emergency_mgr') and self.emergency_mgr:
                 self.emergency_mgr.solicitar_guardado_emergencia(canvas)
         self.actualizar_titulo_ventana()
         if hasattr(self, 'layers_panel'):
@@ -823,9 +837,16 @@ class PaintNotNet(QMainWindow):
 
     def closeEvent(self, event: QCloseEvent):
         if hasattr(self, 'menu_archivo'):
-            if not self.menu_archivo.confirmar_descarte_cambios():
-                event.ignore()
-                return
+            for idx in range(self.tab_widget.count()):
+                area_scroll = self.tab_widget.widget(idx)
+                if not area_scroll:
+                    continue
+                canvas = area_scroll.widget()
+                if canvas and getattr(canvas, 'lienzo_modificado', False):
+                    self.tab_widget.setCurrentIndex(idx)
+                    if not self.menu_archivo.confirmar_descarte_cambios(target_canvas=canvas):
+                        event.ignore()
+                        return
 
         self.settings.setValue("geometry", self.saveGeometry())
 

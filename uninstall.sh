@@ -61,7 +61,6 @@ fi
 
 echo ""
 echo -e "${COLOR_GREEN}==============================================================${COLOR_RESET}"
-echo -e "${COLOR_GREEN}  ¡PaintNotNet ha sido desinstalado por completo del sistema! ${COLOR_RESET}"
-echo -e "${COLOR_GREEN}  PaintNotNet has been completely uninstalled from the system!${COLOR_RESET}"
+echo -e "${COLOR_GREEN}  PaintNotNet ha sido desinstalado por completo del sistema.${COLOR_RESET}"
 echo -e "${COLOR_GREEN}==============================================================${COLOR_RESET}"
 echo ""

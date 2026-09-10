@@ -1517,6 +1517,7 @@ class MenuAjustes:
 
         accion_posterizado = self.menu_ajustes.addAction(
             QIcon("gui/iconos/posterized.png"), t("Posterizado..."))
+        accion_posterizado.setShortcut("Ctrl+Shift+Z")
         accion_posterizado.triggered.connect(self.posterizado)
 
         accion_curvas = self.menu_ajustes.addAction(
