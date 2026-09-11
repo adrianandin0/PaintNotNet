@@ -481,9 +481,10 @@ class ColorPanelWidget(QWidget):
             self.set_color_activo(QColor(color_existente))
 
     def notificar_cambio(self):
-        if self.main_window and hasattr(self.main_window, 'canvas'):
-            self.main_window.canvas.color_primario = self.color_primario
-            self.main_window.canvas.color_secundario = self.color_secundario
+        canvas = getattr(self.main_window, 'lienzo', getattr(self.main_window, 'canvas', None)) if self.main_window else None
+        if canvas:
+            canvas.color_primario = self.color_primario
+            canvas.color_secundario = self.color_secundario
 
         self.color_primario_cambiado.emit(self.color_primario)
         self.color_secundario_cambiado.emit(self.color_secundario)

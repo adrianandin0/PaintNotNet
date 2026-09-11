@@ -83,8 +83,9 @@ class BrushesPanelWidget(QWidget):
 
         # Seleccionar por defecto
         forma_actual = "Redondo"
-        if main_window and hasattr(main_window, 'canvas'):
-            forma_actual = getattr(main_window.canvas, 'forma_pincel', 'Redondo')
+        canvas = getattr(main_window, 'lienzo', getattr(main_window, 'canvas', None)) if main_window else None
+        if canvas:
+            forma_actual = getattr(canvas, 'forma_pincel', 'Redondo')
         self._set_activo(forma_actual)
 
     def actualizar_estilo_tema(self):

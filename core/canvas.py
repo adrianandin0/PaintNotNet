@@ -88,7 +88,10 @@ class DialogoOpcionesInsercion(QDialog):
         layout.setSpacing(10)
         layout.setContentsMargins(16, 16, 16, 16)
 
-        lbl_title = QLabel(t("La imagen que intentas insertar es más grande que el lienzo actual."))
+        if img_w > canvas_w or img_h > canvas_h:
+            lbl_title = QLabel(t("La imagen que intentas insertar es más grande que el lienzo actual."))
+        else:
+            lbl_title = QLabel(t("Selecciona cómo deseas insertar la imagen en el lienzo actual:"))
         lbl_title.setObjectName("lbl_title")
         lbl_title.setWordWrap(True)
         layout.addWidget(lbl_title)
@@ -402,10 +405,29 @@ class CanvasWidget(QWidget):
             vbar.setValue(int(center_widget_y - vh / 2.0))
 
 
+    def commit_pending_tool_changes(self):
+        """Confirma cualquier edición o trazado en curso de la herramienta activa en la capa activa actual."""
+        if hasattr(self, 'active_tool_obj') and self.active_tool_obj is not None:
+            from tools.text import TextTool
+            from tools.line import LineTool
+            from tools.shapes import ShapesTool
+            from tools.transform import TransformTool
+            if isinstance(self.active_tool_obj, TextTool):
+                self.active_tool_obj.commit_text(self, getattr(self, 'color_primario', QColor(0, 0, 0)))
+            elif isinstance(self.active_tool_obj, LineTool):
+                self.active_tool_obj.commit_line(self)
+            elif isinstance(self.active_tool_obj, ShapesTool):
+                self.active_tool_obj.commit_shape(self)
+            elif isinstance(self.active_tool_obj, TransformTool):
+                if hasattr(self.active_tool_obj, '_commit'):
+                    self.active_tool_obj._commit(self)
+
+        if hasattr(self, 'selection_engine') and self.selection_engine.floating_image:
+            from tools.move_select_pixels import MoveSelectPixelsTool
+            MoveSelectPixelsTool.commit_floating_image(self)
+
     def set_active_tool(self, tool_object):
         from tools.text import TextTool
-        from tools.line import LineTool
-        from tools.shapes import ShapesTool
         if hasattr(self, 'active_tool_obj') and self.active_tool_obj is not None:
             if hasattr(self.active_tool_obj, 'on_deactivate'):
                 try:
@@ -413,12 +435,7 @@ class CanvasWidget(QWidget):
                 except Exception as e:
                     print(f"[canvas] Error en on_deactivate: {e}")
 
-            if isinstance(self.active_tool_obj, TextTool):
-                self.active_tool_obj.commit_text(self, self.color_primario)
-            elif isinstance(self.active_tool_obj, LineTool):
-                self.active_tool_obj.commit_line(self)
-            elif isinstance(self.active_tool_obj, ShapesTool):
-                self.active_tool_obj.commit_shape(self)
+            self.commit_pending_tool_changes()
         self.active_tool_obj = tool_object
         # Habilitar input method para composición de caracteres solo cuando se edita texto activamente
         enable_ime = isinstance(tool_object, TextTool) and getattr(tool_object, 'is_editing', False)
@@ -668,7 +685,13 @@ class CanvasWidget(QWidget):
             p_pm.end()
             self._bg_checker_brush = QBrush(pm)
 
-        painter.fillRect(0, 0, l_width, l_height, self._bg_checker_brush)
+        if getattr(self, 'lienzo_transparente_base', False):
+            painter.fillRect(0, 0, l_width, l_height, self._bg_checker_brush)
+        else:
+            bg_col = getattr(self, 'color_secundario', QColor(255, 255, 255))
+            if not isinstance(bg_col, QColor) or not bg_col.isValid():
+                bg_col = QColor(255, 255, 255)
+            painter.fillRect(0, 0, l_width, l_height, bg_col)
 
         def _dibujar_preview_capa_activa(p_capa):
             is_transforming = (getattr(self.active_tool_obj, 'name', '') == "Transformar" and getattr(self.active_tool_obj, '_is_active', False))
@@ -689,8 +712,9 @@ class CanvasWidget(QWidget):
             self._cached_composite_pixmap.isNull()
         ):
             sel_path = self.selection_engine.active_path if (self.selection_engine.has_selection() and not self.selection_engine.active_path.isEmpty()) else None
+            capa_temp = self.capa_trazo_temp if getattr(self, 'drawing', False) else None
             self._cached_composite_pixmap = self.layer_mgr.get_qpixmap(
-                capa_trazo_temp=self.capa_trazo_temp,
+                capa_trazo_temp=capa_temp,
                 draw_layer_preview_callback=_dibujar_preview_capa_activa,
                 selection_path=sel_path
             )
@@ -1084,6 +1108,8 @@ class CanvasWidget(QWidget):
 
         self.layer_mgr = LayerManager(w, h)
         self.layer_mgr.buffer = img_format.copy()
+        if not getattr(self, 'lienzo_transparente_base', False):
+            self.layer_mgr.capas[-1].transparent = False
 
         self.capa_trazo_temp = QImage(w, h, QImage.Format.Format_ARGB32_Premultiplied)
         self.capa_trazo_temp.fill(Qt.GlobalColor.transparent)
@@ -1129,10 +1155,19 @@ class CanvasWidget(QWidget):
         elif "bottom" in anchor:
             dest_y = nuevo_alto - old_h
 
-        # Redimensionar cada capa manteniendo su contenido intacto y rellenando lo nuevo con transparente
-        for capa in self.layer_mgr.capas:
+        # Redimensionar cada capa manteniendo su contenido intacto y rellenando la nueva superficie
+        for idx, capa in enumerate(self.layer_mgr.capas):
             new_img = QImage(nuevo_ancho, nuevo_alto, QImage.Format.Format_ARGB32_Premultiplied)
-            new_img.fill(Qt.GlobalColor.transparent)
+            is_bottom_layer = (idx == len(self.layer_mgr.capas) - 1)
+            is_trans = getattr(capa, 'transparent', True)
+
+            if not is_trans or (is_bottom_layer and not getattr(self, 'lienzo_transparente_base', False)):
+                bg_col = getattr(self, 'color_secundario', QColor(255, 255, 255))
+                if not isinstance(bg_col, QColor) or not bg_col.isValid():
+                    bg_col = QColor(255, 255, 255)
+                new_img.fill(bg_col)
+            else:
+                new_img.fill(Qt.GlobalColor.transparent)
 
             painter = QPainter(new_img)
             painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
@@ -1284,6 +1319,7 @@ class CanvasWidget(QWidget):
             'initial_unrotated_path': QPainterPath(engine.initial_unrotated_path) if getattr(engine, 'initial_unrotated_path', None) else QPainterPath(engine.active_path),
             'initial_unrotated_rect': QRectF(engine.initial_unrotated_rect) if getattr(engine, 'initial_unrotated_rect', None) else QRectF(engine.active_rect),
             'original_image_pos': QPointF(engine.original_image_pos),
+            'is_new_content': bool(getattr(engine, 'is_new_content', False)),
             'initial_canvas': initial_canvas,
         }
 
@@ -1309,6 +1345,7 @@ class CanvasWidget(QWidget):
             engine.original_raw_image = pkg['original_raw_image'].copy() if pkg.get('original_raw_image') else engine.unscaled_floating_image.copy()
             engine.active_rect = QRectF(pkg['active_rect']) if 'active_rect' in pkg else QRectF()
             engine.active_path = QPainterPath(pkg['active_path']) if 'active_path' in pkg else QPainterPath()
+            engine.is_new_content = bool(pkg.get('is_new_content', False))
 
             tot_rot = float(pkg.get('total_rotation', pkg.get('rotation_angle', 0.0)))
             engine.total_rotation = tot_rot
@@ -1989,7 +2026,7 @@ class CanvasWidget(QWidget):
             return self._procesar_insercion_imagen(img_format, "Pegar")
         return False
 
-    def _procesar_insercion_imagen(self, img_format: QImage, action_title: str = "Insertar Imagen"):
+    def _procesar_insercion_imagen(self, img_format: QImage, action_title: str = "Insertar Imagen", force_dialog: bool = False):
         from tools.move_select_pixels import MoveSelectPixelsTool
         from PyQt6.QtCore import QSize
         MoveSelectPixelsTool.commit_floating_image(self)
@@ -2000,7 +2037,7 @@ class CanvasWidget(QWidget):
         lienzo_h = self.layer_mgr.height
 
         opcion = "sin_cambios"
-        if img_w > lienzo_w or img_h > lienzo_h:
+        if force_dialog or img_w > lienzo_w or img_h > lienzo_h:
             dlg = DialogoOpcionesInsercion(self, img_w, img_h, lienzo_w, lienzo_h)
             if dlg.exec() == QDialog.DialogCode.Accepted:
                 opcion = dlg.opcion_elegida
@@ -2035,6 +2072,7 @@ class CanvasWidget(QWidget):
             self.selection_engine.original_image_pos = QPointF(pos_x, pos_y)
             self.selection_engine.init_raw_image(img_format, is_new_content=True)
 
+        self.floating_initial_canvas = self.layer_mgr.buffer.copy()
         self.push_document_state(action_title, force=True)
 
         if hasattr(self, 'main_window') and self.main_window:
@@ -2042,14 +2080,27 @@ class CanvasWidget(QWidget):
         self.update()
         return True
 
-    def insertar_imagen(self, ruta):
+    def insertar_imagen(self, ruta, force_dialog: bool = False):
         if not ruta or not os.path.exists(ruta):
             return False
-        img = QImage(ruta)
-        if img.isNull():
+        _, ext = os.path.splitext(ruta)
+        if ext.lower() == '.pnn':
+            from core.pnn_format import obtener_compuesto_pnn
+            img = obtener_compuesto_pnn(ruta)
+        else:
+            img = QImage(ruta)
+            if img.isNull():
+                try:
+                    from PIL import Image
+                    pil_img = Image.open(ruta).convert('RGBA')
+                    data = pil_img.tobytes("raw", "RGBA")
+                    img = QImage(data, pil_img.width, pil_img.height, QImage.Format.Format_RGBA8888).copy()
+                except Exception:
+                    return False
+        if not img or img.isNull():
             return False
         img_format = img.convertToFormat(QImage.Format.Format_ARGB32_Premultiplied)
-        return self._procesar_insercion_imagen(img_format, "Insertar Imagen")
+        return self._procesar_insercion_imagen(img_format, "Insertar Imagen", force_dialog=force_dialog)
 
     def insertar_qimage(self, img: QImage):
         if not img or img.isNull():

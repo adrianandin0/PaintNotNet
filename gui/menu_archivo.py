@@ -184,6 +184,102 @@ class DialogoNuevoArchivo(QDialog):
         )
 
 
+class DialogoAbrirOInsertarReciente(QDialog):
+    """Diálogo personalizado para elegir abrir un archivo reciente en una nueva pestaña o insertarlo en el lienzo actual."""
+    def __init__(self, parent=None, nombre_archivo=""):
+        super().__init__(parent)
+        from core.i18n import t
+        from core.theme import ThemeManager
+
+        tm = ThemeManager()
+        is_light = (tm.resolver_nombre_tema(tm.current_theme) == "Claro")
+
+        bg_col = "#DFDFDF" if is_light else "#2D2D2D"
+        txt_col = "#222222" if is_light else "#EDEDED"
+        btn_bg = "#E1E1E1" if is_light else "#3C3C3C"
+        btn_border = "#ADADAD" if is_light else "#555555"
+        btn_hover = "#E5F1FB" if is_light else "#505050"
+
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {bg_col};
+                color: {txt_col};
+            }}
+            QLabel {{
+                background: transparent;
+                background-color: transparent;
+                color: {txt_col};
+            }}
+            QLabel#lbl_title {{
+                font-size: 12px;
+                font-weight: bold;
+                color: {txt_col};
+            }}
+            QLabel#lbl_sub {{
+                font-size: 11px;
+                color: {txt_col};
+            }}
+            QPushButton {{
+                background-color: {btn_bg};
+                color: {txt_col};
+                border: 1px solid {btn_border};
+                border-radius: 4px;
+                padding: 6px 12px;
+                font-size: 11px;
+            }}
+            QPushButton:hover {{
+                background-color: {btn_hover};
+                border: 1px solid #0078D7;
+            }}
+        """)
+
+        self.setWindowTitle(t("Archivo reciente"))
+        self.setFixedWidth(380)
+
+        self.opcion_elegida = None
+
+        layout = QVBoxLayout(self)
+        layout.setSpacing(12)
+        layout.setContentsMargins(16, 16, 16, 16)
+
+        lbl_title = QLabel(nombre_archivo)
+        lbl_title.setObjectName("lbl_title")
+        lbl_title.setWordWrap(True)
+        layout.addWidget(lbl_title)
+
+        lbl_sub = QLabel(t("¿Cómo deseas abrir este archivo reciente?"))
+        lbl_sub.setObjectName("lbl_sub")
+        layout.addWidget(lbl_sub)
+
+        layout_btns = QVBoxLayout()
+        layout_btns.setSpacing(8)
+
+        btn_nueva_pestana = QPushButton(t("Abrir en nueva pestaña"))
+        btn_nueva_pestana.setToolTip(t("Abre el archivo seleccionado en una nueva pestaña."))
+        btn_nueva_pestana.setMinimumHeight(34)
+        btn_nueva_pestana.clicked.connect(lambda: self._elegir("nueva_pestana"))
+
+        btn_insertar = QPushButton(t("Insertar en lienzo actual"))
+        btn_insertar.setToolTip(t("Inserta el archivo seleccionado en el lienzo de la pestaña activa."))
+        btn_insertar.setMinimumHeight(34)
+        btn_insertar.clicked.connect(lambda: self._elegir("insertar"))
+
+        btn_cancelar = QPushButton(t("Cancelar"))
+        btn_cancelar.setToolTip(t("Cancela la operación y cierra este diálogo."))
+        btn_cancelar.setMinimumHeight(28)
+        btn_cancelar.clicked.connect(self.reject)
+
+        layout_btns.addWidget(btn_nueva_pestana)
+        layout_btns.addWidget(btn_insertar)
+        layout_btns.addWidget(btn_cancelar)
+
+        layout.addLayout(layout_btns)
+
+    def _elegir(self, opcion):
+        self.opcion_elegida = opcion
+        self.accept()
+
+
 class MenuArchivo:
     def __init__(self, ventana_principal):
         self.ventana = ventana_principal
@@ -300,7 +396,7 @@ class MenuArchivo:
         recientes_validos = [r for r in recientes if os.path.exists(r)]
 
         if not recientes_validos:
-            action_vacio = self.menu_recientes.addAction("No hay archivos recientes")
+            action_vacio = self.menu_recientes.addAction(t("No hay archivos recientes"))
             action_vacio.setEnabled(False)
             return
 
@@ -315,11 +411,11 @@ class MenuArchivo:
             action.setToolTip(ruta)
             action.triggered.connect(_make_reciente_handler(ruta))
 
-    def abrir_archivo_reciente(self, ruta):
+    def abrir_en_nueva_pestana(self, ruta):
         if not os.path.exists(ruta):
-            QMessageBox.warning(self.ventana, "Archivo no encontrado", f"El archivo ya no existe en la ruta:\n{ruta}")
+            QMessageBox.warning(self.ventana, t("Archivo no encontrado"), f"El archivo ya no existe en la ruta:\n{ruta}")
             self.actualizar_menu_recientes()
-            return
+            return False
 
         tab_widget = self.ventana.tab_widget
         canvas_actual = self.ventana.lienzo
@@ -332,7 +428,7 @@ class MenuArchivo:
             len(canvas_actual.layer_mgr.capas) == 1
         )
 
-        canvas_nuevo = self.ventana.crear_nueva_pestana(800, 600, transparent=True, ruta=ruta, titulo=os.path.basename(ruta))
+        canvas_nuevo = self.ventana.crear_nueva_pestana(800, 600, transparent=False, ruta=ruta, titulo=os.path.basename(ruta))
         if canvas_nuevo.cargar_imagen(ruta):
             canvas_nuevo.archivo_actual = ruta
             canvas_nuevo.lienzo_modificado = False
@@ -341,9 +437,43 @@ class MenuArchivo:
 
             if era_inicial_limpia and tab_widget.count() > 1:
                 tab_widget.removeTab(0)
+            return True
+        return False
+
+    def insertar_en_lienzo_actual(self, ruta):
+        if not os.path.exists(ruta):
+            QMessageBox.warning(self.ventana, t("Archivo no encontrado"), f"El archivo ya no existe en la ruta:\n{ruta}")
+            self.actualizar_menu_recientes()
+            return False
+
+        if not hasattr(self.ventana, 'lienzo') or self.ventana.lienzo is None:
+            return self.abrir_en_nueva_pestana(ruta)
+
+        if self.ventana.lienzo.insertar_imagen(ruta, force_dialog=True):
+            if hasattr(self.ventana, 'panel_herramientas'):
+                self.ventana.panel_herramientas.seleccionar("seleccion")
+            self.agregar_archivo_reciente(ruta)
+            return True
+        return False
+
+    def abrir_archivo_reciente(self, ruta):
+        if not os.path.exists(ruta):
+            QMessageBox.warning(self.ventana, t("Archivo no encontrado"), f"El archivo ya no existe en la ruta:\n{ruta}")
+            self.actualizar_menu_recientes()
+            return
+
+        nombre_archivo = os.path.basename(ruta)
+        dialogo = DialogoAbrirOInsertarReciente(self.ventana, nombre_archivo=nombre_archivo)
+        if dialogo.exec() != QDialog.DialogCode.Accepted or not dialogo.opcion_elegida:
+            return
+
+        if dialogo.opcion_elegida == "nueva_pestana":
+            self.abrir_en_nueva_pestana(ruta)
+        elif dialogo.opcion_elegida == "insertar":
+            self.insertar_en_lienzo_actual(ruta)
 
     def abrir_ruta_especifica(self, ruta):
-        self.abrir_archivo_reciente(ruta)
+        self.abrir_en_nueva_pestana(ruta)
 
     def nuevo_archivo(self):
         dialogo = DialogoNuevoArchivo(self.ventana)
@@ -370,26 +500,7 @@ class MenuArchivo:
             return
         ruta = dialogo.ruta_seleccionada()
         if ruta:
-            tab_widget = self.ventana.tab_widget
-            canvas_actual = self.ventana.lienzo
-            era_inicial_limpia = (
-                tab_widget.count() == 1 and
-                canvas_actual and
-                canvas_actual.archivo_actual is None and
-                not getattr(canvas_actual, 'lienzo_modificado', False) and
-                len(canvas_actual.history_mgr.history_stack) <= 1 and
-                len(canvas_actual.layer_mgr.capas) == 1
-            )
-
-            canvas_nuevo = self.ventana.crear_nueva_pestana(800, 600, transparent=True, ruta=ruta, titulo=os.path.basename(ruta))
-            if canvas_nuevo.cargar_imagen(ruta):
-                canvas_nuevo.archivo_actual = ruta
-                canvas_nuevo.lienzo_modificado = False
-                self.ventana.actualizar_titulo_ventana()
-                self.agregar_archivo_reciente(ruta)
-
-                if era_inicial_limpia and tab_widget.count() > 1:
-                    tab_widget.removeTab(0)
+            self.abrir_en_nueva_pestana(ruta)
 
     def insertar_imagen(self):
         dir_home = self.obtener_home_real()

@@ -88,17 +88,19 @@ class StrokePanelWidget(QWidget):
 
     def _on_forma_changed(self, button):
         forma = "Redondo" if button == self.btn_circle else "Cuadrado"
-        if self.main_window and hasattr(self.main_window, 'canvas'):
-            self.main_window.canvas.forma_pincel = forma
+        canvas = getattr(self.main_window, 'lienzo', getattr(self.main_window, 'canvas', None)) if self.main_window else None
+        if canvas:
+            canvas.forma_pincel = forma
 
     def _on_ancho_changed(self, val):
-        if self.main_window and hasattr(self.main_window, 'canvas'):
-            self.main_window.canvas.grosor_pincel = val
+        canvas = getattr(self.main_window, 'lienzo', getattr(self.main_window, 'canvas', None)) if self.main_window else None
+        if canvas:
+            canvas.grosor_pincel = val
 
     def _on_suavizado_changed(self, val):
         self.lbl_suav_val.setText(f"{val}%")
-        if self.main_window and hasattr(self.main_window, 'canvas'):
-            canvas = self.main_window.canvas
+        canvas = getattr(self.main_window, 'lienzo', getattr(self.main_window, 'canvas', None)) if self.main_window else None
+        if canvas:
             if val == 0:
                 canvas.suavizado_pincel = False
                 canvas.opacidad_pincel = 255

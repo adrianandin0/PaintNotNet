@@ -4,7 +4,7 @@ import json
 import zipfile
 import hashlib
 from datetime import datetime, timezone
-from PyQt6.QtGui import QImage
+from PyQt6.QtGui import QImage, QPainter
 from PyQt6.QtCore import Qt, QBuffer, QIODevice
 from core.i18n import t
 
@@ -267,3 +267,46 @@ def cargar_proyecto_pnn(canvas, ruta_archivo):
     except Exception as e:
         print(f"[PNN] Error al cargar proyecto .pnn: {e}")
         return False
+
+
+def obtener_compuesto_pnn(ruta_archivo):
+    """
+    Obtiene una QImage compuesta (renderizada) de un archivo borrador .pnn.
+    """
+    if not os.path.exists(ruta_archivo) or not zipfile.is_zipfile(ruta_archivo):
+        return None
+    try:
+        with zipfile.ZipFile(ruta_archivo, 'r') as zip_file:
+            namelist = zip_file.namelist()
+            if "manifest.json" not in namelist:
+                return None
+            json_bytes = zip_file.read("manifest.json")
+            manifest = json.loads(json_bytes.decode('utf-8'))
+            width = manifest.get("width", 800)
+            height = manifest.get("height", 600)
+
+            comp = QImage(width, height, QImage.Format.Format_ARGB32_Premultiplied)
+            comp.fill(Qt.GlobalColor.transparent)
+            p = QPainter(comp)
+            p.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+
+            for layer_info in manifest.get("layers", []):
+                visible = layer_info.get("visible", True)
+                if not visible:
+                    continue
+                opacity = float(layer_info.get("opacity", 1.0))
+                img_filename = layer_info.get("filename", "")
+
+                if img_filename in namelist:
+                    png_bytes = zip_file.read(img_filename)
+                    qimg = QImage()
+                    qimg.loadFromData(png_bytes, "PNG")
+                    if not qimg.isNull():
+                        p.setOpacity(opacity)
+                        p.drawImage(0, 0, qimg.convertToFormat(QImage.Format.Format_ARGB32_Premultiplied))
+            p.end()
+            return comp
+    except Exception as e:
+        print(f"[PNN] Error al obtener compuesto .pnn: {e}")
+        return None
+

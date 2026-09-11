@@ -302,12 +302,8 @@ class PaintNotNet(QMainWindow):
                 if hasattr(self.advanced_color_panel, 'muestras'):
                     self.advanced_color_panel.muestras.set_colores(self.advanced_color_panel.color_primario, color, self.advanced_color_panel.modo_color)
 
-    def crear_nueva_pestana(self, width=800, height=600, transparent=True, ruta=None, titulo=None, dpi=300, perfil_color="sRGB"):
-        from core.theme import ThemeManager
-        tm = ThemeManager()
-        res_nombre = tm.resolver_nombre_tema(tm.current_theme)
-        c_bg = "#525252" if res_nombre == "Oscuro" else "#C8C8C8"
-
+    def crear_nueva_pestana(self, width=800, height=600, transparent=False, ruta=None, titulo=None, dpi=300, perfil_color="sRGB"):
+        c_bg = getattr(self, 'c_bg', "#202020")
         area_scroll = QScrollArea()
         area_scroll.setStyleSheet(f"QScrollArea, QScrollArea > QWidget > QWidget {{ background-color: {c_bg}; border: none; }}")
         area_scroll.viewport().setStyleSheet(f"background-color: {c_bg};")
@@ -326,6 +322,8 @@ class PaintNotNet(QMainWindow):
         if canvas is None:
             canvas = CanvasWidget(width, height)
 
+        canvas.lienzo_transparente_base = transparent
+        canvas.layer_mgr.capas[-1].transparent = transparent
         if not transparent:
             canvas.layer_mgr.buffer.fill(Qt.GlobalColor.white)
 

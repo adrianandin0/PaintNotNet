@@ -164,7 +164,8 @@ class ToolPanelWidget(QWidget):
                 btn.setChecked(True)
                 break
 
-        if self.main_window and hasattr(self.main_window, 'canvas'):
+        canvas = getattr(self.main_window, 'lienzo', getattr(self.main_window, 'canvas', None)) if self.main_window else None
+        if canvas:
             self.herramienta_anterior = tool
-            self.main_window.canvas.set_active_tool(tool)
-            self.main_window.canvas.setFocus()
+            canvas.set_active_tool(tool)
+            canvas.setFocus()
