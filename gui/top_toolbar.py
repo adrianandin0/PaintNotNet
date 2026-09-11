@@ -428,8 +428,9 @@ class TopToolBarWidget(QToolBar):
         self.combo_linea_estilo.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.combo_linea_estilo.setIconSize(QSize(18, 18))
         self.combo_linea_estilo.setFixedWidth(24)
-        self.combo_linea_estilo.addItem(QIcon("gui/iconos/flat.png"), "", "Recta")
-        self.combo_linea_estilo.addItem(QIcon("gui/iconos/pointed.png"), "", "Punteada")
+        self.combo_linea_estilo.addItem(QIcon("gui/iconos/flat_d.png"), "", "Recta")
+        self.combo_linea_estilo.addItem(QIcon("gui/iconos/dotted_d.png"), "", "Punteada Corta")
+        self.combo_linea_estilo.addItem(QIcon("gui/iconos/dotted_long_d.png"), "", "Punteada Larga")
         self.combo_linea_estilo.setToolTip("Estilo de Trazo: Recta")
         self.combo_linea_estilo.currentIndexChanged.connect(self._on_linea_estilo_changed)
         self.act_combo_linea_est = self.addWidget(self.combo_linea_estilo)
@@ -845,7 +846,8 @@ class TopToolBarWidget(QToolBar):
 
         if hasattr(self, 'combo_linea_estilo'):
             self.combo_linea_estilo.setItemIcon(0, QIcon(f"gui/iconos/flat{suf}"))
-            self.combo_linea_estilo.setItemIcon(1, QIcon(f"gui/iconos/pointed{suf}"))
+            self.combo_linea_estilo.setItemIcon(1, QIcon(f"gui/iconos/dotted{suf}"))
+            self.combo_linea_estilo.setItemIcon(2, QIcon(f"gui/iconos/dotted_long{suf}"))
 
         if hasattr(self, 'combo_linea_fin'):
             self.combo_linea_fin.setItemIcon(0, QIcon(f"gui/iconos/plain_point_right{suf}"))

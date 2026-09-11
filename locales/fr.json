@@ -445,6 +445,8 @@
   "Punta Final:": "Extrémité finale:",
   "Punta Inicial:": "Extrémité initiale:",
   "Punteada": "Pointillée",
+  "Punteada Corta": "Pointillée courte",
+  "Punteada Larga": "Pointillée longue",
   "Página %1": "Page %1",
   "Página 1": "Page 1",
   "Píxeles": "Pixels",
@@ -601,5 +603,9 @@
   "Área Rectangular": "Zone rectangulaire",
   "Óvalo horizontal": "Ovale horizontal",
   "Óvalo vertical": "Ovale vertical",
-  "Usar aceleración por hardware (OpenGL)": "Utiliser l'accélération matérielle (OpenGL)"
+  "Usar aceleración por hardware (OpenGL)": "Utiliser l'accélération matérielle (OpenGL)",
+  "Relleno": "Remplissage",
+  "Relleno:": "Remplissage :",
+  "Transparente": "Transparent",
+  "Blanco": "Blanc"
 }

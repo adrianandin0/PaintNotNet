@@ -299,7 +299,6 @@ class LineTool(BaseTool):
 
         stroke_width = max(1, getattr(canvas, 'ancho_pincel', 3))
         estilo_linea = getattr(canvas, 'linea_estilo', 'Recta')
-        pen_style = Qt.PenStyle.DashLine if estilo_linea == 'Punteada' else Qt.PenStyle.SolidLine
 
         cap_inicio = getattr(canvas, 'linea_cap_inicio', 'Plana')
         cap_fin = getattr(canvas, 'linea_cap_fin', 'Plana')
@@ -325,7 +324,14 @@ class LineTool(BaseTool):
             len3 = max(8.0, stroke_width * 2.4)
             p3_draw = self.p3 - u3 * (len3 * 0.4)
 
-        pen = QPen(color, stroke_width, pen_style, Qt.PenCapStyle.FlatCap, Qt.PenJoinStyle.RoundJoin)
+        pen = QPen(color, stroke_width, Qt.PenStyle.SolidLine, Qt.PenCapStyle.FlatCap, Qt.PenJoinStyle.RoundJoin)
+        if estilo_linea in ('Punteada Corta', 'Punteada corta', 'Punteada'):
+            pen.setStyle(Qt.PenStyle.CustomDashLine)
+            pen.setDashPattern([2.0, 1.0])
+        elif estilo_linea in ('Punteada Larga', 'Punteada larga'):
+            pen.setStyle(Qt.PenStyle.CustomDashLine)
+            pen.setDashPattern([6.0, 2.0])
+
         painter.setPen(pen)
 
         path = QPainterPath(p0_draw)

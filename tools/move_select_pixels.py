@@ -47,9 +47,8 @@ class MoveSelectPixelsTool(BaseTool):
 
                 painter = QPainter(buffer)
                 active_layer = canvas.layer_mgr.get_active_layer()
-                is_bottom_layer = (active_layer == canvas.layer_mgr.capas[-1]) if (active_layer and canvas.layer_mgr.capas) else False
                 is_layer_trans = getattr(active_layer, 'transparent', True) if active_layer else True
-                if is_layer_trans and not (is_bottom_layer and not getattr(canvas, 'lienzo_transparente_base', False)):
+                if is_layer_trans:
                     painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
                     if not engine.active_path.isEmpty():
                         painter.setClipPath(engine.active_path)

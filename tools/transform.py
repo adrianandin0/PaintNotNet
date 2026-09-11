@@ -342,11 +342,22 @@ class TransformTool(BaseTool):
         src = lifted
 
         if not getattr(self, '_is_new_content', False):
+            layer = canvas.layer_mgr.get_active_layer()
+            is_layer_trans = getattr(layer, 'transparent', True) if layer else True
             p = QPainter(buffer)
-            p.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
-            if not engine.active_path.isEmpty():
-                p.setClipPath(engine.active_path)
-            p.fillRect(r, Qt.GlobalColor.transparent)
+            if is_layer_trans:
+                p.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
+                if not engine.active_path.isEmpty():
+                    p.setClipPath(engine.active_path)
+                p.fillRect(r, Qt.GlobalColor.transparent)
+            else:
+                bg_col = getattr(canvas, 'color_secundario', QColor(255, 255, 255))
+                if not isinstance(bg_col, QColor) or not bg_col.isValid():
+                    bg_col = QColor(255, 255, 255)
+                p.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+                if not engine.active_path.isEmpty():
+                    p.setClipPath(engine.active_path)
+                p.fillRect(r, bg_col)
             p.end()
 
         engine.floating_image = src.copy()
@@ -687,9 +698,7 @@ class TransformTool(BaseTool):
                 layer.image = self._layer_backup.copy()
 
             if not is_new:
-                is_bottom_layer = (layer == canvas.layer_mgr.capas[-1]) if (layer and canvas.layer_mgr.capas) else False
-                is_layer_trans = getattr(layer, 'transparent', True) if layer else True
-                use_trans = is_layer_trans and not (is_bottom_layer and not getattr(canvas, 'lienzo_transparente_base', False))
+                use_trans = getattr(layer, 'transparent', True) if layer else True
 
                 bg_col = getattr(canvas, 'color_secundario', QColor(255, 255, 255))
                 if not isinstance(bg_col, QColor) or not bg_col.isValid():

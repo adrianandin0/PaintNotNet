@@ -445,6 +445,8 @@
   "Punta Final:": "Ponta Final:",
   "Punta Inicial:": "Ponta Inicial:",
   "Punteada": "Pontilhada",
+  "Punteada Corta": "Pontilhada Curta",
+  "Punteada Larga": "Pontilhada Longa",
   "Página %1": "Página %1",
   "Página 1": "Página 1",
   "Píxeles": "Pixels",
@@ -601,5 +603,9 @@
   "Área Rectangular": "Área Retangular",
   "Óvalo horizontal": "Óvalo horizontal",
   "Óvalo vertical": "Óvalo vertical",
-  "Usar aceleración por hardware (OpenGL)": "Usar aceleração por hardware (OpenGL)"
+  "Usar aceleración por hardware (OpenGL)": "Usar aceleração por hardware (OpenGL)",
+  "Relleno": "Preenchimento",
+  "Relleno:": "Preenchimento:",
+  "Transparente": "Transparente",
+  "Blanco": "Branco"
 }

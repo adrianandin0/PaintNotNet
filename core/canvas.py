@@ -422,10 +422,6 @@ class CanvasWidget(QWidget):
                 if hasattr(self.active_tool_obj, '_commit'):
                     self.active_tool_obj._commit(self)
 
-        if hasattr(self, 'selection_engine') and self.selection_engine.floating_image:
-            from tools.move_select_pixels import MoveSelectPixelsTool
-            MoveSelectPixelsTool.commit_floating_image(self)
-
     def set_active_tool(self, tool_object):
         from tools.text import TextTool
         if hasattr(self, 'active_tool_obj') and self.active_tool_obj is not None:
@@ -685,13 +681,8 @@ class CanvasWidget(QWidget):
             p_pm.end()
             self._bg_checker_brush = QBrush(pm)
 
-        if getattr(self, 'lienzo_transparente_base', False):
-            painter.fillRect(0, 0, l_width, l_height, self._bg_checker_brush)
-        else:
-            bg_col = getattr(self, 'color_secundario', QColor(255, 255, 255))
-            if not isinstance(bg_col, QColor) or not bg_col.isValid():
-                bg_col = QColor(255, 255, 255)
-            painter.fillRect(0, 0, l_width, l_height, bg_col)
+        # Dibujar fondo ajedrezado transparente del lienzo (visible si la capa base está oculta o contiene transparencias)
+        painter.fillRect(0, 0, l_width, l_height, self._bg_checker_brush)
 
         def _dibujar_preview_capa_activa(p_capa):
             is_transforming = (getattr(self.active_tool_obj, 'name', '') == "Transformar" and getattr(self.active_tool_obj, '_is_active', False))
@@ -1131,8 +1122,8 @@ class CanvasWidget(QWidget):
         return True
 
 
-    def redimensionar_lienzo(self, nuevo_ancho, nuevo_alto, anchor="top-left"):
-        """Redimensiona el lienzo expandiendo con fondo transparente en todas las capas y registrando en el historial."""
+    def redimensionar_lienzo(self, nuevo_ancho, nuevo_alto, anchor="top-left", fill_color="transparent"):
+        """Redimensiona el lienzo expandiendo con el relleno seleccionado (transparente o blanco) en la nueva área."""
         from tools.move_select_pixels import MoveSelectPixelsTool
         MoveSelectPixelsTool.commit_floating_image(self)
 
@@ -1159,17 +1150,17 @@ class CanvasWidget(QWidget):
         for idx, capa in enumerate(self.layer_mgr.capas):
             new_img = QImage(nuevo_ancho, nuevo_alto, QImage.Format.Format_ARGB32_Premultiplied)
             is_bottom_layer = (idx == len(self.layer_mgr.capas) - 1)
-            is_trans = getattr(capa, 'transparent', True)
 
-            if not is_trans or (is_bottom_layer and not getattr(self, 'lienzo_transparente_base', False)):
-                bg_col = getattr(self, 'color_secundario', QColor(255, 255, 255))
-                if not isinstance(bg_col, QColor) or not bg_col.isValid():
-                    bg_col = QColor(255, 255, 255)
-                new_img.fill(bg_col)
+            if is_bottom_layer and fill_color in ("white", "blanco"):
+                new_img.fill(QColor(255, 255, 255))
             else:
                 new_img.fill(Qt.GlobalColor.transparent)
 
             painter = QPainter(new_img)
+            if is_bottom_layer and fill_color in ("white", "blanco"):
+                painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
+                painter.fillRect(dest_x, dest_y, old_w, old_h, Qt.GlobalColor.transparent)
+
             painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
             painter.drawImage(dest_x, dest_y, capa.image)
             painter.end()

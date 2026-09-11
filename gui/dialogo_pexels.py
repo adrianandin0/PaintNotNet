@@ -3,6 +3,7 @@ gui/dialogo_pexels.py — Diálogo de búsqueda e inserción de imágenes desde 
 Manejo seguro de hilos QThread para evitar bloqueos y cierres inesperados.
 """
 import os
+import numpy as np
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QCheckBox, QComboBox, QScrollArea, QWidget, QGridLayout,
@@ -12,6 +13,62 @@ from PyQt6.QtCore import Qt, QSize, QThread, pyqtSignal, QRect, QRectF, QObject,
 from PyQt6.QtGui import QIcon, QPixmap, QImage, QPainter, QColor, QPen, QFont, QBrush
 from core.i18n import t
 from core.pexels import PexelsAPIClient
+
+
+def _hacer_fondo_blanco_transparente(qimg: QImage, threshold: int = 238) -> QImage:
+    """
+    Si la imagen no posee un canal alfa con píxeles transparentes (o es JPG/PNG con fondo blanco sólido),
+    realiza un flood-fill desde los bordes para convertir el fondo blanco/casi blanco en transparente (alpha=0).
+    """
+    if qimg.isNull():
+        return qimg
+
+    img = qimg.convertToFormat(QImage.Format.Format_ARGB32)
+    w, h = img.width(), img.height()
+    if w <= 0 or h <= 0:
+        return img
+
+    ptr = img.bits()
+    ptr.setsize(h * w * 4)
+    arr = np.frombuffer(ptr, np.uint8).reshape((h, w, 4))
+
+    # Si la imagen ya tiene píxeles transparentes reales (alfa < 250), se respeta la transparencia nativa
+    if qimg.hasAlphaChannel() and np.any(arr[:, :, 3] < 250):
+        return qimg
+
+    # Verificar si al menos una esquina es cercana al blanco
+    corners = [(0, 0), (0, w - 1), (h - 1, 0), (h - 1, w - 1)]
+    has_white_corner = False
+    for r, c in corners:
+        b, g, r_val, a = arr[r, c]
+        if r_val >= threshold and g >= threshold and b >= threshold:
+            has_white_corner = True
+            break
+
+    if not has_white_corner:
+        return img
+
+    try:
+        import cv2
+        white_mask = ((arr[:, :, 0] >= threshold) & (arr[:, :, 1] >= threshold) & (arr[:, :, 2] >= threshold)).astype(np.uint8) * 255
+        mask = np.zeros((h + 2, w + 2), np.uint8)
+
+        for r in range(h):
+            for c in (0, w - 1):
+                if white_mask[r, c] == 255 and mask[r + 1, c + 1] == 0:
+                    cv2.floodFill(white_mask, mask, (c, r), 128)
+        for c in range(w):
+            for r in (0, h - 1):
+                if white_mask[r, c] == 255 and mask[r + 1, c + 1] == 0:
+                    cv2.floodFill(white_mask, mask, (c, r), 128)
+
+        bg_indices = (mask[1:-1, 1:-1] == 1)
+        arr[bg_indices, 3] = 0
+    except Exception:
+        pass
+
+    return img
+
 
 
 # Workers asíncronos para búsquedas y descargas con cancelación segura
@@ -118,6 +175,7 @@ class _ImageCardWidget(QPushButton):
         self.is_selected = False
         self.pixmap: QPixmap | None = None
         self.runnable: _DownloadRunnable | None = None
+        self.full_runnable: _DownloadRunnable | None = None
         self.setFixedSize(140, 105)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
@@ -140,16 +198,55 @@ class _ImageCardWidget(QPushButton):
             except Exception:
                 pass
             self._download_signals = None
+        if hasattr(self, '_full_signals') and self._full_signals:
+            try:
+                self._full_signals.download_finished.disconnect()
+            except Exception:
+                pass
+            self._full_signals = None
         if self.runnable:
             self.runnable.cancel()
             self.runnable = None
+        if self.full_runnable:
+            self.full_runnable.cancel()
+            self.full_runnable = None
 
     def _on_preview_loaded(self, data: bytes, err: str):
         if data:
             qimg = QImage.fromData(data)
             if not qimg.isNull():
+                is_trans = self.photo_data.get("is_transparent", False)
+                if not is_trans and self.parent_dialog and hasattr(self.parent_dialog, 'chk_transparent'):
+                    is_trans = self.parent_dialog.chk_transparent.isChecked()
+
+                if is_trans:
+                    qimg = _hacer_fondo_blanco_transparente(qimg)
+
                 self.pixmap = QPixmap.fromImage(qimg)
                 self.update()
+
+                download_url = self.photo_data.get("download_url")
+                preview_url = self.photo_data.get("preview_url")
+                if is_trans and download_url and download_url != preview_url and not self.full_runnable:
+                    self.full_runnable = _DownloadRunnable(download_url)
+                    self._full_signals = self.full_runnable.signals
+                    self._full_signals.download_finished.connect(self._on_full_preview_loaded)
+                    _THUMB_POOL.start(self.full_runnable)
+
+    def _on_full_preview_loaded(self, data: bytes, err: str):
+        if data:
+            qimg = QImage.fromData(data)
+            if not qimg.isNull():
+                is_trans = self.photo_data.get("is_transparent", False)
+                if not is_trans and self.parent_dialog and hasattr(self.parent_dialog, 'chk_transparent'):
+                    is_trans = self.parent_dialog.chk_transparent.isChecked()
+
+                if is_trans:
+                    qimg = _hacer_fondo_blanco_transparente(qimg)
+
+                self.pixmap = QPixmap.fromImage(qimg)
+                self.update()
+
 
     def set_selected(self, selected: bool):
         self.is_selected = selected
@@ -584,7 +681,11 @@ class DialogoBusquedaPexels(QDialog):
             self.btn_insert.setEnabled(True)
             return
 
+        if self.chk_transparent.isChecked():
+            qimg = _hacer_fondo_blanco_transparente(qimg)
+
         if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
             self.main_window.lienzo.insertar_qimage(qimg)
 
         self.accept()
+

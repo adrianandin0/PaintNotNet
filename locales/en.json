@@ -116,6 +116,8 @@
   "Circulo": "Circle",
   "Recta": "Solid",
   "Punteada": "Dashed",
+  "Punteada Corta": "Short Dashed",
+  "Punteada Larga": "Long Dashed",
   "Pixelado": "Pixelated",
   "Gausiano": "Gaussian",
   "Gaussiano": "Gaussian",
@@ -611,5 +613,9 @@
   "Rendimiento y memoria": "Performance & Memory",
   "Límite de memoria del historial:": "History memory limit:",
   "512 MB recomendado": "512 MB recommended",
-  "Usar aceleración por hardware (OpenGL)": "Use hardware acceleration (OpenGL)"
+  "Usar aceleración por hardware (OpenGL)": "Use hardware acceleration (OpenGL)",
+  "Relleno": "Fill",
+  "Relleno:": "Fill:",
+  "Transparente": "Transparent",
+  "Blanco": "White"
 }
