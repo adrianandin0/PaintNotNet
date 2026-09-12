@@ -1214,6 +1214,9 @@ class TextTool(BaseTool, QObject):
                     y += lh
 
         # ── Texto ─────────────────────────────────────────────────────────
+        text_items = []
+        cursor_line_info = None
+
         y = oy
         for li, rich_line in enumerate(self.rich_lines):
             lh   = self._line_height(li)
@@ -1249,7 +1252,6 @@ class TextTool(BaseTool, QObject):
                     t_s  = max(seg_s, pos) - pos
                     t_e  = min(seg_e, pos + l) - pos
                     sub  = s_txt[t_s:t_e]
-                    painter.setFont(font)
 
                     b_en  = s_fmt.borde_enabled
                     b_w   = s_fmt.borde_width
@@ -1284,18 +1286,24 @@ class TextTool(BaseTool, QObject):
                     if extra_per_space > 0:
                         for ch in sub:
                             path = _build_span_path(ch, bx + x_acc)
-                            self._draw_path(painter, path, s_fmt.color,
-                                            b_en, b_w, b_col,
-                                            g_en, g_r, g_col,
-                                            s_en, s_w, s_col, s_dx, s_dy)
+                            text_items.append({
+                                'path': path, 'font': font, 'color': s_fmt.color,
+                                'borde_en': b_en, 'borde_w': b_w, 'borde_col': b_col,
+                                'glow_en': g_en, 'glow_r': g_r, 'glow_col': g_col,
+                                'shadow_en': s_en, 'shadow_w': s_w, 'shadow_col': s_col,
+                                's_dx': s_dx, 's_dy': s_dy
+                            })
                             cw = m.horizontalAdvance(ch)
                             x_acc += cw + (extra_per_space if ch == " " else 0)
                     else:
                         path = _build_span_path(sub, bx + x_acc)
-                        self._draw_path(painter, path, s_fmt.color,
-                                        b_en, b_w, b_col,
-                                        g_en, g_r, g_col,
-                                        s_en, s_w, s_col, s_dx, s_dy)
+                        text_items.append({
+                            'path': path, 'font': font, 'color': s_fmt.color,
+                            'borde_en': b_en, 'borde_w': b_w, 'borde_col': b_col,
+                            'glow_en': g_en, 'glow_r': g_r, 'glow_col': g_col,
+                            'shadow_en': s_en, 'shadow_w': s_w, 'shadow_col': s_col,
+                            's_dx': s_dx, 's_dy': s_dy
+                        })
                         x_acc += m.horizontalAdvance(sub)
                     pos += l
 
@@ -1303,38 +1311,57 @@ class TextTool(BaseTool, QObject):
                     cur_in_seg = seg_s <= self.cursor_col <= seg_e
                     if cur_in_seg:
                         cx  = bx + self._col_x_offset(li, self.cursor_col, seg_s, seg_e)
-                        painter.setPen(QPen(QColor(30, 30, 30), 2))
-                        painter.drawLine(int(cx), int(y), int(cx), int(y + lh))
+                        cursor_line_info = (int(cx), int(y), int(cx), int(y + lh))
 
                 y += lh
 
+        # ── Renderizado Multi-Pase ──────────────────────────────────────────
+        # Pase 1: Sombras de todo el texto
+        for item in text_items:
+            if item['shadow_en']:
+                sp = QPainterPath(item['path'])
+                sp.translate(item['s_dx'], item['s_dy'])
+                sw = item['shadow_w']
+                sc_base = item['shadow_col']
+                for r in range(sw, 0, -max(1, sw // 8)):
+                    alpha = int(180 * (1 - r / sw) ** 1.2)
+                    sc = QColor(sc_base.red(), sc_base.green(),
+                                sc_base.blue(), min(255, alpha))
+                    painter.strokePath(sp, QPen(sc, r * 2, Qt.PenStyle.SolidLine,
+                        Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
+
+        # Pase 2: Resplandor (glow) de todo el texto
+        for item in text_items:
+            if item['glow_en']:
+                gr = item['glow_r']
+                gc_base = item['glow_col']
+                path = item['path']
+                for r in range(gr, 0, -max(1, gr // 20)):
+                    alpha = int(200 * (1 - r / gr) ** 1.5)
+                    gc = QColor(gc_base.red(), gc_base.green(),
+                                gc_base.blue(), min(255, alpha))
+                    painter.strokePath(path, QPen(gc, r * 2, Qt.PenStyle.SolidLine,
+                        Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
+
+        # Pase 3: Bordes/Contornos de todo el texto
+        for item in text_items:
+            if item['borde_en']:
+                painter.strokePath(item['path'], QPen(item['borde_col'], item['borde_w'] * 2, Qt.PenStyle.SolidLine,
+                    Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
+
+        # Pase 4: Relleno de las letras por encima de todo
+        for item in text_items:
+            painter.setFont(item['font'])
+            painter.fillPath(item['path'], QBrush(item['color']))
+
+        # Cursor de texto (en primer plano)
+        if cursor_line_info is not None:
+            painter.setPen(QPen(QColor(30, 30, 30), 2))
+            painter.drawLine(cursor_line_info[0], cursor_line_info[1],
+                             cursor_line_info[2], cursor_line_info[3])
+
         if clip_applied:
             painter.setClipping(False)
-
-    def _draw_path(self, painter, path, color,
-                   borde_en, borde_w, borde_col,
-                   glow_en, glow_r, glow_col,
-                   shadow_en, shadow_w, shadow_col, off_x, off_y):
-        if shadow_en:
-            sp = QPainterPath(path)
-            sp.translate(off_x, off_y)
-            for r in range(shadow_w, 0, -max(1, shadow_w // 8)):
-                alpha = int(180 * (1 - r / shadow_w) ** 1.2)
-                sc = QColor(shadow_col.red(), shadow_col.green(),
-                            shadow_col.blue(), min(255, alpha))
-                painter.strokePath(sp, QPen(sc, r * 2, Qt.PenStyle.SolidLine,
-                    Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
-        if glow_en:
-            for r in range(glow_r, 0, -max(1, glow_r // 20)):
-                alpha = int(200 * (1 - r / glow_r) ** 1.5)
-                gc = QColor(glow_col.red(), glow_col.green(),
-                            glow_col.blue(), min(255, alpha))
-                painter.strokePath(path, QPen(gc, r * 2, Qt.PenStyle.SolidLine,
-                    Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
-        if borde_en:
-            painter.strokePath(path, QPen(borde_col, borde_w * 2, Qt.PenStyle.SolidLine,
-                Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
-        painter.fillPath(path, QBrush(color))
 
     def commit_text(self, canvas, color_activo):
         if not self.is_editing: return
