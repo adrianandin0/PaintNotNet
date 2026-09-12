@@ -311,13 +311,10 @@ Special thanks to Flaticon icon creators:
 | Author | Link |
 |---|---|
 | Flaticon | [flaticon.com](https://www.flaticon.com/) |
-| Nuion | [authors/nuion](https://www.flaticon.com/authors/nuion) |
-| Gungyoga04 | [authors/gungyoga04](https://www.flaticon.com/authors/gungyoga04) |
-| Gulraiz | [authors/gulraiz](https://www.flaticon.com/authors/gulraiz) |
 | Smashicons | [authors/smashicons](https://www.flaticon.com/authors/smashicons) |
 | Magnific | [authors/magnific](https://www.flaticon.com/authors/magnific) |
 | Pixel perfect | [authors/pixel-perfect](https://www.flaticon.com/authors/pixel-perfect) |
-| Designspace team | [authors/designspace-team](https://www.flaticon.com/authors/designspace-team) |
+
 
 ---
 
