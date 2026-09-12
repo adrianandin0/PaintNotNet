@@ -817,112 +817,16 @@ class CanvasWidget(QWidget):
 
     # Manejo de mouse y despacho a herramientas
     def leaveEvent(self, event):
-        self.cursor_pos = None
-        self.widget_cursor_pos = None
-        self._notificar_posicion_cursor()
-        self.update()
-        super().leaveEvent(event)
+        self.input_handler.handle_leave_event(event)
 
     def mousePressEvent(self, event):
-        self.setFocus()
-        self.widget_cursor_pos = event.position()
-        ev = self._canvas_event(event)
-        self.cursor_pos = ev.position()
-        self._notificar_posicion_cursor()
-
-        if hasattr(self.selection_engine, 'original_selection_region'):
-            self.selection_engine.original_selection_region = None
-
-        if ev.button() in (Qt.MouseButton.LeftButton, Qt.MouseButton.RightButton):
-            self.drawing = True
-            color_activo = self.color_primario if ev.button() == Qt.MouseButton.LeftButton else self.color_secundario
-
-            tool_name = self.active_tool_obj.__class__.__name__ if self.active_tool_obj else ""
-            es_herramienta_lectura = tool_name in (
-                'ZoomTool', 'EyedropperTool', 'SelectRectTool', 'SelectEllipseTool',
-                'SelectFreeTool', 'MagicWandTool', 'MoveSelectOnlyTool'
-            )
-
-            if not es_herramienta_lectura and hasattr(self, 'layer_mgr') and hasattr(self.layer_mgr, 'preparar_para_modificacion'):
-                self.layer_mgr.preparar_para_modificacion()
-
-            if hasattr(self.active_tool_obj, 'mouse_press'):
-                try:
-                    self.active_tool_obj.mouse_press(self, ev, color_activo)
-                except TypeError:
-                    self.active_tool_obj.mouse_press(self, ev)
-            self.update()
+        self.input_handler.handle_mouse_press(event)
 
     def mouseMoveEvent(self, event):
-        self.widget_cursor_pos = event.position()
-        ev = self._canvas_event(event)
-        self.cursor_pos = ev.position()
-        self._notificar_posicion_cursor()
-        color_activo = self.color_primario if (ev.buttons() & Qt.MouseButton.LeftButton) else self.color_secundario
-
-        if hasattr(self.active_tool_obj, 'mouse_move'):
-            try:
-                self.active_tool_obj.mouse_move(self, ev, color_activo)
-            except TypeError:
-                self.active_tool_obj.mouse_move(self, ev)
-
-        if self.drawing and self.callback_modificado:
-            self.callback_modificado()
-
-        tool_name = getattr(self.active_tool_obj, 'name', getattr(self.active_tool_obj, 'nombre', ''))
-        es_herramienta_trazo = tool_name in ("Pincel", "Lápiz", "Goma de Borrar", "Spray", "Tampón de Clonado", "Acuarela")
-
-        if self.drawing and es_herramienta_trazo and hasattr(self, 'cursor_pos') and self.cursor_pos:
-            grosor = max(30, int(getattr(self, 'grosor_pincel', 5) * 4))
-            cx, cy = self.cursor_pos.x(), self.cursor_pos.y()
-            sf = self.scale_factor
-            off_x, off_y = self.obtener_offset_canvas()
-
-            vx = int(off_x + (cx - grosor) * sf)
-            vy = int(off_y + (cy - grosor) * sf)
-            vw = int((grosor * 2) * sf)
-            vh = int((grosor * 2) * sf)
-            self.update(vx, vy, vw, vh)
-        else:
-            self.update()
+        self.input_handler.handle_mouse_move(event)
 
     def mouseReleaseEvent(self, event):
-        ev = self._canvas_event(event)
-        self._notificar_posicion_cursor()
-        if self.drawing:
-            color_activo = self.color_primario if ev.button() == Qt.MouseButton.LeftButton else self.color_secundario
-
-            if hasattr(self.active_tool_obj, 'mouse_release'):
-                try:
-                    self.active_tool_obj.mouse_release(self, ev, color_activo)
-                except TypeError:
-                    self.active_tool_obj.mouse_release(self, ev)
-
-            self.drawing = False
-            from tools.bucket import BucketTool
-            from tools.eyedropper import EyedropperTool
-            from tools.zoom import ZoomTool
-            from tools.transform import TransformTool
-            from tools.move_select_pixels import MoveSelectPixelsTool
-            from tools.move_select_only import MoveSelectOnlyTool
-            from tools.select_rect import SelectRectTool
-            from tools.select_ellipse import SelectEllipseTool
-            from tools.select_free import SelectFreeTool
-            from tools.magic_wand import MagicWandTool
-            from tools.text import TextTool
-            from tools.shapes import ShapesTool
-            from tools.line import LineTool
-
-            if not isinstance(self.active_tool_obj, (
-                BucketTool, EyedropperTool, ZoomTool,
-                TransformTool, MoveSelectPixelsTool, MoveSelectOnlyTool,
-                SelectRectTool, SelectEllipseTool, SelectFreeTool, MagicWandTool,
-                TextTool, ShapesTool, LineTool
-            )):
-                tool_name = getattr(self.active_tool_obj, 'name', None) or getattr(self.active_tool_obj, 'nombre', None) or getattr(self, 'herramienta_actual', 'Trazo')
-                self.push_document_state(tool_name)
-
-            self.update()
+        self.input_handler.handle_mouse_release(event)
 
     # Funciones de Menús (Archivo, Editar, Imagen)
     def crear_nuevo_lienzo(self, ancho, alto, es_transparente=False):
@@ -1465,21 +1369,20 @@ class CanvasWidget(QWidget):
 
     # --- HISTORIAL Y CAPAS MULTIPLE ---
     def obtener_snapshot_documento(self):
-        """Genera una captura del documento utilizando Copy-on-Write (CoW) en las imágenes de las capas para optimizar RAM."""
+        """Genera una captura inmutable del documento para el historial."""
         capas_copy = []
         for c in self.layer_mgr.capas:
             capas_copy.append({
                 'name': c.name,
                 'visible': c.visible,
                 'opacity': float(getattr(c, 'opacity', 1.0)),
-                'image': c.image
+                'image': c.image.copy()
             })
         path = QPainterPath(self.selection_engine.active_path) if (hasattr(self.selection_engine, 'active_path') and self.selection_engine.has_selection()) else None
         return {
             'width': self.layer_mgr.width,
             'height': self.layer_mgr.height,
             'layers': capas_copy,
-            'active_index': self.layer_mgr.indice_activo,
             'floating_pkg': self.empaquetar_paquete_flotante() if (self.selection_engine.floating_image and not self.selection_engine.floating_image.isNull()) else None,
             'selection_path': path
         }
@@ -1604,7 +1507,7 @@ class CanvasWidget(QWidget):
                 capa = Layer(l_info['name'], snap_w, snap_h, transparent=True)
                 capa.visible = l_info.get('visible', True)
                 capa.opacity = float(l_info.get('opacity', 1.0))
-                capa.image = l_info['image']
+                capa.image = l_info['image'].copy()
                 nuevas_capas.append(capa)
 
             self.layer_mgr.capas = nuevas_capas
