@@ -1513,8 +1513,6 @@ class CanvasWidget(QWidget):
 
         if s1.get('width') != s2.get('width') or s1.get('height') != s2.get('height'):
             return False
-        if s1.get('active_index') != s2.get('active_index'):
-            return False
 
         # Comparar ruta de selección
         p1 = s1.get('selection_path')
@@ -1620,6 +1618,9 @@ class CanvasWidget(QWidget):
             self.capa_trazo_temp = QImage(snap_w, snap_h, QImage.Format.Format_ARGB32_Premultiplied)
             self.capa_trazo_temp.fill(Qt.GlobalColor.transparent)
 
+            # Preservar la capa seleccionada por el usuario (ajustada a los límites válidos)
+            current_active = getattr(self.layer_mgr, 'indice_activo', 0)
+
             nuevas_capas = []
             for l_info in snap['layers']:
                 capa = Layer(l_info['name'], snap_w, snap_h, transparent=True)
@@ -1629,7 +1630,7 @@ class CanvasWidget(QWidget):
                 nuevas_capas.append(capa)
 
             self.layer_mgr.capas = nuevas_capas
-            idx = max(0, min(snap.get('active_index', 0), len(self.layer_mgr.capas) - 1))
+            idx = max(0, min(current_active, len(self.layer_mgr.capas) - 1))
             self.layer_mgr.indice_activo = idx
 
             floating_pkg = snap.get('floating_pkg')

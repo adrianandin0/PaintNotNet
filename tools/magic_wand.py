@@ -13,15 +13,16 @@ def construir_img3_alpha(buffer, w, h):
     arr = np.frombuffer(ptr, dtype=np.uint8).reshape((h, stride))
     bgra = arr[:, :w * 4].reshape((h, w, 4))
 
-    b = bgra[:, :, 0].astype(np.uint16)
-    g = bgra[:, :, 1].astype(np.uint16)
-    r = bgra[:, :, 2].astype(np.uint16)
+    b = bgra[:, :, 0].astype(np.uint32)
+    g = bgra[:, :, 1].astype(np.uint32)
+    r = bgra[:, :, 2].astype(np.uint32)
     a = bgra[:, :, 3]
 
     gray = ((299 * r + 587 * g + 114 * b) >> 10).astype(np.uint8)
-    chroma = ((b.astype(np.int16) - r.astype(np.int16) + 256) >> 1).astype(np.uint8)
+    chroma = ((b.astype(np.int32) - r.astype(np.int32) + 256) >> 1).astype(np.uint8)
 
     return np.dstack((a, gray, chroma))
+
 
 
 class MagicWandTool(BaseTool):

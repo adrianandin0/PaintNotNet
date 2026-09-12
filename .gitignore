@@ -66,12 +66,6 @@ temp/
 *.tmp
 *.log
 *.bak
-descargar.py
-pref_*
-save_dialog_*
-test_export.*
-test_*.png
-test_*.jpg
 .user_uploaded/
 .ruff_cache/
 .mypy_cache/
