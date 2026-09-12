@@ -63,14 +63,14 @@ class PaintNotNet(QMainWindow):
 
         self.setDockOptions(QMainWindow.DockOption.AnimatedDocks)
 
-        # Docks laterales izquierdos: Herramientas, Pinceles, Colores
+        # Docks laterales izquierdos: Herramientas, Colores
         self.tools_dock = QDockWidget(self)
         self.tools_dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
         self.tool_panel = ToolPanelWidget(main_window=self)
         self.tools_dock.setWidget(self.tool_panel)
         self.tools_dock.setTitleBarWidget(self._hacer_titulo_dock("gui/iconos/tools.png", "Herramientas"))
-        self.tools_dock.setFixedHeight(270)
         self.tools_dock.setFixedWidth(120)
+        self.tools_dock.setFixedHeight(270)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.tools_dock)
 
         self.color_dock = QDockWidget(self)
@@ -78,12 +78,19 @@ class PaintNotNet(QMainWindow):
         self.color_panel = ColorPanelWidget(main_window=self)
         self.color_dock.setWidget(self.color_panel)
         self.color_dock.setTitleBarWidget(self._hacer_titulo_dock("gui/iconos/color.png", "Colores"))
-        self.color_dock.setFixedHeight(300)
         self.color_dock.setFixedWidth(120)
+        self.color_dock.setFixedHeight(300)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.color_dock)
 
-        # Docks laterales derechos: Texto, Colores, Historial, Capas
-        # 1. Dock de Color avanzado
+        # Espaciador transparente izquierdo para empujar los docks hacia arriba sin estirarlos
+        self.left_spacer_dock = QDockWidget(self)
+        self.left_spacer_dock.setTitleBarWidget(QWidget())
+        self.left_spacer_dock.setWidget(QWidget())
+        self.left_spacer_dock.widget().setStyleSheet("background: transparent;")
+        self.left_spacer_dock.setFeatures(QDockWidget.DockWidgetFeature.NoDockWidgetFeatures)
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.left_spacer_dock)
+
+        # Docks laterales derechos: Color avanzado, Historial, Capas
         self.advanced_color_dock = QDockWidget(self)
         self.advanced_color_dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
         self.advanced_color_panel = AdvancedColorPanelWidget(main_window=self)
@@ -93,7 +100,6 @@ class PaintNotNet(QMainWindow):
         self.advanced_color_dock.setFixedHeight(256)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.advanced_color_dock)
 
-        # 4. Dock de Historial
         self.history_dock = QDockWidget(self)
         self.history_dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
         self.history_panel = HistoryPanelWidget(main_window=self)
@@ -103,7 +109,6 @@ class PaintNotNet(QMainWindow):
         self.history_dock.setFixedHeight(160)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.history_dock)
 
-        # 5. Dock de Capas
         self.layers_dock = QDockWidget(self)
         self.layers_dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
         self.layers_panel = LayersPanelWidget(main_window=self)
@@ -112,6 +117,19 @@ class PaintNotNet(QMainWindow):
         self.layers_dock.setFixedWidth(160)
         self.layers_dock.setFixedHeight(200)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.layers_dock)
+
+        # Espaciador transparente derecho para empujar los docks hacia arriba sin estirarlos
+        self.right_spacer_dock = QDockWidget(self)
+        self.right_spacer_dock.setTitleBarWidget(QWidget())
+        self.right_spacer_dock.setWidget(QWidget())
+        self.right_spacer_dock.widget().setStyleSheet("background: transparent;")
+        self.right_spacer_dock.setFeatures(QDockWidget.DockWidgetFeature.NoDockWidgetFeatures)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.right_spacer_dock)
+
+        # Conectar visibilidad y estado de flotación para alineación dinámica al borde superior
+        for d in (self.tools_dock, self.color_dock, self.advanced_color_dock, self.history_dock, self.layers_dock):
+            d.visibilityChanged.connect(self._ajustar_alineacion_docks)
+            d.topLevelChanged.connect(self._ajustar_alineacion_docks)
 
         self.setWindowIcon(QIcon(obtener_ruta_icono_app()))
 
@@ -209,6 +227,20 @@ class PaintNotNet(QMainWindow):
         layout.addWidget(lbl)
         layout.addStretch()
         return widget
+
+    def _ajustar_alineacion_docks(self, *args):
+        """Ajusta la altura preferida de los docks visibles para mantener los paneles superiores compactos y alineados arriba."""
+        left_docks = [d for d in [self.tools_dock, self.color_dock] if d.isVisible() and not d.isFloating()]
+        if hasattr(self, 'left_spacer_dock'):
+            left_docks.append(self.left_spacer_dock)
+            sizes = [d.height() if d != self.left_spacer_dock else 10000 for d in left_docks]
+            self.resizeDocks(left_docks, sizes, Qt.Orientation.Vertical)
+
+        right_docks = [d for d in [self.advanced_color_dock, self.history_dock, self.layers_dock] if d.isVisible() and not d.isFloating()]
+        if hasattr(self, 'right_spacer_dock'):
+            right_docks.append(self.right_spacer_dock)
+            sizes = [d.height() if d != self.right_spacer_dock else 10000 for d in right_docks]
+            self.resizeDocks(right_docks, sizes, Qt.Orientation.Vertical)
 
     def _cargar_perfil_usuario(self):
         settings = QSettings("PaintNotNet", "PaintNotNet")

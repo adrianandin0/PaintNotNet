@@ -7,8 +7,13 @@ from core.layers import LayerManager
 from core.history import HistoryManager
 from core.selection import SelectionEngine
 from tools.pencil import PencilTool
+_OPENGL_SUPPORTED_CACHE = None
+
 def comprobar_soporte_opengl() -> bool:
-    """Verifica si el sistema soporta inicialización válida de contexto OpenGL."""
+    """Verifica si el sistema soporta inicialización válida de contexto OpenGL (resultado en caché)."""
+    global _OPENGL_SUPPORTED_CACHE
+    if _OPENGL_SUPPORTED_CACHE is not None:
+        return _OPENGL_SUPPORTED_CACHE
     try:
         from PyQt6.QtWidgets import QApplication
         from PyQt6.QtOpenGLWidgets import QOpenGLWidget
@@ -22,8 +27,10 @@ def comprobar_soporte_opengl() -> bool:
         valid = w.isValid()
         w.close()
         w.deleteLater()
+        _OPENGL_SUPPORTED_CACHE = valid
         return valid
     except Exception:
+        _OPENGL_SUPPORTED_CACHE = False
         return False
 
 
