@@ -267,25 +267,14 @@ class LayersPanelWidget(QWidget):
         painter = QPainter(canvas_thumb)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
         
-        is_trans = getattr(layer, 'transparent', True) if layer else True
-        if hasattr(self, 'canvas') and self.canvas and not getattr(self.canvas, 'lienzo_transparente_base', False):
-            if layer and hasattr(self.canvas, 'layer_mgr') and self.canvas.layer_mgr.capas and layer == self.canvas.layer_mgr.capas[-1]:
-                is_trans = False
-
-        if is_trans:
-            # Fondo ajedrezado claro para transparencia
-            sq_size = 4
-            c1 = QColor(255, 255, 255)
-            c2 = QColor(204, 204, 204)
-            for y in range(0, th, sq_size):
-                for x in range(0, tw, sq_size):
-                    col = c1 if ((x // sq_size) + (y // sq_size)) % 2 == 0 else c2
-                    painter.fillRect(x, y, sq_size, sq_size, col)
-        else:
-            bg_col = getattr(self.canvas, 'color_secundario', QColor(255, 255, 255)) if hasattr(self, 'canvas') and self.canvas else QColor(255, 255, 255)
-            if not isinstance(bg_col, QColor) or not bg_col.isValid():
-                bg_col = QColor(255, 255, 255)
-            painter.fillRect(0, 0, tw, th, bg_col)
+        # Fondo ajedrezado según tema para representar transparencia de la capa
+        sq_size = 4
+        from core.theme import ThemeManager
+        c1, c2 = ThemeManager().colores_checkerboard()
+        for y in range(0, th, sq_size):
+            for x in range(0, tw, sq_size):
+                col = c1 if ((x // sq_size) + (y // sq_size)) % 2 == 0 else c2
+                painter.fillRect(x, y, sq_size, sq_size, col)
 
         if layer_image and not layer_image.isNull():
             thumb = layer_image.scaled(tw, th, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)

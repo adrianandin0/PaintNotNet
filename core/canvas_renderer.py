@@ -14,11 +14,7 @@ class CanvasRenderer:
     def draw_checkerboard_pattern(self, painter: QPainter, rect_w: int, rect_h: int, tile_size: int = 12):
         """Dibuja el fondo de tablero de ajedrez representativo de transparencia."""
         from core.theme import ThemeManager
-        tm = ThemeManager()
-        is_light = (tm.resolver_nombre_tema(tm.current_theme) == "Claro")
-
-        c1 = QColor(240, 240, 240) if is_light else QColor(42, 42, 42)
-        c2 = QColor(210, 210, 210) if is_light else QColor(58, 58, 58)
+        c1, c2 = ThemeManager().colores_checkerboard()
 
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)

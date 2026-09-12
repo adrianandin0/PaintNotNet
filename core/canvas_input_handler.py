@@ -113,12 +113,13 @@ class CanvasInputHandler(QObject):
 
             self.canvas.drawing = False
             tool_name = self.canvas.active_tool_obj.__class__.__name__ if self.canvas.active_tool_obj else ""
-            read_only_or_special = (
+            tools_que_gestionan_su_historial = (
                 'BucketTool', 'EyedropperTool', 'ZoomTool', 'TransformTool',
                 'MoveSelectPixelsTool', 'MoveSelectOnlyTool', 'SelectRectTool',
-                'SelectEllipseTool', 'SelectFreeTool', 'MagicWandTool', 'TextTool', 'GradientTool'
+                'SelectEllipseTool', 'SelectFreeTool', 'MagicWandTool', 'TextTool',
+                'GradientTool', 'ShapesTool', 'LineTool'
             )
-            if tool_name not in read_only_or_special:
+            if tool_name not in tools_que_gestionan_su_historial:
                 self.canvas.push_document_state(getattr(self.canvas.active_tool_obj, 'name', "Trazo"))
         self.canvas.update()
 

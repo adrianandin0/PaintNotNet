@@ -296,8 +296,8 @@ class _ImageCardWidget(QPushButton):
 
         # 1. Fondo de cuadrícula de transparencia
         sq = 6
-        c1 = QColor(240, 240, 240)
-        c2 = QColor(190, 190, 190)
+        from core.theme import ThemeManager
+        c1, c2 = ThemeManager().colores_checkerboard()
         for y in range(4, h - 4, sq):
             for x in range(4, w - 4, sq):
                 c = c1 if ((x // sq) + (y // sq)) % 2 == 0 else c2
