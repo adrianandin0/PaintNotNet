@@ -5,8 +5,7 @@
 <h1 align="center">PaintNotNet</h1>
 
 <p align="center">
-  <b>Un editor de imágenes liviano, potente y moderno para Linux e inspirado en Paint.NET</b><br>
-  <b>A lightweight, powerful, and modern image editor for Linux inspired by Paint.NET</b>
+  <b>A Paint.NET tribute image editor primarily focused on Linux.</b>
 </p>
 
 <p align="center">
@@ -22,167 +21,122 @@
 
 ---
 
-## Índice / Table of Contents
-- [Acerca del Proyecto (Español)](#acerca-del-proyecto-español)
-- [About the Project (English)](#about-the-project-english)
-- [Guía Paso a Paso de Instalación / Step-by-Step Installation Guide](#guía-paso-a-paso-de-instalación--step-by-step-installation-guide)
-  - [Instalación en Linux (Paso a Paso)](#instalación-en-linux-paso-a-paso)
-  - [Instalación en Windows (Paso a Paso)](#instalación-en-windows-paso-a-paso)
-  - [Ejecución Directa desde Código Fuente](#ejecución-directa-desde-código-fuente)
-- [Resolución de Problemas Frecuentes / Troubleshooting](#resolución-de-problemas-frecuentes--troubleshooting)
-- [Colaboración / Contributing](#colaboración--contributing)
-- [Autor y Contacto / Author & Contact](#autor-y-contacto--author--contact)
-- [Créditos / Credits](#créditos--credits)
+## Table of Contents
+- [About the Project](#about-the-project)
+- [Key Features](#key-features)
+- [Tools](#tools)
+- [Technical Details](#technical-details)
+- [Installation Guide](#installation-guide)
+  - [Linux Installation (Primary Platform)](#linux-installation-primary-platform)
+  - [Optional Windows Installation](#optional-windows-installation)
+  - [Direct Execution from Source Code](#direct-execution-from-source-code)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [Author & Contact](#author--contact)
+- [Credits](#credits)
 
 ---
 
-## Acerca del Proyecto (Español)
+## About the Project
 
-**PaintNotNet** es una aplicación de edición de imágenes desarrollada en Python 3 y PyQt6. Diseñada para ofrecer una experiencia fluida, rápida y familiar para usuarios que buscan una alternativa intuitiva a software como Paint.NET en entornos Linux y Windows.
-
-### Características Principales
-
-#### Soporte Multi-Idioma (i18n)
-- **Cambio de Idioma en Vivo**: Soporte nativo para **Español** e **Inglés**. Permite alternar el idioma de menús, herramientas y diálogos instantáneamente sin reiniciar desde *Opciones -> Preferencias de usuario*.
-- **Instalador Interactivo en Linux**: `install.sh` consulta el idioma deseado al inicio y pre-configura la aplicación automáticamente.
-
-#### Herramientas de Dibujo, Selección y Formas
-- **Herramientas de Selección**: Selección Rectangular, Elíptica, Lasso Libre y Varita Mágica por tolerancia.
-- **Transformación Libre**: Mover Contenido (`V`), Mover Selección (`M`) e Invertir Selección (`I`) sin límites de lienzo.
-- **Pintura y Efectos**: Lápiz, Pincel (con grosor y suavizado), Goma de Borrar, Balde de Pintura, Degradado, Herramienta de Líneas/Curvas, Aerosol, Difuminado y Estampa.
-- **Ajustes de Imagen y Color**: Exposición, Temperatura de Color, Niveles (puntos negro/blanco de entrada y salida), Sepia, Posterizado, Brillo, Contraste, Tono/Saturación, Invertir Colores y Desaturar.
-- **Inserción de Texto y Formas**: Formas geométricas ajustables (Rectángulos, Elipses, Estrellas, Polígonos con bordes redondeados) y motor de texto dinámico.
-- **Selector de Color**: Panel de Color Avanzado (rueda cromática, sliders RGB/HSV/CMYK e historial de paletas).
-
-#### Capas, Historial y Formato Nativo `.pnn`
-- **Gestión de Capas**: Creación, duplicación, reordenamiento, combinación hacia abajo, eliminación y alternado de visibilidad.
-- **Historial Completo (Undo / Redo)**: Deshacer (`Ctrl+Z`) y rehacer (`Ctrl+Y`) con previsualización en vivo.
-- **Formato Nativo `.pnn`**: Guarda proyectos preservando capas, transparencias y estados de trabajo. Asociación automática al hacer doble clic en archivos `.pnn`.
-
-#### Atajos de Teclado Personalizables
-- **Configuración de Atajos**: Personaliza las teclas de acceso rápido para todas las herramientas desde *Opciones -> Atajos de teclado...* con actualización de insignias en tiempo real.
-
-### Novedades en la Versión 1.0.8
-- **Mejoras en Herramientas de Dibujo y Vista**:
-  - **Aerosol (Spray)**: Nueva capacidad de goteo al saturar el área pintada.
-  - **Lápiz**: Añadido el modo "Realista", que permite configurar la dureza y el polvillo al realizar un trazo.
-  - **Zoom**: Ahora permite seleccionar un área específica del lienzo para centrar el acercamiento.
-- **Mejoras en el Gestor de Archivos**:
-  - Añadida la opción para marcar archivos como favoritos.
-  - Nuevas opciones de ordenamiento y modos de visualización (lista, detalle y miniaturas).
-  - **Nuevos Formatos de Guardado**: Soporte extendido para exportar en WEBP, GIF, TIFF, ICO, TGA y PPM (además de PNG, JPG, BMP y el formato nativo PNN).
-- **Actualización de Paneles y Preferencias**:
-  - Rediseño completo del Panel de Color Avanzado.
-  - Las Preferencias de Usuario ahora incluyen la opción de mostrar u ocultar los atajos de teclado de las herramientas.
-- **Ajustes Estéticos y Correcciones**:
-  - Ajustes estéticos menores aplicados a diferentes íconos de la interfaz.
-  - Corrección de algunas traducciones al inglés que no se aplicaban correctamente.
-
-### Novedades en la Versión 1.0.7
-- **Nuevas Formas Vectoriales**:
-  - Añadidas las formas **Sol**, **Chispa** y **Rombo** al catálogo de la herramienta de formas vectoriales.
-  - Correcciones geométricas y ajustes en el funcionamiento de la herramienta de formas.
-- **Seguimiento Visual de Herramientas y Cursores**:
-  - Modificación del cursor de lienzo con vista previa e icono flotante dinámico que indica la herramienta activa en uso.
-- **Ajustes en Efectos de Texto y Selector de Color**:
-  - Selector de color simplificado para el panel de efectos de texto y posibilidad de borrar el color con `Ctrl+Clic` directamente sobre los recuadros.
-- **Fixes en Redimensionado de Imagen y Lienzo**:
-  - Correcciones en el funcionamiento del redimensionado de imagen, escalado de lienzo y tiradores de transformación.
-- **Depuración de Código y Rendimiento**:
-  - Depuración general de código, eliminación de duplicados y optimización de estabilidad.
-
-### Novedades en la Versión 1.0.6
-- **Nuevos Ajustes de Imagen y Color**:
-  - **Exposición**: Control preciso de luminancia y sobreexposición sin saturar blancos.
-  - **Temperatura de Color**: Ajuste de balance de blancos térmico para lograr tonos cálidos o fríos.
-  - **Niveles de Color (Input/Output Levels)**: Calibración independiente de puntos de entrada/salida (*Input Black/White*, *Output Black/White*) con previsualización directa.
-  - **Efecto Sepia**: Aplicación de virado sepia fotográfico vintage con ajuste de intensidad.
-  - **Posterizado**: Reducción de niveles de cuantización por canal cromático para estilos retro o pop-art.
-- **Diálogo Selector de Color Integrado (`SingleColorPickerDialog`)**:
-  - Selector de color independiente para efectos de texto (**Borde**, **Resplandor** y **Sombra**).
-  - Muestra de color con transparencia y slider de Alfa (0 a 255), Rueda de Color HSV (`ColorWheel`), paleta fija de 70 colores (7x10) y campos numéricos/sliders para RGB, Hexadecimal y HSV.
-  - Sincronización persistente en tiempo real de los 21 slots de colores guardados de usuario entre el menú lateral y los diálogos de efectos.
-  - Previsualización en vivo en el lienzo con botones de **Aceptar** y **Cancelar** (restauración inmediata del color original al cancelar).
-- **Sincronización Completa de Alineación de Selección**:
-  - Corrección en `align_selection()` para desplazar coordinadamente el área seleccionada, la imagen flotante, la ruta vectorial, el centro de rotación y los 8 tiradores de control (*handles*).
-  - Solución al problema de desfasaje de coordenadas en evaluaciones de alineación secuencial (*Arriba* -> *Izquierda* -> *Abajo*).
-- **Movimiento de Selección por Teclado e Historial**:
-  - Movimiento preciso de la selección píxel a píxel usando las flechas del teclado (con o sin contenido flotante).
-  - Integración total con el historial de deshacer (`Ctrl+Z`) para revertir desplazamientos por teclado paso a paso sin perder la selección ni alterar el contenido del lienzo.
-- **Notificaciones del Sistema e Interfaz**:
-  - Aviso flotante *"Autoguardado"* / *"Autosaved"* en la barra de estado inferior en texto itálico al completarse el autoguardado de seguridad.
-  - Formato de 11px uniforme para menús de ajustes (*Niveles*, *Posterizar*, *Ajustes de Color*), centrado de encabezados e inspección visual mejorada para botones de reinicio en tema claro.
-  - Diálogo **Acerca de PaintNotNet** actualizado e integración del nuevo logo oficial de la aplicación en el instalador y sistema Freedesktop / KDE.
+**PaintNotNet** is an image editor built with **Python 3** and **PyQt6** as a tribute to **Paint.NET**. It was created to fill the gap left by the absence of an official Linux release, providing a fast, smooth, and familiar experience for **Linux** users. While cross-platform Python allows it to run on Windows, its design and development are primarily aimed at the Linux community.
 
 ---
 
-## About the Project (English)
+## Key Features
 
-**PaintNotNet** is an image editing application built with Python 3 and PyQt6. Designed to deliver a smooth, fast, and familiar workflow for users seeking an intuitive alternative to tools like Paint.NET on Linux and Windows.
-
-### Key Features
-
-#### Multi-Language Support (i18n)
-- **Live Language Switcher**: Native support for **Spanish** and **English**. Switch menu titles, tooltips, and dialogs dynamically without restarting from *Options -> User Preferences*.
-- **Interactive Linux Installer**: `install.sh` prompts for your preferred language upfront and sets it as the default automatically.
-
-#### Drawing, Selection & Shape Tools
-- **Selection Tools**: Rectangle, Ellipse, Freeform Lasso, and Magic Wand with tolerance selection.
-- **Free Transformation**: Move Selected Pixels (`V`), Move Selection (`M`), and Invert Selection (`I`) beyond viewport boundaries.
-- **Paint & FX Tools**: Pencil, Paintbrush (with width and smoothing), Eraser, Paint Bucket, Gradient, Line/Curve Tool, Spray Paint, Smudge, and Stamp.
-- **Image & Color Adjustments**: Exposure, Color Temperature, Color Levels (Input/Output Black & White points), Sepia, Posterize, Brightness, Contrast, Hue/Saturation, Invert Colors, and Desaturate.
-- **Text & Shapes**: Adjustable geometric shapes (Rectangles, Ellipses, Stars, Polygons with rounded corners) and dynamic text layer engine.
-- **Color Picker**: Advanced Color Panel (color wheel, RGB/HSV/CMYK sliders, and saved palette history).
-
-#### Layers, History & Native `.pnn` Format
-- **Layer Management**: Create, duplicate, reorder, merge down, delete, and toggle layer visibility.
-- **Complete History (Undo / Redo)**: Undo (`Ctrl+Z`) and Redo (`Ctrl+Y`) with live snapshot previews.
-- **Native `.pnn` Project Format**: Save projects preserving layers, transparency, and structure. Automatic MIME file association for double-clicking `.pnn` files.
-
-#### Customizable Keyboard Shortcuts
-- **Shortcut Configuration**: Customize keyboard shortcut keys for all tools from *Options -> Keyboard Shortcuts...* with real-time badge updates.
-
-### What's New in Version 1.0.8
-- **Drawing and View Tools Improvements**:
-  - **Spray Paint**: New dripping capability when the painted area becomes saturated.
-  - **Pencil**: Added a "Realistic" mode, allowing you to adjust hardness and dust while drawing.
-  - **Zoom**: You can now select a specific area on the canvas to center the zoom.
-- **File Manager Enhancements**:
-  - Added the ability to mark files as favorites.
-  - New sorting and view options (list, details, and thumbnails).
-  - **New Save Formats**: Extended support for exporting in WEBP, GIF, TIFF, ICO, TGA, and PPM formats (in addition to PNG, JPG, BMP, and the native PNN format).
-- **Panels and Preferences Updates**:
-  - Complete redesign of the Advanced Color Panel.
-  - User Preferences now include an option to show or hide tool keyboard shortcuts.
-- **Aesthetic Tweaks and Fixes**:
-  - Minor aesthetic adjustments applied to various interface icons.
-  - Fixed some English translations that were not working properly.
-
-### What's New in Version 1.0.7
-- **New Vector Shapes**:
-  - Added **Sun**, **Sparkle**, and **Diamond** shapes to the shape tool options.
-  - Geometry and stroke adjustments for shape drawing tools.
-- **Tool Cursor Tracking & Badges**:
-  - Updated canvas cursor displaying a dynamic tool icon badge indicating the active tool in use.
-- **Text Effects & Color Picker Enhancements**:
-  - Streamlined color picker dialog for text effects and instant color clearing via `Ctrl+Click` on color swatches.
-- **Image & Canvas Resizing Fixes**:
-  - Fixes and improvements to image resizing, canvas scaling, and bounding handles.
-- **Code Cleanup & Performance**:
-  - General code refactoring, duplicate cleanup, and stability improvements.
+- **Modern UI**: Light and dark themes (including a theme-aware transparency checkerboard).
+- **Multi-language Support (i18n)**: Spanish, English, French, and Portuguese, with live switching from *Options → User Preferences* (no restart required).
+- **Layers**: Thumbnails, visibility, opacity, reordering, duplication, and merging.
+- **Full History (Undo / Redo)**: Immutable document snapshots powered by Copy-on-Write.
+- **Native `.pnn` Format**: Layered project format with transparency support; automatic MIME association for double-click opening.
+- **Customizable Keyboard Shortcuts**: Rebind hotkeys for all tools from *Options → Keyboard Shortcuts…*.
+- **Printing and PDF Export**: Direct canvas printing support and PDF document generation.
+- **Online Image Search and Insert**: Search and insert images directly from Pexels, Unsplash, Pixabay, Wikimedia, etc.
+- **Export Formats**: PNG, JPG, BMP, WEBP, GIF, TIFF, ICO, TGA, PDF, and native `.pnn`.
+- **Image and Color Adjustments**: Exposure, color temperature, levels (input/output black & white points), sepia, posterize, brightness, contrast, hue/saturation, invert, and desaturate.
+- **Advanced Color Panel**: Color wheel, RGB/HSV/CMYK sliders, and saved palette history.
 
 ---
 
-## Guía Paso a Paso de Instalación / Step-by-Step Installation Guide
+## Tools
 
-Para que los instaladores y el programa funcionen sin errores, es indispensable contar primero con **Python 3** y **Git** en tu sistema. Sigue las instrucciones ordenadas paso a paso para tu sistema operativo.
+### Selection
+| Tool | Description |
+|---|---|
+| Rectangle select | Select rectangular areas |
+| Ellipse select | Select elliptical areas |
+| Freeform lasso | Freehand contour selection |
+| Magic wand | Color tolerance area selection |
+| Move pixels | Move selected pixel content |
+| Move selection | Move selection border frame only |
+| Transform | Scale, rotate, and adjust with control handles |
+
+### Drawing & Paint
+| Tool | Description |
+|---|---|
+| Pencil | Precise pixel drawing; realistic mode with hardness and dust controls |
+| Brush | Custom stroke width, smoothing, and tip shape |
+| Eraser | Erase with configurable size and tip shape |
+| Spray | Spray paint with density and dripping effects |
+| Smudge | Drag and blend pixels across the canvas |
+| Clone stamp | Sample a reference area and duplicate pixels elsewhere |
+| Paint bucket | Fill areas by color tolerance |
+| Gradient | Fill with linear or radial gradients |
+| Line / Curves | Draw lines and curves with Bézier control handles |
+| Shapes | Geometric shapes (Rectangles, Ellipses, Stars, Polygons, Sun, Sparkle, Diamond, etc.) |
+| Text | Add text with font selection, stroke, glow, and shadow effects |
+| Eyedropper | Sample color directly from the canvas |
+| Zoom | Zoom in/out or select a specific area to focus |
 
 ---
 
-### Instalación en Linux (Paso a Paso)
+## Technical Details
 
-#### Paso 1: Instalar Python, Git y dependencias del sistema (Obligatorio)
-Abre la terminal de tu distribución y ejecuta el comando correspondiente a tu sistema antes de descargar nada:
+### Architecture (v2)
+
+PaintNotNet is structured into modular components:
+
+| Module | Role |
+|--------|------|
+| `core/canvas.py` | Main canvas widget (`CanvasWidget`): document state, history, file/image operations |
+| `core/canvas_input_handler.py` | Mouse input mapping & dispatching (single event processing path) |
+| `core/canvas_renderer.py` | Layer composition, transparency checkerboard, and pixel grid rendering |
+| `core/opengl_canvas.py` | Optional OpenGL-accelerated canvas widget (`QOpenGLWidget`) |
+| `core/layers.py` | Layer manager, composition caching, and Copy-on-Write handler |
+| `core/history.py` | Undo / Redo history stack |
+| `core/selection.py` | Selection engine and floating image content |
+| `core/stroke_smoother.py` | Stroke smoothing (Bézier interpolation / filtering) |
+| `core/theme.py` | Light/Dark theme manager and transparency pattern palette |
+| `core/pnn_format.py` | Loader and saver for the native `.pnn` file format |
+| `core/pexels.py` + `gui/dialogo_pexels.py` | Online image search engine and selection dialog |
+| `tools/` | Individual tool classes adhering to a common event interface (`mouse_press`, `move`, `release`) |
+| `gui/` | UI panels, dialogs, status bar, and layout builders |
+
+### Key System Behaviors
+
+- **Unified Input Pipeline**: All canvas mouse events are delegated to `CanvasInputHandler`, which handles coordinate mapping (zoom/offset), enforces Copy-on-Write only during editing tools, and registers history states when appropriate.
+- **Immutable History**: Document snapshots create deep copies (`.copy()`) of every layer's `QImage`, preventing subsequent drawing operations from corrupting the undo stack.
+- **Theme Consistency**: Transparency checkerboard backgrounds on the main canvas, layer thumbnails, and online search preview cards consume a single palette definition (`ThemeManager.colores_checkerboard()`).
+- **Layer Management**: Opacity blending, temporary stroke layers, and floating selection overlays; thumbnails dynamically refresh on theme switches.
+- **Primary Dependencies**: PyQt6, NumPy, OpenCV, Pillow, Requests (online search). Optional executable packaging via PyInstaller.
+
+### Platforms
+
+- **Linux** (Debian/Ubuntu, Fedora, Arch Linux, openSUSE, and derivatives)
+
+---
+
+## Installation Guide
+
+Before running installers or building from source, make sure **Python 3** and **Git** are installed on your system.
+
+---
+
+### Linux Installation (Primary Platform)
+
+#### Step 1: Install Python, Git, and System Dependencies
+Open your terminal and run the command corresponding to your distribution:
 
 - **Debian / Ubuntu / Linux Mint / Pop!_OS**:
   ```bash
@@ -205,48 +159,48 @@ Abre la terminal de tu distribución y ejecuta el comando correspondiente a tu s
   sudo zypper install -y python3 python3-pip git gcc libxcb-cursor0 libEGL1 libGL1 libdbus-1-3
   ```
 
-#### Paso 2: Clonar el repositorio
-Una vez instalado Python y Git en el Paso 1, descarga el código del programa:
+#### Step 2: Clone the Repository
+Once Python and Git are installed, download the repository:
 ```bash
 git clone https://github.com/adrianandin0/PaintNotNet.git
 cd PaintNotNet
 ```
 
-#### Paso 3: Ejecutar el instalador automático (`install.sh`)
-El instalador `install.sh` se encargará de crear el entorno virtual, instalar PyInstaller y compilar el binario instalando el acceso directo en el menú de aplicaciones:
+#### Step 3: Run the Automated Installer (`install.sh`)
+The `install.sh` script sets up a virtual environment, installs dependencies, compiles the binary via PyInstaller, and creates desktop shortcuts:
 ```bash
 sudo ./install.sh
 ```
-Selecciona tu idioma (01 - Español / 02 - English). Al finalizar, podrás abrir PaintNotNet desde tu menú de aplicaciones o escribiendo en la terminal:
+Select your preferred language (01 - Spanish / 02 - English / 03 - French / 04 - Portuguese). Once finished, launch PaintNotNet from your application menu or by running:
 ```bash
 paintnotnet
 ```
 
 ---
 
-### Instalación en Windows (Paso a Paso)
+### Optional Windows Installation
 
-#### Paso 1: Instalar Python y Git con Winget (Obligatorio)
-Antes de ejecutar cualquier script o comando de Python en Windows, debes instalar Python y Git.
+> [!NOTE]
+> **Note for Windows users**:  
+> If you are on Windows, we strongly encourage you to use the official **[Paint.NET](https://www.getpaint.net/)** application. PaintNotNet was created as a tribute dedicated to the Linux community. While Python allows it to run on Windows, we encourage supporting the original software on its native platform.
 
-1. Abre **Símbolo del sistema (CMD)** o **PowerShell** y ejecuta:
-   ```cmd
-   winget install --id Python.Python.3.12 -e & winget install --id Git.Git -e
-   ```
+#### Step 1: Install Python and Git via Winget
+Open **Command Prompt (CMD)** or **PowerShell** and run:
+```cmd
+winget install --id Python.Python.3.12 -e & winget install --id Git.Git -e
+```
+*IMPORTANT*: Close your current terminal window and open a new one after installation so environment variables are refreshed.
 
-2. **MUY IMPORTANTE**: Una vez terminada la instalación con `winget`, **cierra la consola actual y abre una nueva**. Si no cierras la consola, Windows no reconocerá las variables de entorno de `python` ni de `git` y fallará.
+*(Alternative without Winget)*: Download Python manually from [python.org/downloads](https://www.python.org/downloads/) (make sure to check **"Add python.exe to PATH"** during setup) and Git from [git-scm.com](https://git-scm.com/).
 
-*Nota alternativa (Sin Winget)*: Puedes descargar e instalar Python manualmente desde [python.org/downloads](https://www.python.org/downloads/). En la primera pantalla del instalador, **marca obligatoriamente la casilla "Add python.exe to PATH"** antes de presionar *Install Now*. Descarga Git desde [git-scm.com](https://git-scm.com/).
-
-#### Paso 2: Clonar el repositorio
-En la **nueva ventana de CMD o PowerShell**, ejecuta:
+#### Step 2: Clone the Repository
+In your **new terminal window**, run:
 ```cmd
 git clone https://github.com/adrianandin0/PaintNotNet.git
 cd PaintNotNet
 ```
 
-#### Paso 3: Preparar el entorno e instalar dependencias
-Copia y pega los siguientes comandos para crear el entorno virtual de Python e instalar PyInstaller:
+#### Step 3: Set Up Virtual Environment & Dependencies
 ```cmd
 python -m venv venv
 call venv\Scripts\activate.bat
@@ -254,20 +208,19 @@ pip install --upgrade pip
 pip install -r requirements_windows.txt pyinstaller
 ```
 
-#### Paso 4: Ejecutar el instalador de Windows (`install.bat`)
-Con el entorno virtual activo, ejecuta el instalador:
+#### Step 4: Run the Windows Installer (`install.bat`)
 ```cmd
 install.bat
 ```
-El script compilará el ejecutable nativo, lo instalará en `%LOCALAPPDATA%\PaintNotNet` y creará accesos directos automáticos en tu **Escritorio** y **Menú Inicio**.
+This builds the native executable, installs it to `%LOCALAPPDATA%\PaintNotNet`, and creates shortcuts on your **Desktop** and **Start Menu**.
 
 ---
 
-### Ejecución Directa desde Código Fuente (Sin Compilar)
+### Direct Execution from Source Code
 
-Si no deseas instalar binarios en el sistema ni usar los scripts `install.sh` o `install.bat`, puedes ejecutar PaintNotNet directamente con Python (asegurándote de haber completado el **Paso 1** de tu sistema operativo):
+If you prefer not to compile or install system packages, run PaintNotNet directly with Python (after completing Step 1 for your OS):
 
-#### En Linux:
+#### Linux:
 ```bash
 git clone https://github.com/adrianandin0/PaintNotNet.git
 cd PaintNotNet
@@ -278,7 +231,7 @@ pip install -r requirements_linux.txt
 python main.py
 ```
 
-#### En Windows:
+#### Windows:
 ```cmd
 git clone https://github.com/adrianandin0/PaintNotNet.git
 cd PaintNotNet
@@ -291,70 +244,69 @@ python main.py
 
 ---
 
-## Resolución de Problemas Frecuentes / Troubleshooting
+## Troubleshooting
 
-### 1. `python3: command not found` o `python no se reconoce como un comando interno`
-- **Causa**: Python no está instalado en tu sistema o no se agregó a la variable PATH de Windows.
-- **Solución en Linux**: Completa el **Paso 1** ejecutando `sudo apt install python3 python3-pip python3-venv` (o el equivalente de tu distro).
-- **Solución en Windows**: Ejecuta `winget install --id Python.Python.3.12 -e` en tu consola. **Cierra la ventana de CMD y abre una nueva** para aplicar los cambios.
+### 1. `python3: command not found` or `python is not recognized`
+- **Cause**: Python is not installed or not added to your system's PATH variable.
+- **Linux Solution**: Complete Step 1 by running `sudo apt install python3 python3-pip python3-venv` (or your distro's equivalent).
+- **Windows Solution**: Run `winget install --id Python.Python.3.12 -e` and **restart your terminal**.
 
-### 2. `git no se reconoce como un comando interno o externo`
-- **Causa**: Git no está instalado o acabas de instalarlo con `winget` sin reiniciar la consola.
-- **Solución**: Instala Git (`winget install --id Git.Git -e` en Windows o `sudo apt install git` en Linux) y **reinicia la consola de comandos**.
+### 2. `git is not recognized`
+- **Cause**: Git is missing or was installed without restarting the command prompt.
+- **Solution**: Install Git (`winget install --id Git.Git -e` on Windows or `sudo apt install git` on Linux) and **restart your terminal**.
 
-### 3. `pip: command not found` o `No module named pip`
-- **Solución en Linux**: Instala pip ejecutando `sudo apt install python3-pip` (Debian/Ubuntu) o `sudo dnf install python3-pip` (Fedora).
-- **Solución en Windows**: Ejecuta `python -m ensurepip --upgrade` en tu consola.
+### 3. `pip: command not found`
+- **Linux Solution**: Install pip via `sudo apt install python3-pip` (Debian/Ubuntu) or `sudo dnf install python3-pip` (Fedora).
+- **Windows Solution**: Run `python -m ensurepip --upgrade`.
 
-### 4. Error `externally-managed-environment` en Linux reciente (Debian 12+, Ubuntu 23.04+, Arch)
-- **Causa**: Las distribuciones Linux modernas impiden la instalación global de paquetes de Python con `pip` fuera de entornos virtuales.
-- **Solución**: Usa siempre el entorno virtual (`python3 -m venv venv` y `source venv/bin/activate`) o ejecuta `sudo ./install.sh`, el cual maneja el entorno de forma aislada.
+### 4. `externally-managed-environment` Error on Modern Linux (Debian 12+, Ubuntu 23.04+, Arch)
+- **Cause**: Modern Linux distros prevent global `pip` package installation outside virtual environments.
+- **Solution**: Always use a virtual environment (`python3 -m venv venv` and `source venv/bin/activate`) or run `sudo ./install.sh`, which manages environment isolation automatically.
 
-### 5. `pyinstaller: command not found` al compilar
-- **Causa**: PyInstaller no está instalado dentro del entorno virtual activo.
-- **Solución**: Con el entorno virtual activo (`source venv/bin/activate` en Linux o `call venv\Scripts\activate.bat` en Windows), ejecuta `pip install pyinstaller`.
+### 5. `pyinstaller: command not found`
+- **Cause**: PyInstaller is not installed inside the active virtual environment.
+- **Solution**: Activate your virtual environment and run `pip install pyinstaller`.
 
-### 6. `winget no se reconoce como un comando interno` en Windows
-- **Causa**: Estás usando una versión antigua de Windows 10 sin la tienda o App Installer deshabilitado.
-- **Solución**: Descarga e instala Python manualmente desde [python.org](https://www.python.org/downloads/) marcando la casilla **"Add python.exe to PATH"**, y descarga Git desde [git-scm.com](https://git-scm.com/).
+### 6. `winget is not recognized` on Windows
+- **Cause**: Older Windows 10 versions without App Installer.
+- **Solution**: Manually download Python from [python.org](https://www.python.org/downloads/) (checking **"Add python.exe to PATH"**) and Git from [git-scm.com](https://git-scm.com/).
 
 ---
 
-## Colaboración / Contributing
+## Contributing
 
-¡Todas las contribuciones, traducciones y reportes de errores son bienvenidos!  
 Contributions, translations, and bug reports are welcome!
 
-- **Reportar un error / Bug Report**: Abre un [Issue en GitHub](https://github.com/adrianandin0/PaintNotNet/issues).
-- **Enviar código / Pull Request**: Haz un fork del repositorio, crea una rama con tus cambios y envía un Pull Request.
+- **Report a Bug**: Open an issue on [GitHub Issues](https://github.com/adrianandin0/PaintNotNet/issues).
+- **Submit Code**: Fork the repository, create a feature branch, and open a Pull Request.
 
 ---
 
-## Autor y Contacto / Author & Contact
+## Author & Contact
 
-- **Desarrollador / Developer**: Adrian
+- **Developer**: Adrian
 - **X (Twitter)**: [@adrian_and_ino](https://x.com/adrian_and_ino)
 - **GitHub**: [adrianandin0/PaintNotNet](https://github.com/adrianandin0/PaintNotNet)
 
-Desarrollado en Python con la asistencia de **Google Gemini** y **Google Antigravity**.
+Developed in Python with assistance from **Google Gemini** and **Google Antigravity**.
 
 ---
 
-## Créditos / Credits
+## Credits
 
-Agradecimientos a los ilustradores y diseñadores de íconos / Special thanks to Flaticon icon creators:
+Special thanks to Flaticon icon creators:
 
-| Autor / Author | ES | EN |
-|---|---|---|
-| Flaticon | [flaticon.es](https://www.flaticon.es/) | [flaticon.com](https://www.flaticon.com/) |
-| Nuion | [autores/nuion](https://www.flaticon.es/autores/nuion) | [authors/nuion](https://www.flaticon.com/authors/nuion) |
-| Gungyoga04 | [autores/gungyoga04](https://www.flaticon.es/autores/gungyoga04) | [authors/gungyoga04](https://www.flaticon.com/authors/gungyoga04) |
-| Gulraiz | [autores/gulraiz](https://www.flaticon.es/autores/gulraiz) | [authors/gulraiz](https://www.flaticon.com/authors/gulraiz) |
-| Smashicons | [autores/smashicons](https://www.flaticon.es/autores/smashicons) | [authors/smashicons](https://www.flaticon.com/authors/smashicons) |
-| Magnific | [autores/magnific](https://www.flaticon.es/autores/magnific) | [authors/magnific](https://www.flaticon.com/authors/magnific) |
-| Pixel perfect | [autores/pixel-perfect](https://www.flaticon.es/autores/pixel-perfect) | [authors/pixel-perfect](https://www.flaticon.com/authors/pixel-perfect) |
-| Designspace team | [autores/designspace-team](https://www.flaticon.es/autores/designspace-team) | [authors/designspace-team](https://www.flaticon.com/authors/designspace-team) |
+| Author | Link |
+|---|---|
+| Flaticon | [flaticon.com](https://www.flaticon.com/) |
+| Nuion | [authors/nuion](https://www.flaticon.com/authors/nuion) |
+| Gungyoga04 | [authors/gungyoga04](https://www.flaticon.com/authors/gungyoga04) |
+| Gulraiz | [authors/gulraiz](https://www.flaticon.com/authors/gulraiz) |
+| Smashicons | [authors/smashicons](https://www.flaticon.com/authors/smashicons) |
+| Magnific | [authors/magnific](https://www.flaticon.com/authors/magnific) |
+| Pixel perfect | [authors/pixel-perfect](https://www.flaticon.com/authors/pixel-perfect) |
+| Designspace team | [authors/designspace-team](https://www.flaticon.com/authors/designspace-team) |
 
 ---
 
-<p align="center">Si te gusta el proyecto, ¡no olvides darle una estrella en GitHub! / If you like the project, give it a star on GitHub!</p>
+<p align="center">If you like the project, give it a star on GitHub!</p>

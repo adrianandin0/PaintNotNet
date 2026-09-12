@@ -61,6 +61,7 @@ venv.bak/
 
 # Scratch & temporary workspace files
 scratch/
+readme_test.md
 tmp/
 temp/
 *.tmp
