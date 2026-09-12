@@ -485,6 +485,14 @@ class PaintNotNet(QMainWindow):
         if index < 0 or index >= self.tab_widget.count():
             return
 
+        # Confirmar cualquier edición/forma/texto interactivo pendiente en la pestaña previa antes de cambiar
+        lienzo_anterior = getattr(self, 'canvas', None)
+        if lienzo_anterior and hasattr(lienzo_anterior, 'commit_pending_tool_changes'):
+            area_scroll = self.tab_widget.widget(index)
+            nuevo_lienzo = area_scroll.widget() if area_scroll else None
+            if lienzo_anterior != nuevo_lienzo:
+                lienzo_anterior.commit_pending_tool_changes()
+
         area_scroll = self.tab_widget.widget(index)
         if area_scroll:
             canvas = area_scroll.widget()

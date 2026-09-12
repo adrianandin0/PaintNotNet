@@ -2044,9 +2044,25 @@ class CanvasWidget(QWidget):
 
     def align_selection(self, alignment: str):
         """
-        Alinea la selección activa, elemento flotante o cuadro de texto activo (Izquierda, Derecha, Arriba, Abajo, Centrar).
+        Alinea la selección activa, elemento flotante, forma, línea, transformación o cuadro de texto activo.
         """
+        from tools.shapes import ShapesTool
+        from tools.line import LineTool
+        from tools.transform import TransformTool
         from tools.text import TextTool
+
+        if isinstance(self.active_tool_obj, ShapesTool) and getattr(self.active_tool_obj, 'active_shape_rect', None) is not None:
+            self.active_tool_obj.align_shape_box(self, alignment)
+            return
+
+        if isinstance(self.active_tool_obj, LineTool) and getattr(self.active_tool_obj, 'state', 0) == 2:
+            self.active_tool_obj.align_line_box(self, alignment)
+            return
+
+        if isinstance(self.active_tool_obj, TransformTool) and getattr(self.active_tool_obj, '_is_active', False):
+            self.active_tool_obj.align_transform_box(self, alignment)
+            return
+
         if isinstance(self.active_tool_obj, TextTool) and getattr(self.active_tool_obj, 'is_editing', False):
             self.active_tool_obj.align_text_box(self, alignment)
             return

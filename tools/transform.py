@@ -203,6 +203,57 @@ class TransformTool(BaseTool):
         canvas.update()
         return True
 
+    def align_transform_box(self, canvas, alignment: str):
+        if not self._is_active or not canvas or len(self._corners) < 4:
+            return
+
+        cw = float(canvas.layer_mgr.width)
+        ch = float(canvas.layer_mgr.height)
+
+        ctrl_grid = self._get_control_grid()
+        xs = [pt.x() for row in ctrl_grid for pt in row]
+        ys = [pt.y() for row in ctrl_grid for pt in row]
+        if not xs or not ys:
+            return
+
+        min_x, max_x = min(xs), max(xs)
+        min_y, max_y = min(ys), max(ys)
+        w = max_x - min_x
+        h = max_y - min_y
+
+        target_x = min_x
+        target_y = min_y
+
+        if alignment == "left":
+            target_x = 0.0
+        elif alignment == "right":
+            target_x = cw - w
+        elif alignment == "top":
+            target_y = 0.0
+        elif alignment == "bottom":
+            target_y = ch - h
+        elif alignment == "center_h":
+            target_x = (cw - w) / 2.0
+        elif alignment == "center_v":
+            target_y = (ch - h) / 2.0
+        elif alignment in ("center", "center_both"):
+            target_x = (cw - w) / 2.0
+            target_y = (ch - h) / 2.0
+        else:
+            return
+
+        dx = target_x - min_x
+        dy = target_y - min_y
+
+        if abs(dx) < 1e-4 and abs(dy) < 1e-4:
+            return
+
+        self._save_undo_step()
+        offset = QPointF(dx, dy)
+        self._corners = [p + offset for p in self._corners]
+        self._apply_warp(canvas)
+        canvas.update()
+
     def _get_control_grid(self) -> list[list[QPointF]]:
         """Devuelve la matriz 4x4 de puntos de control de la superficie curva."""
         if not self._corners or len(self._corners) < 4:

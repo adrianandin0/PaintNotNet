@@ -843,6 +843,44 @@ class ShapesTool(BaseTool):
         if canvas:
             canvas.update()
 
+    def align_shape_box(self, canvas, alignment: str):
+        if not self.active_shape_rect or not canvas:
+            return
+
+        cw = float(canvas.layer_mgr.width)
+        ch = float(canvas.layer_mgr.height)
+
+        tight = self._get_tight_rect(canvas)
+        r = tight if (tight and tight.width() >= 1 and tight.height() >= 1) else self.active_shape_rect
+        w, h = r.width(), r.height()
+
+        target_x = float(r.left())
+        target_y = float(r.top())
+
+        if alignment == "left":
+            target_x = 0.0
+        elif alignment == "right":
+            target_x = cw - w
+        elif alignment == "top":
+            target_y = 0.0
+        elif alignment == "bottom":
+            target_y = ch - h
+        elif alignment == "center_h":
+            target_x = (cw - w) / 2.0
+        elif alignment == "center_v":
+            target_y = (ch - h) / 2.0
+        elif alignment in ("center", "center_both"):
+            target_x = (cw - w) / 2.0
+            target_y = (ch - h) / 2.0
+        else:
+            return
+
+        dx = target_x - r.left()
+        dy = target_y - r.top()
+
+        self.active_shape_rect = self.active_shape_rect.translated(dx, dy)
+        canvas.update()
+
     def commit_shape(self, canvas):
         if not self.active_shape_rect or self.active_shape_rect.width() < 1 or self.active_shape_rect.height() < 1:
             self.clear_active_shape(canvas)

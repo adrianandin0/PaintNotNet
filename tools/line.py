@@ -344,6 +344,55 @@ class LineTool(BaseTool):
         _draw_cap(painter, self.p0, v0, cap_inicio, color, stroke_width)
         _draw_cap(painter, self.p3, v3, cap_fin, color, stroke_width)
 
+    def align_line_box(self, canvas, alignment: str):
+        if self.state != 2 or not canvas or not (self.p0 and self.p1 and self.p2 and self.p3):
+            return
+
+        cw = float(canvas.layer_mgr.width)
+        ch = float(canvas.layer_mgr.height)
+
+        path = QPainterPath()
+        path.moveTo(self.p0)
+        path.cubicTo(self.p1, self.p2, self.p3)
+        r = path.boundingRect()
+        if r.width() < 1 and r.height() < 1:
+            r = QRectF(self.p0, self.p3).normalized()
+            if r.width() < 1 and r.height() < 1:
+                return
+
+        w, h = r.width(), r.height()
+
+        target_x = float(r.left())
+        target_y = float(r.top())
+
+        if alignment == "left":
+            target_x = 0.0
+        elif alignment == "right":
+            target_x = cw - w
+        elif alignment == "top":
+            target_y = 0.0
+        elif alignment == "bottom":
+            target_y = ch - h
+        elif alignment == "center_h":
+            target_x = (cw - w) / 2.0
+        elif alignment == "center_v":
+            target_y = (ch - h) / 2.0
+        elif alignment in ("center", "center_both"):
+            target_x = (cw - w) / 2.0
+            target_y = (ch - h) / 2.0
+        else:
+            return
+
+        dx = target_x - r.left()
+        dy = target_y - r.top()
+
+        offset = QPointF(dx, dy)
+        self.p0 += offset
+        self.p1 += offset
+        self.p2 += offset
+        self.p3 += offset
+        canvas.update()
+
     def commit_line(self, canvas):
         if self.state in (1, 2) and self.p0 and self.p3:
             painter = QPainter(canvas.layer_mgr.buffer)
