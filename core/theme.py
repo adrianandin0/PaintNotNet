@@ -65,6 +65,14 @@ class ThemeManager:
         hex_col = pal.get("canvas_area_bg", "#C8C8C8")
         return QColor(hex_col)
 
+    def colores_checkerboard(self) -> tuple[QColor, QColor]:
+        """Retorna la dupla de colores (c1, c2) para el patrón de ajedrez de transparencia según el tema activo."""
+        res_nombre = self.resolver_nombre_tema(self.current_theme)
+        is_light = (res_nombre == "Claro")
+        if is_light:
+            return QColor(240, 240, 240), QColor(210, 210, 210)
+        return QColor(42, 42, 42), QColor(58, 58, 58)
+
     def es_sistema_oscuro(self) -> bool:
         app = QApplication.instance()
         if app:
@@ -367,7 +375,9 @@ class ThemeManager:
                         if hasattr(scroll, 'viewport') and scroll.viewport():
                             scroll.viewport().setStyleSheet(f"background-color: {c_bg} !important;")
                         if hasattr(scroll, 'widget') and scroll.widget():
-                            scroll.widget().update()
+                            c = scroll.widget()
+                            c._bg_checker_brush = None
+                            c.update()
             if hasattr(main_window, 'color_panel') and main_window.color_panel:
                 main_window.color_panel.setStyleSheet(f"ColorPanelWidget {{ background-color: {p_bg}; }}")
             if hasattr(main_window, 'advanced_color_panel') and main_window.advanced_color_panel and hasattr(main_window.advanced_color_panel, 'actualizar_estilo_tema'):
@@ -382,3 +392,8 @@ class ThemeManager:
                 main_window.text_panel.actualizar_estilo_tema()
             if hasattr(main_window, 'bottom_bar') and main_window.bottom_bar and hasattr(main_window.bottom_bar, 'actualizar_estilo_tema'):
                 main_window.bottom_bar.actualizar_estilo_tema()
+            if hasattr(main_window, 'layers_panel') and main_window.layers_panel:
+                if hasattr(main_window.layers_panel, 'actualizar_thumbnails'):
+                    main_window.layers_panel.actualizar_thumbnails()
+                elif hasattr(main_window.layers_panel, 'reconstruir_lista_capas'):
+                    main_window.layers_panel.reconstruir_lista_capas()

@@ -115,7 +115,7 @@ class LayerRowWidget(QWidget):
         self.actualizar_estado_visibilidad()
 
     def actualizar_thumb(self):
-        thumb_icon, tw, th = self.panel.generar_thumbnail(self.capa.image)
+        thumb_icon, tw, th = self.panel.generar_thumbnail(self.capa.image, layer=self.capa)
         pix = thumb_icon.pixmap(tw, th)
         self.lbl_thumb.setFixedSize(tw, th)
         self.lbl_thumb.setPixmap(pix)
@@ -233,6 +233,9 @@ class LayersPanelWidget(QWidget):
         self.btn_del.clicked.connect(self.borrar_capa)
         self.lista_capas.currentRowChanged.connect(self.cambiar_capa_activa)
 
+        from core.i18n import I18nManager
+        I18nManager().language_changed.connect(lambda *args: self.retraducir_panel())
+
     def set_canvas(self, canvas):
         self.canvas_override = canvas
         self.reconstruir_lista_capas()
@@ -257,17 +260,17 @@ class LayersPanelWidget(QWidget):
             tw = max(1, int(round(52.0 * aspect)))
         return tw, th
 
-    def generar_thumbnail(self, layer_image):
+    def generar_thumbnail(self, layer_image, layer=None):
         tw, th = self.calcular_tamano_thumbnail(layer_image)
 
         canvas_thumb = QImage(tw, th, QImage.Format.Format_ARGB32_Premultiplied)
         painter = QPainter(canvas_thumb)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
         
-        # Fondo ajedrezado claro para transparencia
+        # Fondo ajedrezado según tema para representar transparencia de la capa
         sq_size = 4
-        c1 = QColor(255, 255, 255)
-        c2 = QColor(204, 204, 204)
+        from core.theme import ThemeManager
+        c1, c2 = ThemeManager().colores_checkerboard()
         for y in range(0, th, sq_size):
             for x in range(0, tw, sq_size):
                 col = c1 if ((x // sq_size) + (y // sq_size)) % 2 == 0 else c2
@@ -349,6 +352,8 @@ class LayersPanelWidget(QWidget):
         canvas = self.obtener_canvas()
         if not canvas or not hasattr(canvas, 'layer_mgr'):
             return
+        if hasattr(canvas, 'commit_pending_tool_changes'):
+            canvas.commit_pending_tool_changes()
         mgr = canvas.layer_mgr
         target_row = curr_row - 1
         mgr.capas[curr_row], mgr.capas[target_row] = mgr.capas[target_row], mgr.capas[curr_row]
@@ -364,6 +369,8 @@ class LayersPanelWidget(QWidget):
         canvas = self.obtener_canvas()
         if not canvas or not hasattr(canvas, 'layer_mgr'):
             return
+        if hasattr(canvas, 'commit_pending_tool_changes'):
+            canvas.commit_pending_tool_changes()
         mgr = canvas.layer_mgr
         target_row = curr_row + 1
         mgr.capas[curr_row], mgr.capas[target_row] = mgr.capas[target_row], mgr.capas[curr_row]
@@ -380,6 +387,8 @@ class LayersPanelWidget(QWidget):
         canvas = self.obtener_canvas()
         if not canvas or not hasattr(canvas, 'layer_mgr') or row < 0 or row >= len(canvas.layer_mgr.capas):
             return
+        if hasattr(canvas, 'commit_pending_tool_changes'):
+            canvas.commit_pending_tool_changes()
 
         from core.layers import Layer
         orig_capa = canvas.layer_mgr.capas[row]
@@ -404,6 +413,8 @@ class LayersPanelWidget(QWidget):
 
         indices = sorted([self.lista_capas.row(item) for item in selected_items])
         canvas = self.obtener_canvas()
+        if canvas and hasattr(canvas, 'commit_pending_tool_changes'):
+            canvas.commit_pending_tool_changes()
         canvas.layer_mgr.combinar_capas_indices(indices)
         self.reconstruir_lista_capas()
         if canvas:
@@ -428,6 +439,8 @@ class LayersPanelWidget(QWidget):
 
         if respuesta == QMessageBox.StandardButton.Yes:
             canvas = self.obtener_canvas()
+            if canvas and hasattr(canvas, 'commit_pending_tool_changes'):
+                canvas.commit_pending_tool_changes()
             indices = sorted([self.lista_capas.row(item) for item in selected_items], reverse=True)
             mgr = canvas.layer_mgr
 
@@ -440,11 +453,10 @@ class LayersPanelWidget(QWidget):
             canvas.update()
 
     def cambiar_capa_activa(self, idx):
-        if idx >= 0 and self.main_window and hasattr(self.main_window, 'canvas'):
-            canvas = self.main_window.canvas
-            if canvas.selection_engine.floating_image:
-                from tools.move_select_pixels import MoveSelectPixelsTool
-                MoveSelectPixelsTool.commit_floating_image(canvas)
+        canvas = self.obtener_canvas()
+        if idx >= 0 and canvas:
+            if hasattr(canvas, 'commit_pending_tool_changes'):
+                canvas.commit_pending_tool_changes()
             canvas.layer_mgr.indice_activo = idx
             canvas.update()
 
@@ -452,6 +464,8 @@ class LayersPanelWidget(QWidget):
         canvas = self.obtener_canvas()
         if not canvas or not hasattr(canvas, 'layer_mgr'):
             return
+        if hasattr(canvas, 'commit_pending_tool_changes'):
+            canvas.commit_pending_tool_changes()
 
         original_capas = list(canvas.layer_mgr.capas)
         nuevas_capas = []

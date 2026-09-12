@@ -46,11 +46,23 @@ class MoveSelectPixelsTool(BaseTool):
                 canvas.floating_history = [engine.floating_image.copy()]
 
                 painter = QPainter(buffer)
-                painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
-                if not engine.active_path.isEmpty():
-                    painter.setClipPath(engine.active_path)
-                painter.fillRect(rect, Qt.GlobalColor.transparent)
+                active_layer = canvas.layer_mgr.get_active_layer()
+                is_layer_trans = getattr(active_layer, 'transparent', True) if active_layer else True
+                if is_layer_trans:
+                    painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
+                    if not engine.active_path.isEmpty():
+                        painter.setClipPath(engine.active_path)
+                    painter.fillRect(rect, Qt.GlobalColor.transparent)
+                else:
+                    bg_col = getattr(canvas, 'color_secundario', QColor(255, 255, 255))
+                    if not isinstance(bg_col, QColor) or not bg_col.isValid():
+                        bg_col = QColor(255, 255, 255)
+                    painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+                    if not engine.active_path.isEmpty():
+                        painter.setClipPath(engine.active_path)
+                    painter.fillRect(rect, bg_col)
                 painter.end()
+                canvas.invalidate_cache()
 
         engine.begin_transform(pos, event.button(), hit)
 
@@ -77,6 +89,13 @@ class MoveSelectPixelsTool(BaseTool):
     def commit_floating_image(canvas):
         engine = canvas.selection_engine
         if engine.floating_image and not engine.floating_image.isNull():
+            if hasattr(canvas, 'layer_mgr') and hasattr(canvas.layer_mgr, 'preparar_para_modificacion'):
+                canvas.layer_mgr.preparar_para_modificacion()
+
+            is_new = getattr(engine, 'is_new_content', False)
+            if is_new and hasattr(canvas, 'floating_initial_canvas') and canvas.floating_initial_canvas:
+                canvas.layer_mgr.buffer = canvas.floating_initial_canvas.copy()
+
             buffer = canvas.layer_mgr.buffer
             painter = QPainter(buffer)
             painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
@@ -84,7 +103,12 @@ class MoveSelectPixelsTool(BaseTool):
             painter.end()
             engine.floating_image = None
             engine.unscaled_floating_image = None
+            engine.original_raw_image = None
             engine.is_new_content = False
+            if hasattr(canvas, 'floating_initial_canvas'):
+                canvas.floating_initial_canvas = None
             if hasattr(engine, 'original_selection_region'):
                 engine.original_selection_region = None
+            if hasattr(canvas.layer_mgr, 'invalidate_cache'):
+                canvas.layer_mgr.invalidate_cache()
             canvas.update()

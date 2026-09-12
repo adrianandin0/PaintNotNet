@@ -428,8 +428,9 @@ class TopToolBarWidget(QToolBar):
         self.combo_linea_estilo.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.combo_linea_estilo.setIconSize(QSize(18, 18))
         self.combo_linea_estilo.setFixedWidth(24)
-        self.combo_linea_estilo.addItem(QIcon("gui/iconos/flat.png"), "", "Recta")
-        self.combo_linea_estilo.addItem(QIcon("gui/iconos/pointed.png"), "", "Punteada")
+        self.combo_linea_estilo.addItem(QIcon("gui/iconos/flat_d.png"), "", "Recta")
+        self.combo_linea_estilo.addItem(QIcon("gui/iconos/dotted_d.png"), "", "Punteada Corta")
+        self.combo_linea_estilo.addItem(QIcon("gui/iconos/dotted_long_d.png"), "", "Punteada Larga")
         self.combo_linea_estilo.setToolTip("Estilo de Trazo: Recta")
         self.combo_linea_estilo.currentIndexChanged.connect(self._on_linea_estilo_changed)
         self.act_combo_linea_est = self.addWidget(self.combo_linea_estilo)
@@ -499,28 +500,104 @@ class TopToolBarWidget(QToolBar):
         self.sep_formas = self.addSeparator()
 
         # 12. Opciones de Difuminar / Blur
-        self.lbl_blur = QLabel()
-        self.lbl_blur.setPixmap(QIcon("gui/iconos/blur.png").pixmap(QSize(24, 24)))
-        self.lbl_blur.setToolTip("Difuminar")
-        self.lbl_blur.setContentsMargins(4, 0, 2, 0)
-        self.act_lbl_blur = self.addWidget(self.lbl_blur)
+        # Label "Selección:"
+        self.lbl_blur_seleccion = QLabel(t("Selección:"))
+        self.lbl_blur_seleccion.setStyleSheet("font-size: 11px; font-weight: normal;")
+        self.act_lbl_blur_seleccion = self.addWidget(self.lbl_blur_seleccion)
+
+        saved_tipo = self.settings.value("blur_tipo", "Rectangulo")
+        if saved_tipo == "Pincel":
+            saved_tipo = "Rectangulo"
+
+        self.btn_group_blur_tipo = QButtonGroup(self)
+        self.btn_group_blur_tipo.setExclusive(True)
+
+        self.btn_blur_rect = QToolButton()
+        self.btn_blur_rect.setIcon(QIcon("gui/iconos/select_rect.png"))
+        self.btn_blur_rect.setIconSize(QSize(18, 18))
+        self.btn_blur_rect.setCheckable(True)
+        self.btn_blur_rect.setToolTip(t("Área Rectangular"))
+        self.btn_blur_rect.setFixedSize(24, 22)
+        self.btn_blur_rect.clicked.connect(lambda: self._on_blur_tipo_changed("Rectangulo"))
+        self.btn_group_blur_tipo.addButton(self.btn_blur_rect)
+        self.act_btn_blur_rect = self.addWidget(self.btn_blur_rect)
+
+        self.btn_blur_lazo = QToolButton()
+        self.btn_blur_lazo.setIcon(QIcon("gui/iconos/select_free.png"))
+        self.btn_blur_lazo.setIconSize(QSize(18, 18))
+        self.btn_blur_lazo.setCheckable(True)
+        self.btn_blur_lazo.setToolTip(t("Área Libre"))
+        self.btn_blur_lazo.setFixedSize(24, 22)
+        self.btn_blur_lazo.clicked.connect(lambda: self._on_blur_tipo_changed("Lazo"))
+        self.btn_group_blur_tipo.addButton(self.btn_blur_lazo)
+        self.act_btn_blur_lazo = self.addWidget(self.btn_blur_lazo)
+
+        self.btn_blur_elipse = QToolButton()
+        self.btn_blur_elipse.setIcon(QIcon("gui/iconos/select_ellipse.png"))
+        self.btn_blur_elipse.setIconSize(QSize(18, 18))
+        self.btn_blur_elipse.setCheckable(True)
+        self.btn_blur_elipse.setToolTip(t("Área Elíptica"))
+        self.btn_blur_elipse.setFixedSize(24, 22)
+        self.btn_blur_elipse.clicked.connect(lambda: self._on_blur_tipo_changed("Elipse"))
+        self.btn_group_blur_tipo.addButton(self.btn_blur_elipse)
+        self.act_btn_blur_elipse = self.addWidget(self.btn_blur_elipse)
+
+        if saved_tipo == "Lazo":
+            self.btn_blur_lazo.setChecked(True)
+        elif saved_tipo == "Elipse":
+            self.btn_blur_elipse.setChecked(True)
+        else:
+            self.btn_blur_rect.setChecked(True)
+
+        self.sep_blur_1 = self.addSeparator()
+
+        # Label "Modo:"
+        self.lbl_blur_modo = QLabel(t("Modo:"))
+        self.lbl_blur_modo.setStyleSheet("font-size: 11px; font-weight: normal;")
+        self.act_lbl_blur_modo = self.addWidget(self.lbl_blur_modo)
 
         saved_mode = self.settings.value("blur_modo", "Pixelado")
         if saved_mode == "Gausiano":
             saved_mode = "Gaussiano"
-        saved_val = int(self.settings.value("blur_val", 0))
 
-        self.combo_blur_modo = QComboBox()
-        self.combo_blur_modo.setStyleSheet("font-size: 11px; padding: 1px;")
-        self.combo_blur_modo.setFixedWidth(100)
-        self.combo_blur_modo.setFixedHeight(22)
-        self.combo_blur_modo.addItem("Pixelado", "Pixelado")
-        self.combo_blur_modo.addItem("Gaussiano", "Gaussiano")
-        idx_mode = self.combo_blur_modo.findData(saved_mode)
-        if idx_mode >= 0:
-            self.combo_blur_modo.setCurrentIndex(idx_mode)
-        self.combo_blur_modo.currentIndexChanged.connect(self._on_blur_changed)
-        self.act_combo_blur_modo = self.addWidget(self.combo_blur_modo)
+        self.btn_group_blur_modo = QButtonGroup(self)
+        self.btn_group_blur_modo.setExclusive(True)
+
+        self.btn_blur_pixelated = QToolButton()
+        self.btn_blur_pixelated.setIcon(QIcon("gui/iconos/pixelated.png"))
+        self.btn_blur_pixelated.setIconSize(QSize(18, 18))
+        self.btn_blur_pixelated.setCheckable(True)
+        self.btn_blur_pixelated.setToolTip(t("Pixelado"))
+        self.btn_blur_pixelated.setFixedSize(24, 22)
+        self.btn_blur_pixelated.clicked.connect(lambda: self._on_blur_modo_changed("Pixelado"))
+        self.btn_group_blur_modo.addButton(self.btn_blur_pixelated)
+        self.act_btn_blur_pixelated = self.addWidget(self.btn_blur_pixelated)
+
+        self.btn_blur_blurred = QToolButton()
+        self.btn_blur_blurred.setIcon(QIcon("gui/iconos/blurred.png"))
+        self.btn_blur_blurred.setIconSize(QSize(18, 18))
+        self.btn_blur_blurred.setCheckable(True)
+        self.btn_blur_blurred.setToolTip(t("Gaussiano"))
+        self.btn_blur_blurred.setFixedSize(24, 22)
+        self.btn_blur_blurred.clicked.connect(lambda: self._on_blur_modo_changed("Gaussiano"))
+        self.btn_group_blur_modo.addButton(self.btn_blur_blurred)
+        self.act_btn_blur_blurred = self.addWidget(self.btn_blur_blurred)
+
+        if saved_mode == "Gaussiano":
+            self.btn_blur_blurred.setChecked(True)
+        else:
+            self.btn_blur_pixelated.setChecked(True)
+
+        self.sep_blur_2 = self.addSeparator()
+
+        # Label "Intensidad:" y Slider
+        self.lbl_blur_intensidad = QLabel(t("Intensidad:"))
+        self.lbl_blur_intensidad.setStyleSheet("font-size: 11px; font-weight: normal;")
+        self.act_lbl_blur_intensidad = self.addWidget(self.lbl_blur_intensidad)
+
+        saved_val = int(self.settings.value("blur_val", 20))
+        if saved_val <= 0:
+            saved_val = 20
 
         self.slider_blur = QSlider(Qt.Orientation.Horizontal)
         self.slider_blur.setRange(0, 100)
@@ -769,7 +846,8 @@ class TopToolBarWidget(QToolBar):
 
         if hasattr(self, 'combo_linea_estilo'):
             self.combo_linea_estilo.setItemIcon(0, QIcon(f"gui/iconos/flat{suf}"))
-            self.combo_linea_estilo.setItemIcon(1, QIcon(f"gui/iconos/pointed{suf}"))
+            self.combo_linea_estilo.setItemIcon(1, QIcon(f"gui/iconos/dotted{suf}"))
+            self.combo_linea_estilo.setItemIcon(2, QIcon(f"gui/iconos/dotted_long{suf}"))
 
         if hasattr(self, 'combo_linea_fin'):
             self.combo_linea_fin.setItemIcon(0, QIcon(f"gui/iconos/plain_point_right{suf}"))
@@ -780,9 +858,31 @@ class TopToolBarWidget(QToolBar):
         if hasattr(self, 'combo_forma_estilo'):
             self.combo_forma_estilo.setItemIcon(0, QIcon(f"gui/iconos/shape{suf}"))
 
+    def get_blur_tipo(self):
+        if hasattr(self, 'btn_blur_lazo') and self.btn_blur_lazo.isChecked():
+            return "Lazo"
+        elif hasattr(self, 'btn_blur_elipse') and self.btn_blur_elipse.isChecked():
+            return "Elipse"
+        return "Rectangulo"
+
+    def get_blur_modo(self):
+        if hasattr(self, 'btn_blur_blurred') and self.btn_blur_blurred.isChecked():
+            return "Gaussiano"
+        return "Pixelado"
+
+    def _on_blur_tipo_changed(self, tipo):
+        self.settings.setValue("blur_tipo", tipo)
+        if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
+            canvas = self.main_window.lienzo
+            canvas.update()
+
+    def _on_blur_modo_changed(self, modo):
+        self.settings.setValue("blur_modo", modo)
+        self._on_blur_changed()
+
     def _on_blur_changed(self, *args):
         val = self.slider_blur.value()
-        modo = self.combo_blur_modo.currentData() or "Pixelado"
+        modo = self.get_blur_modo()
         self.lbl_blur_val.setText(f"{val}%")
 
         self.settings.setValue("blur_modo", modo)
@@ -993,12 +1093,26 @@ class TopToolBarWidget(QToolBar):
 
         # Blur
         self._set_group_visible([
-            getattr(self, 'lbl_blur', None),
-            getattr(self, 'combo_blur_modo', None),
+            getattr(self, 'lbl_blur_seleccion', None),
+            getattr(self, 'btn_blur_rect', None),
+            getattr(self, 'btn_blur_lazo', None),
+            getattr(self, 'btn_blur_elipse', None),
+            getattr(self, 'sep_blur_1', None),
+            getattr(self, 'lbl_blur_modo', None),
+            getattr(self, 'btn_blur_pixelated', None),
+            getattr(self, 'btn_blur_blurred', None),
+            getattr(self, 'sep_blur_2', None),
+            getattr(self, 'lbl_blur_intensidad', None),
             getattr(self, 'slider_blur', None),
             getattr(self, 'lbl_blur_val', None),
-            getattr(self, 'act_lbl_blur', None),
-            getattr(self, 'act_combo_blur_modo', None),
+            getattr(self, 'act_lbl_blur_seleccion', None),
+            getattr(self, 'act_btn_blur_rect', None),
+            getattr(self, 'act_btn_blur_lazo', None),
+            getattr(self, 'act_btn_blur_elipse', None),
+            getattr(self, 'act_lbl_blur_modo', None),
+            getattr(self, 'act_btn_blur_pixelated', None),
+            getattr(self, 'act_btn_blur_blurred', None),
+            getattr(self, 'act_lbl_blur_intensidad', None),
             getattr(self, 'act_slider_blur', None),
             getattr(self, 'act_lbl_blur_val', None)
         ], uses_blur)
@@ -1440,11 +1554,49 @@ class TopToolBarWidget(QToolBar):
         val_f_tipo = self.combo_forma_tipo.currentData() or "Rectángulo"
         self.combo_forma_tipo.setToolTip(f"{t('Tipo de Forma:')} {t(val_f_tipo)}")
 
-        if hasattr(self, 'combo_blur_modo'):
-            self.combo_blur_modo.blockSignals(True)
-            self.combo_blur_modo.setItemText(0, t("Pixelado"))
-            self.combo_blur_modo.setItemText(1, t("Gaussiano"))
-            self.combo_blur_modo.blockSignals(False)
+        if hasattr(self, 'lbl_texto_fuente'):
+            self.lbl_texto_fuente.setText(t("Fuente:"))
+        if hasattr(self, 'lbl_texto_tam'):
+            self.lbl_texto_tam.setText(t("Tamaño:"))
+        if hasattr(self, 'btn_texto_bold'):
+            self.btn_texto_bold.setToolTip(t("Negrita"))
+        if hasattr(self, 'btn_texto_italic'):
+            self.btn_texto_italic.setToolTip(t("Cursiva"))
+        if hasattr(self, 'btn_texto_underline'):
+            self.btn_texto_underline.setToolTip(t("Subrayado"))
+        if hasattr(self, 'btn_texto_strike'):
+            self.btn_texto_strike.setToolTip(t("Tachado"))
+        if hasattr(self, 'btn_texto_align_left'):
+            self.btn_texto_align_left.setToolTip(t("Alinear izquierda"))
+        if hasattr(self, 'btn_texto_align_center'):
+            self.btn_texto_align_center.setToolTip(t("Alinear centro"))
+        if hasattr(self, 'btn_texto_align_right'):
+            self.btn_texto_align_right.setToolTip(t("Alinear derecha"))
+        if hasattr(self, 'btn_texto_align_justify'):
+            self.btn_texto_align_justify.setToolTip(t("Justificar texto"))
+        if hasattr(self, 'chk_texto_borde'):
+            self.chk_texto_borde.setText(t("Borde"))
+        if hasattr(self, 'chk_texto_glow'):
+            self.chk_texto_glow.setText(t("Resplandor"))
+        if hasattr(self, 'chk_texto_shadow'):
+            self.chk_texto_shadow.setText(t("Sombra"))
+
+        if hasattr(self, 'lbl_blur_seleccion'):
+            self.lbl_blur_seleccion.setText(t("Selección:"))
+        if hasattr(self, 'btn_blur_rect'):
+            self.btn_blur_rect.setToolTip(t("Área Rectangular"))
+        if hasattr(self, 'btn_blur_lazo'):
+            self.btn_blur_lazo.setToolTip(t("Área Libre"))
+        if hasattr(self, 'btn_blur_elipse'):
+            self.btn_blur_elipse.setToolTip(t("Área Elíptica"))
+        if hasattr(self, 'lbl_blur_modo'):
+            self.lbl_blur_modo.setText(t("Modo:"))
+        if hasattr(self, 'btn_blur_pixelated'):
+            self.btn_blur_pixelated.setToolTip(t("Pixelado"))
+        if hasattr(self, 'btn_blur_blurred'):
+            self.btn_blur_blurred.setToolTip(t("Gaussiano"))
+        if hasattr(self, 'lbl_blur_intensidad'):
+            self.lbl_blur_intensidad.setText(t("Intensidad:"))
 
     def contextMenuEvent(self, event):
         event.ignore()

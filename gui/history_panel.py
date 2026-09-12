@@ -31,14 +31,24 @@ class HistoryPanelWidget(QWidget):
         self.btn_redo.setIconSize(QSize(16, 16))
         self.btn_redo.setToolTip(f"{t('Rehacer')} (Ctrl+Y)")
 
+        self.btn_clear = QPushButton()
+        self.btn_clear.setIcon(QIcon("gui/iconos/bin.png"))
+        self.btn_clear.setIconSize(QSize(16, 16))
+        self.btn_clear.setToolTip(f"{t('Vaciar Historial')}")
+        self.btn_clear.clicked.connect(self._on_clear_clicked)
+
         self.btn_undo.clicked.connect(self._on_undo_clicked)
         self.btn_redo.clicked.connect(self._on_redo_clicked)
 
         btn_layout.addWidget(self.btn_undo)
         btn_layout.addWidget(self.btn_redo)
+        btn_layout.addWidget(self.btn_clear)
         layout.addLayout(btn_layout)
 
         self.setLayout(layout)
+
+        from core.i18n import I18nManager
+        I18nManager().language_changed.connect(lambda *args: self.retraducir_panel())
 
     def set_canvas(self, canvas):
         self.canvas_override = canvas
@@ -140,10 +150,20 @@ class HistoryPanelWidget(QWidget):
         if canvas:
             canvas.redo()
 
+    def _on_clear_clicked(self):
+        canvas = self._obtener_canvas()
+        if canvas:
+            canvas.history_mgr.history_stack.clear()
+            canvas.history_mgr.current_index = -1
+            canvas.push_document_state("Lienzo vaciado")
+            self.actualizar_historial()
+
     def retraducir_panel(self):
         from core.i18n import t
         if hasattr(self, 'btn_undo'):
             self.btn_undo.setToolTip(f"{t('Deshacer')} (Ctrl+Z)")
         if hasattr(self, 'btn_redo'):
             self.btn_redo.setToolTip(f"{t('Rehacer')} (Ctrl+Y)")
+        if hasattr(self, 'btn_clear'):
+            self.btn_clear.setToolTip(f"{t('Vaciar Historial')}")
         self.actualizar_historial()

@@ -1,5 +1,5 @@
 # ==============================================================================
-# PaintNotNet v1.0.5 - Dependencias para Linux / Dependencies for Linux
+# PaintNotNet v1.0.9dev - Dependencias para Linux / Dependencies for Linux
 # ==============================================================================
 # Instalar en un entorno virtual con / Install in a virtual environment with:
 #   pip install -r requirements_linux.txt
@@ -13,6 +13,12 @@ numpy>=1.24.0
 
 # Algoritmos de Visión por Computadora y Pixeles / Computer Vision & Pixel Operations
 opencv-python>=4.8.0
+
+# Manipulación de imágenes / Image processing & Pillow
+Pillow>=9.5.0
+
+# Peticiones HTTP para imágenes online (Serper/Pexels/Unsplash) / HTTP requests
+requests>=2.28.0
 
 # Empaquetado y Compilación de Binarios / Tool for Packaging Executables
 pyinstaller>=6.0.0

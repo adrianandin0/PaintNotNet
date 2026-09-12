@@ -1,7 +1,12 @@
 import os
 import json
 import sys
-from PyQt6.QtCore import QSettings
+from PyQt6.QtCore import QSettings, QObject, pyqtSignal
+
+
+class _I18nSignalBus(QObject):
+    language_changed = pyqtSignal(str)
+
 
 class I18nManager:
     _instance = None
@@ -13,9 +18,14 @@ class I18nManager:
         return cls._instance
 
     def _init_manager(self):
+        self._bus = _I18nSignalBus()
         self.translations = {}
         self.current_language = "Español"
         self.cargar_idioma_configurado()
+
+    @property
+    def language_changed(self):
+        return self._bus.language_changed
 
     def _obtener_ruta_locales(self):
         if getattr(sys, 'frozen', False):
@@ -34,8 +44,10 @@ class I18nManager:
         lang_lower = str(nombre_idioma).lower()
         if "english" in lang_lower or "inglés" in lang_lower or "ingles" in lang_lower:
             codigo = "en"
-        elif "português" in lang_lower or "portugues" in lang_lower:
+        elif "português" in lang_lower or "portugues" in lang_lower or "portugues" in lang_lower:
             codigo = "pt"
+        elif "français" in lang_lower or "francais" in lang_lower or "francés" in lang_lower or "frances" in lang_lower or "french" in lang_lower:
+            codigo = "fr"
         elif "中文" in lang_lower or "chino" in lang_lower or "chinese" in lang_lower:
             codigo = "zh"
         elif "deutsch" in lang_lower or "alemán" in lang_lower or "aleman" in lang_lower:
@@ -55,6 +67,8 @@ class I18nManager:
                 self.translations = {}
         else:
             self.translations = {}
+
+        self._bus.language_changed.emit(str(nombre_idioma))
 
     def t(self, key, default=None):
         if not key:

@@ -15,72 +15,35 @@ Uso:
     }
 """
 
+import cv2
+import numpy as np
 from PyQt6.QtGui import QImage, QPainter, QColor, QPen, QBrush
 from PyQt6.QtCore import Qt, QPoint
 
 
 def _dilate_alpha(src: QImage, radius: int) -> QImage:
     """
-    Crea una 'máscara dilatada': pinta todos los píxeles opacos expandidos
-    en `radius` px. Devuelve la imagen con esa máscara en el canal alpha.
-    Algoritmo simple de box-blur sobre la máscara alpha.
+    Crea una 'máscara dilatada' expandiendo los píxeles opacos en `radius` px.
+    Utiliza OpenCV cv2.dilate con un elemento estructurante elíptico para velocidad ultrarrápida.
     """
     w, h = src.width(), src.height()
     if radius <= 0 or w == 0 or h == 0:
         return src
 
-    # Extraer máscara alpha como bytes
     src_conv = src.convertToFormat(QImage.Format.Format_ARGB32)
-    bits = src_conv.bits()
-    bits.setsize(src_conv.sizeInBytes())
-    import array
-    data = array.array('B', bits)
+    ptr = src_conv.bits()
+    ptr.setsize(src_conv.sizeInBytes())
+    arr = np.frombuffer(ptr, dtype=np.uint8).reshape((h, w, 4))
+    alpha_channel = arr[:, :, 3]
 
-    alpha_in = bytearray(w * h)
-    for y in range(h):
-        for x in range(w):
-            idx = (y * w + x) * 4
-            alpha_in[y * w + x] = data[idx + 3]  # ARGB → alpha at byte 3
+    ksize = radius * 2 + 1
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (ksize, ksize))
+    dilated_alpha = cv2.dilate(alpha_channel, kernel)
 
-    # Dilatación simple: para cada pixel de salida, tomar el máximo en el cuadrado radius
-    r = min(radius, 64)   # cap para performance
-    alpha_out = bytearray(w * h)
-    for y in range(h):
-        for x in range(w):
-            best = 0
-            for dy in range(-r, r + 1):
-                ny = y + dy
-                if ny < 0 or ny >= h:
-                    continue
-                for dx in range(-r, r + 1):
-                    nx = x + dx
-                    if nx < 0 or nx >= w:
-                        continue
-                    v = alpha_in[ny * w + nx]
-                    if v > best:
-                        best = v
-                    if best == 255:
-                        break
-                if best == 255:
-                    break
-            alpha_out[y * w + x] = best
+    out_arr = np.zeros((h, w, 4), dtype=np.uint8)
+    out_arr[:, :, 3] = dilated_alpha
 
-    # Construir QImage de salida con alpha dilatado
-    out = QImage(w, h, QImage.Format.Format_ARGB32)
-    out.fill(Qt.GlobalColor.transparent)
-    out_bits = out.bits()
-    out_bits.setsize(out.sizeInBytes())
-    out_data = array.array('B', out_bits)
-    for y in range(h):
-        for x in range(w):
-            a = alpha_out[y * w + x]
-            i = (y * w + x) * 4
-            out_data[i]     = 0    # B
-            out_data[i + 1] = 0    # G
-            out_data[i + 2] = 0    # R
-            out_data[i + 3] = a    # A
-    # write back
-    out_bits[:] = out_data
+    out = QImage(out_arr.data, w, h, w * 4, QImage.Format.Format_ARGB32).copy()
     return out
 
 

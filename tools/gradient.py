@@ -30,7 +30,7 @@ class GradientTool(BaseTool):
             canvas.update()
 
     def _constrain_point(self, pos: QPointF) -> QPointF:
-        if not self.p_start:
+        if self.p_start is None:
             return pos
         modifiers = QApplication.keyboardModifiers()
         if bool(modifiers & Qt.KeyboardModifier.ShiftModifier):
@@ -54,10 +54,13 @@ class GradientTool(BaseTool):
             self.commit_gradient(canvas)
             if hasattr(canvas, 'push_document_state'):
                 canvas.push_document_state(self.name)
-            canvas.update()
+            if hasattr(canvas, 'invalidate_cache'):
+                canvas.invalidate_cache()
+            else:
+                canvas.update()
 
     def commit_gradient(self, canvas):
-        if not self.p_start or not self.p_end:
+        if self.p_start is None or self.p_end is None:
             return
 
         if self.p_start == self.p_end:
@@ -69,6 +72,10 @@ class GradientTool(BaseTool):
         if not active_layer or not active_layer.visible or active_layer.locked:
             return
 
+        if hasattr(canvas.layer_mgr, 'preparar_para_modificacion'):
+            canvas.layer_mgr.preparar_para_modificacion()
+
+        active_layer = canvas.layer_mgr.get_active_layer()
         target_img = active_layer.image
         w, h = canvas.layer_mgr.width, canvas.layer_mgr.height
 
@@ -127,7 +134,7 @@ class GradientTool(BaseTool):
         self.p_end = None
 
     def draw_preview(self, painter, canvas):
-        if self.is_dragging and self.p_start and self.p_end:
+        if self.is_dragging and self.p_start is not None and self.p_end is not None:
             modo = getattr(canvas, 'modo_degradado', 'Color')
             w, h = canvas.layer_mgr.width, canvas.layer_mgr.height
 
@@ -186,7 +193,7 @@ class GradientTool(BaseTool):
                 painter.restore()
 
     def draw_handles(self, painter, canvas):
-        if self.is_dragging and self.p_start and self.p_end:
+        if self.is_dragging and self.p_start is not None and self.p_end is not None:
             painter.save()
             painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
             modo = getattr(canvas, 'modo_degradado', 'Color')

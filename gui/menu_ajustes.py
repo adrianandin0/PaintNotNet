@@ -55,11 +55,30 @@ def _make_reset_btn(tooltip="Reset"):
     return btn
 
 
+def _qimage_to_numpy(img):
+    ptr = img.bits()
+    ptr.setsize(img.height() * img.bytesPerLine())
+    stride = img.bytesPerLine() // 4
+    arr = np.frombuffer(ptr, dtype=np.uint8).reshape((img.height(), stride, 4))[:, :img.width(), :].copy()
+    return arr
+
+
+def _numpy_to_qimage(arr, w, h):
+    bytes_per_line = w * 4
+    res = QImage(arr.tobytes(), w, h, bytes_per_line, QImage.Format.Format_ARGB32_Premultiplied)
+    return res.copy()
+
+
 def _apply_to_canvas(canvas, img, is_floating):
     if is_floating:
         canvas.selection_engine.update_floating_image(img)
     else:
         canvas.layer_mgr.buffer = img
+    # Invalidate render cache so the updated image is actually displayed
+    canvas.content_dirty = True
+    canvas._cached_composite_pixmap = None
+    if hasattr(canvas, 'invalidate_cache'):
+        canvas.invalidate_cache()
     canvas.update()
 
 
@@ -276,11 +295,17 @@ class SliderRow(QWidget):
         self.spin.valueChanged.emit(self.value())
 
     def connect_changed(self, fn):
+        import inspect
+        try:
+            num_params = len(inspect.signature(fn).parameters)
+        except Exception:
+            num_params = 1
+
         def _wrapper(*args):
-            try:
-                fn(self.value())
-            except TypeError:
+            if num_params == 0:
                 fn()
+            else:
+                fn(self.value())
         self.slider.valueChanged.connect(_wrapper)
         self.spin.valueChanged.connect(_wrapper)
 
@@ -438,9 +463,7 @@ class DialogoTonoSaturacion(_BaseAdjustDialog):
             _apply_to_canvas(self.canvas, img, self.target_is_floating)
             return
 
-        ptr = img.bits()
-        ptr.setsize(img.height() * img.bytesPerLine())
-        arr = np.frombuffer(ptr, dtype=np.uint8).reshape((img.height(), img.width(), 4)).copy()
+        arr = _qimage_to_numpy(img)
 
         b, g, r, a, mask = _unpremultiply(arr)
 
@@ -470,9 +493,8 @@ class DialogoTonoSaturacion(_BaseAdjustDialog):
 
         _repremultiply(arr, b, g, r, a, mask)
 
-        result = QImage(arr.tobytes(), img.width(), img.height(),
-                        img.bytesPerLine(), QImage.Format.Format_ARGB32_Premultiplied)
-        _apply_to_canvas(self.canvas, result.copy(), self.target_is_floating)
+        result = _numpy_to_qimage(arr, img.width(), img.height())
+        _apply_to_canvas(self.canvas, result, self.target_is_floating)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -515,9 +537,7 @@ class DialogoBrilloContraste(_BaseAdjustDialog):
             _apply_to_canvas(self.canvas, img, self.target_is_floating)
             return
 
-        ptr = img.bits()
-        ptr.setsize(img.height() * img.bytesPerLine())
-        arr = np.frombuffer(ptr, dtype=np.uint8).reshape((img.height(), img.width(), 4)).copy()
+        arr = _qimage_to_numpy(img)
 
         b, g, r, a, mask = _unpremultiply(arr)
 
@@ -535,9 +555,8 @@ class DialogoBrilloContraste(_BaseAdjustDialog):
 
         _repremultiply(arr, b, g, r, a, mask)
 
-        result = QImage(arr.tobytes(), img.width(), img.height(),
-                        img.bytesPerLine(), QImage.Format.Format_ARGB32_Premultiplied)
-        _apply_to_canvas(self.canvas, result.copy(), self.target_is_floating)
+        result = _numpy_to_qimage(arr, img.width(), img.height())
+        _apply_to_canvas(self.canvas, result, self.target_is_floating)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -602,9 +621,7 @@ class DialogoIluminacionSombras(_BaseAdjustDialog):
             _apply_to_canvas(self.canvas, img, self.target_is_floating)
             return
 
-        ptr = img.bits()
-        ptr.setsize(img.height() * img.bytesPerLine())
-        arr = np.frombuffer(ptr, dtype=np.uint8).reshape((img.height(), img.width(), 4)).copy()
+        arr = _qimage_to_numpy(img)
 
         b, g, r, a, mask = _unpremultiply(arr)
 
@@ -633,9 +650,8 @@ class DialogoIluminacionSombras(_BaseAdjustDialog):
 
         _repremultiply(arr, b, g, r, a, mask)
 
-        result = QImage(arr.tobytes(), img.width(), img.height(),
-                        img.bytesPerLine(), QImage.Format.Format_ARGB32_Premultiplied)
-        _apply_to_canvas(self.canvas, result.copy(), self.target_is_floating)
+        result = _numpy_to_qimage(arr, img.width(), img.height())
+        _apply_to_canvas(self.canvas, result, self.target_is_floating)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -792,6 +808,8 @@ class CurveWidget(QWidget):
                 self._points.sort()
                 self._dragging = self._points.index((nx, ny))
             self.update()
+            if self.parentWidget() and hasattr(self.parentWidget(), 'on_curve_changed'):
+                self.parentWidget().on_curve_changed()
         elif event.button() == Qt.MouseButton.RightButton:
             idx = self._find_near(event.position())
             if idx is not None and len(self._points) > 2:
@@ -799,6 +817,8 @@ class CurveWidget(QWidget):
                 if self._points[idx][0] not in (0.0, 1.0):
                     self._points.pop(idx)
                     self.update()
+                    if self.parentWidget() and hasattr(self.parentWidget(), 'on_curve_changed'):
+                        self.parentWidget().on_curve_changed()
 
     def mouseMoveEvent(self, event):
         if self._dragging is not None:
@@ -812,7 +832,8 @@ class CurveWidget(QWidget):
             self._points[self._dragging] = (nx, ny)
             self._points.sort()
             self.update()
-            self.parentWidget().on_curve_changed()
+            if self.parentWidget() and hasattr(self.parentWidget(), 'on_curve_changed'):
+                self.parentWidget().on_curve_changed()
 
     def mouseReleaseEvent(self, event):
         self._dragging = None
@@ -893,9 +914,7 @@ class DialogoCurvas(_BaseAdjustDialog):
 
     def aplicar_vista_previa(self):
         img = self.orig_image.copy()
-        ptr = img.bits()
-        ptr.setsize(img.height() * img.bytesPerLine())
-        arr = np.frombuffer(ptr, dtype=np.uint8).reshape((img.height(), img.width(), 4)).copy()
+        arr = _qimage_to_numpy(img)
 
         b, g, r, a, mask = _unpremultiply(arr)
 
@@ -928,9 +947,8 @@ class DialogoCurvas(_BaseAdjustDialog):
 
         _repremultiply(arr, b, g, r, a, mask)
 
-        result = QImage(arr.tobytes(), img.width(), img.height(),
-                        img.bytesPerLine(), QImage.Format.Format_ARGB32_Premultiplied)
-        _apply_to_canvas(self.canvas, result.copy(), self.target_is_floating)
+        result = _numpy_to_qimage(arr, img.width(), img.height())
+        _apply_to_canvas(self.canvas, result, self.target_is_floating)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -961,9 +979,7 @@ class DialogoSepia(_BaseAdjustDialog):
 
     def aplicar_vista_previa(self):
         img = self.orig_image.copy()
-        ptr = img.bits()
-        ptr.setsize(img.height() * img.bytesPerLine())
-        arr = np.frombuffer(ptr, dtype=np.uint8).reshape((img.height(), img.width(), 4)).copy()
+        arr = _qimage_to_numpy(img)
 
         b, g, r, a, mask = _unpremultiply(arr)
 
@@ -980,9 +996,8 @@ class DialogoSepia(_BaseAdjustDialog):
         b_final = lum + (b_sepia - lum) * intensity
 
         _repremultiply(arr, b_final, g_final, r_final, a, mask)
-        result = QImage(arr.tobytes(), img.width(), img.height(),
-                        img.bytesPerLine(), QImage.Format.Format_ARGB32_Premultiplied)
-        _apply_to_canvas(self.canvas, result.copy(), self.target_is_floating)
+        result = _numpy_to_qimage(arr, img.width(), img.height())
+        _apply_to_canvas(self.canvas, result, self.target_is_floating)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1014,9 +1029,7 @@ class DialogoExposicion(_BaseAdjustDialog):
 
     def aplicar_vista_previa(self):
         img = self.orig_image.copy()
-        ptr = img.bits()
-        ptr.setsize(img.height() * img.bytesPerLine())
-        arr = np.frombuffer(ptr, dtype=np.uint8).reshape((img.height(), img.width(), 4)).copy()
+        arr = _qimage_to_numpy(img)
 
         b, g, r, a, mask = _unpremultiply(arr)
 
@@ -1028,9 +1041,8 @@ class DialogoExposicion(_BaseAdjustDialog):
         b_out = b * factor
 
         _repremultiply(arr, b_out, g_out, r_out, a, mask)
-        result = QImage(arr.tobytes(), img.width(), img.height(),
-                        img.bytesPerLine(), QImage.Format.Format_ARGB32_Premultiplied)
-        _apply_to_canvas(self.canvas, result.copy(), self.target_is_floating)
+        result = _numpy_to_qimage(arr, img.width(), img.height())
+        _apply_to_canvas(self.canvas, result, self.target_is_floating)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1096,9 +1108,7 @@ class DialogoPosterizado(_BaseAdjustDialog):
 
     def aplicar_vista_previa(self):
         img = self.orig_image.copy()
-        ptr = img.bits()
-        ptr.setsize(img.height() * img.bytesPerLine())
-        arr = np.frombuffer(ptr, dtype=np.uint8).reshape((img.height(), img.width(), 4)).copy()
+        arr = _qimage_to_numpy(img)
 
         b, g, r, a, mask = _unpremultiply(arr)
 
@@ -1128,9 +1138,8 @@ class DialogoPosterizado(_BaseAdjustDialog):
         arr[:, :, 3] = np.clip(a_out, 0, 255).astype(np.uint8)
 
         _repremultiply(arr, b_out, g_out, r_out, a_out, mask_out)
-        result = QImage(arr.tobytes(), img.width(), img.height(),
-                        img.bytesPerLine(), QImage.Format.Format_ARGB32_Premultiplied)
-        _apply_to_canvas(self.canvas, result.copy(), self.target_is_floating)
+        result = _numpy_to_qimage(arr, img.width(), img.height())
+        _apply_to_canvas(self.canvas, result, self.target_is_floating)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1174,9 +1183,7 @@ class DialogoTemperatura(_BaseAdjustDialog):
 
     def aplicar_vista_previa(self):
         img = self.orig_image.copy()
-        ptr = img.bits()
-        ptr.setsize(img.height() * img.bytesPerLine())
-        arr = np.frombuffer(ptr, dtype=np.uint8).reshape((img.height(), img.width(), 4)).copy()
+        arr = _qimage_to_numpy(img)
 
         b, g, r, a, mask = _unpremultiply(arr)
 
@@ -1192,9 +1199,8 @@ class DialogoTemperatura(_BaseAdjustDialog):
         b_out = b_out + tint * 0.42
 
         _repremultiply(arr, b_out, g_out, r_out, a, mask)
-        result = QImage(arr.tobytes(), img.width(), img.height(),
-                        img.bytesPerLine(), QImage.Format.Format_ARGB32_Premultiplied)
-        _apply_to_canvas(self.canvas, result.copy(), self.target_is_floating)
+        result = _numpy_to_qimage(arr, img.width(), img.height())
+        _apply_to_canvas(self.canvas, result, self.target_is_floating)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1212,9 +1218,7 @@ class HistogramWidget(QWidget):
     def set_image(self, img):
         if img.isNull():
             return
-        ptr = img.bits()
-        ptr.setsize(img.height() * img.bytesPerLine())
-        arr = np.frombuffer(ptr, dtype=np.uint8).reshape((img.height(), img.width(), 4))
+        arr = _qimage_to_numpy(img)
 
         b, g, r, a, mask = _unpremultiply(arr)
 
@@ -1395,9 +1399,7 @@ class DialogoNiveles(_BaseAdjustDialog):
 
     def auto_levels(self):
         img = self.orig_image
-        ptr = img.bits()
-        ptr.setsize(img.height() * img.bytesPerLine())
-        arr = np.frombuffer(ptr, dtype=np.uint8).reshape((img.height(), img.width(), 4))
+        arr = _qimage_to_numpy(img)
 
         b, g, r, a, mask = _unpremultiply(arr)
         if not np.any(mask):
@@ -1431,9 +1433,7 @@ class DialogoNiveles(_BaseAdjustDialog):
 
     def aplicar_vista_previa(self):
         img = self.orig_image.copy()
-        ptr = img.bits()
-        ptr.setsize(img.height() * img.bytesPerLine())
-        arr = np.frombuffer(ptr, dtype=np.uint8).reshape((img.height(), img.width(), 4)).copy()
+        arr = _qimage_to_numpy(img)
 
         b, g, r, a, mask = _unpremultiply(arr)
 
@@ -1462,9 +1462,8 @@ class DialogoNiveles(_BaseAdjustDialog):
             b = process_channel(b)
 
         _repremultiply(arr, b, g, r, a, mask)
-        result = QImage(arr.tobytes(), img.width(), img.height(),
-                        img.bytesPerLine(), QImage.Format.Format_ARGB32_Premultiplied)
-        _apply_to_canvas(self.canvas, result.copy(), self.target_is_floating)
+        result = _numpy_to_qimage(arr, img.width(), img.height())
+        _apply_to_canvas(self.canvas, result, self.target_is_floating)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1518,7 +1517,7 @@ class MenuAjustes:
 
         accion_posterizado = self.menu_ajustes.addAction(
             QIcon("gui/iconos/posterized.png"), t("Posterizado..."))
-        accion_posterizado.setShortcut("Ctrl+Shift+O")
+        accion_posterizado.setShortcut("Ctrl+Shift+Z")
         accion_posterizado.triggered.connect(self.posterizado)
 
         accion_curvas = self.menu_ajustes.addAction(
@@ -1547,21 +1546,17 @@ class MenuAjustes:
 
         accion_invertir = self.menu_ajustes.addAction(
             QIcon("gui/iconos/negative.png"), t("Invertir colores"))
-        accion_invertir.setShortcut("Ctrl+Shift+I")
+        accion_invertir.setShortcut("Ctrl+I")
         accion_invertir.triggered.connect(self.invertir_colores)
 
     # ── acciones ──────────────────────────────────────────────────────────────
 
     def _run_dialog(self, dlg_class, op_name):
         canvas = self.ventana.lienzo
-        is_floating = bool(
-            canvas.selection_engine.floating_image
-            and not canvas.selection_engine.floating_image.isNull()
-        )
-        if not is_floating:
+        dlg = dlg_class(canvas, self.ventana)
+        if not dlg.target_is_floating:
             canvas.push_document_state(op_name)
 
-        dlg = dlg_class(canvas, self.ventana)
         loop = QEventLoop()
         dlg.accepted.connect(loop.quit)
         dlg.rejected.connect(loop.quit)
@@ -1602,9 +1597,7 @@ class MenuAjustes:
             canvas.push_document_state(t("Nivel automático"))
 
         img = canvas.selection_engine.floating_image.copy() if is_floating else canvas.layer_mgr.buffer.copy()
-        ptr = img.bits()
-        ptr.setsize(img.height() * img.bytesPerLine())
-        arr = np.frombuffer(ptr, dtype=np.uint8).reshape((img.height(), img.width(), 4)).copy()
+        arr = _qimage_to_numpy(img)
 
         b, g, r, a, mask = _unpremultiply(arr)
         if np.any(mask):
@@ -1622,9 +1615,8 @@ class MenuAjustes:
 
             _repremultiply(arr, b_out, g_out, r_out, a, mask)
 
-            result = QImage(arr.tobytes(), img.width(), img.height(),
-                            img.bytesPerLine(), QImage.Format.Format_ARGB32_Premultiplied)
-            _apply_to_canvas(canvas, result.copy(), is_floating)
+            result = _numpy_to_qimage(arr, img.width(), img.height())
+            _apply_to_canvas(canvas, result, is_floating)
             if not is_floating:
                 canvas.actualizar_historial_gui()
             canvas.update()
@@ -1636,17 +1628,14 @@ class MenuAjustes:
             canvas.push_document_state("Blanco y negro")
 
         img = canvas.selection_engine.floating_image.copy() if is_floating else canvas.layer_mgr.buffer.copy()
-        ptr = img.bits()
-        ptr.setsize(img.height() * img.bytesPerLine())
-        arr = np.frombuffer(ptr, dtype=np.uint8).reshape((img.height(), img.width(), 4)).copy()
+        arr = _qimage_to_numpy(img)
 
         b, g, r, a, mask = _unpremultiply(arr)
         gray = 0.299 * r + 0.587 * g + 0.114 * b
         _repremultiply(arr, gray, gray, gray, a, mask)
 
-        result = QImage(arr.tobytes(), img.width(), img.height(),
-                        img.bytesPerLine(), QImage.Format.Format_ARGB32_Premultiplied)
-        _apply_to_canvas(canvas, result.copy(), is_floating)
+        result = _numpy_to_qimage(arr, img.width(), img.height())
+        _apply_to_canvas(canvas, result, is_floating)
         if not is_floating:
             canvas.actualizar_historial_gui()
         canvas.update()
@@ -1658,9 +1647,7 @@ class MenuAjustes:
             canvas.push_document_state("Invertir colores")
 
         img = canvas.selection_engine.floating_image.copy() if is_floating else canvas.layer_mgr.buffer.copy()
-        ptr = img.bits()
-        ptr.setsize(img.height() * img.bytesPerLine())
-        arr = np.frombuffer(ptr, dtype=np.uint8).reshape((img.height(), img.width(), 4)).copy()
+        arr = _qimage_to_numpy(img)
 
         b, g, r, a, mask = _unpremultiply(arr)
         b_inv = 255.0 - b
@@ -1668,9 +1655,8 @@ class MenuAjustes:
         r_inv = 255.0 - r
         _repremultiply(arr, b_inv, g_inv, r_inv, a, mask)
 
-        result = QImage(arr.tobytes(), img.width(), img.height(),
-                        img.bytesPerLine(), QImage.Format.Format_ARGB32_Premultiplied)
-        _apply_to_canvas(canvas, result.copy(), is_floating)
+        result = _numpy_to_qimage(arr, img.width(), img.height())
+        _apply_to_canvas(canvas, result, is_floating)
         if not is_floating:
             canvas.actualizar_historial_gui()
         canvas.update()

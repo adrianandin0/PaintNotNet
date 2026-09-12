@@ -3,7 +3,7 @@ chcp 65001 > NUL
 setlocal enabledelayedexpansion
 
 echo ==============================================================
-echo         Instalador de PaintNotNet v1.0.7 para Windows
+echo         Instalador de PaintNotNet v1.0.9dev para Windows
 echo ==============================================================
 echo.
 
@@ -11,6 +11,8 @@ echo.
 echo Language / Idioma:
 echo   01 - Español
 echo   02 - English
+echo   03 - Português
+echo   04 - Français
 echo.
 set /p LANG_CHOICE="Elija una opción / Choose an option [01]: "
 
@@ -18,6 +20,14 @@ if "%LANG_CHOICE%"=="2" set SELECTED_LANG=English
 if "%LANG_CHOICE%"=="02" set SELECTED_LANG=English
 if "%LANG_CHOICE%"=="en" set SELECTED_LANG=English
 if "%LANG_CHOICE%"=="EN" set SELECTED_LANG=English
+if "%LANG_CHOICE%"=="3" set SELECTED_LANG=Português
+if "%LANG_CHOICE%"=="03" set SELECTED_LANG=Português
+if "%LANG_CHOICE%"=="pt" set SELECTED_LANG=Português
+if "%LANG_CHOICE%"=="PT" set SELECTED_LANG=Português
+if "%LANG_CHOICE%"=="4" set SELECTED_LANG=Français
+if "%LANG_CHOICE%"=="04" set SELECTED_LANG=Français
+if "%LANG_CHOICE%"=="fr" set SELECTED_LANG=Français
+if "%LANG_CHOICE%"=="FR" set SELECTED_LANG=Français
 if not defined SELECTED_LANG set SELECTED_LANG=Español
 
 echo.
@@ -28,6 +38,24 @@ echo.
 echo [i] Limpiando carpetas de compilación anteriores...
 if exist "build_pkg" rmdir /s /q "build_pkg" 2>nul
 if exist "dist_pkg" rmdir /s /q "dist_pkg" 2>nul
+
+echo [i] Verificando dependencias de Python...
+if not exist "venv\Scripts\pyinstaller.exe" (
+    where pyinstaller >nul 2>nul
+    if errorlevel 1 (
+        echo [i] Instalando dependencias necesarias con pip...
+        if not exist "venv" (
+            python -m venv venv
+        )
+        if exist "requirements_windows.txt" (
+            venv\Scripts\python.exe -m pip install -r requirements_windows.txt
+        ) else if exist "requirements.txt" (
+            venv\Scripts\python.exe -m pip install -r requirements.txt
+        ) else (
+            venv\Scripts\python.exe -m pip install PyQt6 numpy opencv-python Pillow requests pyinstaller
+        )
+    )
+)
 
 echo [i] Compilando PaintNotNet con PyInstaller...
 if exist "venv\Scripts\pyinstaller.exe" (

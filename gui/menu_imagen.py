@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
                              QSpinBox, QCheckBox, QRadioButton, QPushButton,
-                             QButtonGroup, QGroupBox, QGridLayout)
+                             QButtonGroup, QGroupBox, QGridLayout, QComboBox)
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon
 
@@ -90,7 +90,7 @@ class AnclajeWidget(QGroupBox):
 
 
 class DialogoTamanoBase(QDialog):
-    def __init__(self, titulo, ancho_actual, alto_actual, parent=None, incluir_anclaje=False):
+    def __init__(self, titulo, ancho_actual, alto_actual, parent=None, incluir_anclaje=False, es_base_transparente=False):
         super().__init__(parent)
         from core.i18n import t
         self.setWindowTitle(t(titulo))
@@ -139,11 +139,27 @@ class DialogoTamanoBase(QDialog):
         self.chk_proporcional.setChecked(True)
         layout.addWidget(self.chk_proporcional)
 
-        # Anclaje (Solo si se solicita, ej: Tamaño del Lienzo)
+        # Anclaje y Relleno (Solo si se solicita, ej: Tamaño del Lienzo)
         self.widget_anclaje = None
+        self.combo_relleno = None
         if incluir_anclaje:
             self.widget_anclaje = AnclajeWidget(self)
             layout.addWidget(self.widget_anclaje, alignment=Qt.AlignmentFlag.AlignCenter)
+
+            layout_relleno = QHBoxLayout()
+            lbl_relleno = QLabel(t("Relleno:"))
+            self.combo_relleno = QComboBox()
+            self.combo_relleno.addItem(t("Transparente"), "transparent")
+            self.combo_relleno.addItem(t("Blanco"), "white")
+
+            if es_base_transparente:
+                self.combo_relleno.setCurrentIndex(0)
+            else:
+                self.combo_relleno.setCurrentIndex(1)
+
+            layout_relleno.addWidget(lbl_relleno)
+            layout_relleno.addWidget(self.combo_relleno)
+            layout.addLayout(layout_relleno)
 
         # Conectar Eventos
         self.rad_px.toggled.connect(self.cambiar_modo)
@@ -217,6 +233,11 @@ class DialogoTamanoBase(QDialog):
             return self.widget_anclaje.obtener_anclaje()
         return "top-left"
 
+    def obtener_relleno(self):
+        if self.combo_relleno:
+            return self.combo_relleno.currentData()
+        return "transparent"
+
 
 class MenuImagen:
     def __init__(self, ventana_principal):
@@ -234,9 +255,11 @@ class MenuImagen:
         self.menu_img = self.menu_bar.addMenu(t("Imagen"))
 
         accion_tam_img = self.menu_img.addAction(QIcon("gui/iconos/image_size.png"), t("Cambiar Tamaño de Imagen..."))
+        accion_tam_img.setShortcut("Ctrl+R")
         accion_tam_img.triggered.connect(self.cambiar_tamano_imagen)
 
         accion_tam_lienzo = self.menu_img.addAction(QIcon("gui/iconos/canvas.png"), t("Cambiar Tamaño de Lienzo..."))
+        accion_tam_lienzo.setShortcut("Ctrl+Shift+R")
         accion_tam_lienzo.triggered.connect(self.cambiar_tamano_lienzo)
 
         self.menu_img.addSeparator()
@@ -258,11 +281,20 @@ class MenuImagen:
     def cambiar_tamano_lienzo(self):
         from core.i18n import t
         lienzo = self.ventana.lienzo
-        dialogo = DialogoTamanoBase(t("Cambiar Tamaño de Lienzo..."), lienzo.layer_mgr.width, lienzo.layer_mgr.height, self.ventana, incluir_anclaje=True)
+        es_base_trans = getattr(lienzo, 'lienzo_transparente_base', False)
+        dialogo = DialogoTamanoBase(
+            t("Cambiar Tamaño de Lienzo..."),
+            lienzo.layer_mgr.width,
+            lienzo.layer_mgr.height,
+            self.ventana,
+            incluir_anclaje=True,
+            es_base_transparente=es_base_trans
+        )
         if dialogo.exec() == QDialog.DialogCode.Accepted:
             nuevo_w, nuevo_h = dialogo.obtener_dimensiones_finales()
             anclaje = dialogo.obtener_anclaje()
-            lienzo.redimensionar_lienzo(nuevo_w, nuevo_h, anchor=anclaje)
+            relleno = dialogo.obtener_relleno()
+            lienzo.redimensionar_lienzo(nuevo_w, nuevo_h, anchor=anclaje, fill_color=relleno)
 
     def cambiar_tamano_imagen(self):
         from core.i18n import t

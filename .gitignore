@@ -61,11 +61,15 @@ venv.bak/
 
 # Scratch & temporary workspace files
 scratch/
+readme_test.md
 tmp/
 temp/
 *.tmp
 *.log
-descargar.py
+*.bak
+.user_uploaded/
+.ruff_cache/
+.mypy_cache/
 
 # IDE & Editor files
 .idea/

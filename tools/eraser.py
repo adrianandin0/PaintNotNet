@@ -3,6 +3,7 @@ from PyQt6.QtCore import Qt, QPointF, QRectF
 from PyQt6.QtGui import QPainter, QPen, QColor, QBrush, QPainterPath
 from tools.base_tool import BaseTool
 from tools.brush import _draw_cursor
+from core.stroke_smoother import generate_smooth_stroke_points, smooth_mouse_input
 
 
 from PyQt6.QtWidgets import QApplication
@@ -49,9 +50,7 @@ class EraserTool(BaseTool):
     def mouse_press(self, canvas, event, color_activo=None):
         if event.button() in (Qt.MouseButton.LeftButton, Qt.MouseButton.RightButton):
             self.is_drawing = True
-            px = math.floor(event.position().x())
-            py = math.floor(event.position().y())
-            pos = QPointF(px + 0.5, py + 0.5)
+            pos = QPointF(event.position().x(), event.position().y())
             self._last_pos = pos
             self._points = [pos]
             self._last_drawn_index = 0
@@ -64,9 +63,7 @@ class EraserTool(BaseTool):
     def mouse_move(self, canvas, event, color_activo=None):
         if not self.is_drawing or self._last_pos is None:
             return
-        px = math.floor(event.position().x())
-        py = math.floor(event.position().y())
-        raw_pos = QPointF(px + 0.5, py + 0.5)
+        raw_pos = QPointF(event.position().x(), event.position().y())
         modifiers = QApplication.keyboardModifiers()
         is_shift = bool(modifiers & Qt.KeyboardModifier.ShiftModifier)
 
@@ -81,74 +78,82 @@ class EraserTool(BaseTool):
                 pos = QPointF(self.shift_anchor.x(), raw_pos.y())
         else:
             self.shift_anchor = None
-            pos = raw_pos
+            pos = smooth_mouse_input(self._last_pos, raw_pos, weight=0.20)
 
         if not hasattr(self, '_points') or not self._points:
             self._points = [self._last_pos]
             self._last_drawn_index = 0
 
         self._points.append(pos)
-        n = len(self._points)
-        start_idx = max(0, getattr(self, '_last_drawn_index', 0))
-
-        if start_idx < n - 1:
-            qimg = canvas.layer_mgr.buffer
-            grosor = max(1, getattr(canvas, 'grosor_pincel', 3))
-            suavizado = getattr(canvas, 'suavizado_pincel', True)
-            forma = getattr(canvas, 'forma_pincel', 'Redondo')
-
-            painter = QPainter(qimg)
-            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
-            if suavizado:
-                painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-            step_px = max(0.5, grosor * 0.25)
-            hw = grosor / 2.0
-            pen = QPen(QColor(0, 0, 0, 255), grosor, Qt.PenStyle.SolidLine,
-                       Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
-            painter.setPen(pen)
-            painter.setBrush(QBrush(QColor(0, 0, 0, 255)))
-
-            for i in range(start_idx, n - 1):
-                p0 = self._points[max(0, i - 1)]
-                p1 = self._points[i]
-                p2 = self._points[i + 1]
-                p3 = self._points[min(n - 1, i + 2)]
-
-                dx = p2.x() - p1.x()
-                dy = p2.y() - p1.y()
-                dist = math.hypot(dx, dy)
-                steps = max(1, int(math.ceil(dist / step_px)))
-
-                for s in range(steps):
-                    t = (s + 1) / steps
-                    t2 = t * t
-                    t3 = t2 * t
-                    x = 0.5 * ((2 * p1.x()) + (-p0.x() + p2.x()) * t + (2 * p0.x() - 5 * p1.x() + 4 * p2.x() - p3.x()) * t2 + (-p0.x() + 3 * p1.x() - 3 * p2.x() + p3.x()) * t3)
-                    y = 0.5 * ((2 * p1.y()) + (-p0.y() + p2.y()) * t + (2 * p0.y() - 5 * p1.y() + 4 * p2.y() - p3.y()) * t2 + (-p0.y() + 3 * p1.y() - 3 * p2.y() + p3.y()) * t3)
-                    pt = QPointF(x, y)
-
-                    if forma == 'Cuadrado':
-                        painter.drawRect(QRectF(x - hw, y - hw, grosor, grosor))
-                    else:
-                        painter.drawEllipse(pt, hw, hw)
-
-            painter.end()
-            self._last_drawn_index = n - 1
+        self._erase_stroke(canvas, is_final=False)
 
         self._last_pos = pos
         if hasattr(canvas.layer_mgr, 'invalidate_cache'):
             canvas.layer_mgr.invalidate_cache()
         if canvas.callback_modificado:
             canvas.callback_modificado()
-        canvas.update()
+
+        grosor = max(1, getattr(canvas, 'grosor_pincel', 3))
+        p_prev = self._points[-2] if (hasattr(self, '_points') and len(self._points) >= 2) else pos
+        dirty_rect = QRectF(p_prev, pos).normalized().toRect().adjusted(-int(grosor) - 4, -int(grosor) - 4, int(grosor) + 8, int(grosor) + 8)
+        canvas.actualizar_region_sucia(dirty_rect)
 
     def mouse_release(self, canvas, event, color_activo=None):
-        self.is_drawing = False
-        self._last_pos = None
-        self.shift_anchor = None
-        self._points = []
-        self._last_drawn_index = 0
+        if self.is_drawing:
+            self._erase_stroke(canvas, is_final=True)
+            self.is_drawing = False
+            self._last_pos = None
+            self.shift_anchor = None
+            self._points = []
+            self._last_drawn_index = 0
+
+    def _erase_stroke(self, canvas, is_final=False):
+        pts = getattr(self, '_points', [])
+        if not pts:
+            return
+
+        qimg = canvas.layer_mgr.buffer
+        grosor = max(1, getattr(canvas, 'grosor_pincel', 3))
+        suavizado = getattr(canvas, 'suavizado_pincel', True)
+        forma = getattr(canvas, 'forma_pincel', 'Redondo')
+        step_px = max(0.5, grosor * 0.10)
+        hw = grosor / 2.0
+
+        sub_points, new_start_idx = generate_smooth_stroke_points(
+            pts, self._last_drawn_index, is_final=is_final, step_px=step_px
+        )
+
+        painter = QPainter(qimg)
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
+        if suavizado:
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        if len(pts) == 1 and self._last_drawn_index == 0:
+            p = pts[0]
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QBrush(QColor(0, 0, 0, 255)))
+            if forma == 'Cuadrado':
+                painter.drawRect(QRectF(p.x() - hw, p.y() - hw, grosor, grosor))
+            else:
+                painter.drawEllipse(p, hw, hw)
+        elif len(sub_points) > 0:
+            if forma == 'Cuadrado':
+                painter.setPen(Qt.PenStyle.NoPen)
+                painter.setBrush(QBrush(QColor(0, 0, 0, 255)))
+                for pt, _ in sub_points:
+                    painter.drawRect(QRectF(pt.x() - hw, pt.y() - hw, grosor, grosor))
+            else:
+                pen = QPen(QColor(0, 0, 0, 255), grosor, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+                painter.setPen(pen)
+                painter.setBrush(Qt.BrushStyle.NoBrush)
+                path = QPainterPath()
+                path.moveTo(sub_points[0][0])
+                for pt, _ in sub_points[1:]:
+                    path.lineTo(pt)
+                painter.drawPath(path)
+
+        painter.end()
+        self._last_drawn_index = new_start_idx
 
     # ── borrado por segmento ──────────────────────────────────────────────────
 
@@ -167,13 +172,21 @@ class EraserTool(BaseTool):
         if forma == 'Cuadrado':
             _stamp_rect_segment_clear(painter, p1, p2, grosor)
         else:
-            pen = QPen(QColor(0, 0, 0, 255), grosor, Qt.PenStyle.SolidLine,
-                       Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
-            painter.setPen(pen)
+            hw = grosor / 2.0
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QBrush(QColor(0, 0, 0, 255)))
             if p1 == p2:
-                painter.drawPoint(p1)
+                painter.drawEllipse(p1, hw, hw)
             else:
-                painter.drawLine(p1, p2)
+                dx = p2.x() - p1.x()
+                dy = p2.y() - p1.y()
+                dist = math.hypot(dx, dy)
+                paso = max(0.5, grosor * 0.25)
+                n = max(1, int(dist / paso))
+                for i in range(n + 1):
+                    t = i / float(n)
+                    pt = QPointF(p1.x() + dx * t, p1.y() + dy * t)
+                    painter.drawEllipse(pt, hw, hw)
 
         painter.end()
 

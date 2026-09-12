@@ -7,11 +7,13 @@ Formato de nombre: {nombre_lienzo}_{DDMMAAAA}_{HHMMSS}.pnn
 """
 import os
 import glob
-from datetime import datetime
-from PyQt6.QtCore import QSettings, QTimer, QObject, Qt
+import json
+import zipfile
+from datetime import datetime, timezone
+from PyQt6.QtCore import QSettings, QTimer, QObject, Qt, QThread, pyqtSignal, QBuffer, QIODevice
 from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QCheckBox
 from core.i18n import t
-from core.pnn_format import guardar_proyecto_pnn, cargar_proyecto_pnn
+from core.pnn_format import guardar_proyecto_pnn, cargar_proyecto_pnn, CURRENT_FORMAT_VERSION, _obtener_version_app, _calcular_checksum
 
 
 def obtener_directorio_emergencia():
@@ -167,10 +169,50 @@ class DialogoRestauracionEmergencia(QDialog):
         self.done(QDialog.DialogCode.Accepted)
 
     def _on_no(self):
-        if not self.chk_confirm.isChecked():
-            self.chk_confirm.setChecked(True)
-            return
         self.done(QDialog.DialogCode.Rejected)
+
+
+class _EmergencySaveWorker(QThread):
+    save_finished = pyqtSignal(bool, str)
+
+    def __init__(self, layer_data_snapshot, manifest_info, filepath, parent=None):
+        super().__init__(parent)
+        self.layer_data_snapshot = layer_data_snapshot
+        self.manifest_info = manifest_info
+        self.filepath = filepath
+
+    def run(self):
+        try:
+            success = self._save_snapshot()
+            self.save_finished.emit(success, self.filepath)
+        except Exception as e:
+            print(f"[EmergencySaveWorker] Error en hilo de autoguardado: {e}")
+            self.save_finished.emit(False, str(e))
+
+    def _save_snapshot(self):
+        manifest = dict(self.manifest_info)
+        capas_bytes = []
+        layers_metadata = []
+
+        for fname, qimg_copy, info in self.layer_data_snapshot:
+            layers_metadata.append(info)
+            buffer = QBuffer()
+            buffer.open(QIODevice.OpenModeFlag.WriteOnly)
+            qimg_copy.save(buffer, "PNG")
+            bytes_data = buffer.data().data()
+            buffer.close()
+            capas_bytes.append((fname, bytes_data))
+
+        manifest["layers"] = layers_metadata
+        manifest["checksum"] = _calcular_checksum(manifest, [b for _, b in capas_bytes])
+
+        with zipfile.ZipFile(self.filepath, 'w', compression=zipfile.ZIP_DEFLATED) as zip_file:
+            for fname, bdata in capas_bytes:
+                zip_file.writestr(fname, bdata)
+            json_data = json.dumps(manifest, indent=2, ensure_ascii=False)
+            zip_file.writestr("manifest.json", json_data.encode('utf-8'))
+
+        return True
 
 
 class EmergencySaveManager(QObject):
@@ -181,6 +223,7 @@ class EmergencySaveManager(QObject):
         self.main_window = main_window
         self.active_backups = {}  # {canvas: backup_filepath}
         self.timers = {}  # {canvas: QTimer}
+        self.workers = {} # {canvas: _EmergencySaveWorker}
 
     def registrar_canvas(self, canvas, titulo=None):
         """Asigna un archivo de respaldo .pnn único a un canvas y programa el primer autoguardado."""
@@ -231,16 +274,79 @@ class EmergencySaveManager(QObject):
                 timer.start()
 
     def ejecutar_guardado_emergencia(self, canvas):
-        """Realiza en silencio la escritura del archivo .pnn de emergencia."""
+        """Realiza de forma asíncrona en segundo plano la escritura del archivo .pnn de emergencia."""
         filepath = self.active_backups.get(canvas)
-        if not filepath or not canvas:
+        if not filepath or not canvas or not hasattr(canvas, 'layer_mgr') or not canvas.layer_mgr:
             return
+
+        # Si ya hay un worker corriendo para este canvas, omitir hasta la próxima señal del timer
+        if canvas in self.workers:
+            w = self.workers[canvas]
+            if w.isRunning():
+                return
+
+        # Capturar snapshot seguro en el hilo principal GUI
         try:
-            guardar_proyecto_pnn(canvas, filepath)
-            if self.main_window and hasattr(self.main_window, 'bottom_bar') and self.main_window.bottom_bar:
-                self.main_window.bottom_bar.mostrar_mensaje(t("Autoguardado"), 2000, italic=True)
+            layer_mgr = canvas.layer_mgr
+            now_iso = datetime.now(timezone.utc).isoformat()
+            created_at = getattr(canvas, 'pnn_created_at', None) or now_iso
+            canvas.pnn_created_at = created_at
+
+            dpi_config = getattr(canvas, 'pnn_dpi', {"x": 96, "y": 96})
+            if isinstance(dpi_config, list) and len(dpi_config) >= 2:
+                dpi_config = {"x": dpi_config[0], "y": dpi_config[1]}
+
+            manifest_info = {
+                "format": "PaintNotNet Project",
+                "format_version": CURRENT_FORMAT_VERSION,
+                "app_version": _obtener_version_app(),
+                "created_at": created_at,
+                "modified_at": now_iso,
+                "dpi": dpi_config,
+                "width": layer_mgr.width,
+                "height": layer_mgr.height,
+                "active_index": layer_mgr.indice_activo,
+            }
+
+            engine = getattr(canvas, 'selection_engine', None)
+            has_floating = bool(engine and engine.floating_image and not engine.floating_image.isNull())
+
+            snapshot = []
+            for idx, capa in enumerate(layer_mgr.capas):
+                img_filename = f"layer_{idx}.png"
+                info = {
+                    "name": capa.name,
+                    "visible": getattr(capa, 'visible', True),
+                    "opacity": getattr(capa, 'opacity', 1.0),
+                    "filename": img_filename
+                }
+                img_copy = capa.image.copy()
+                if has_floating and idx == layer_mgr.indice_activo:
+                    from PyQt6.QtGui import QPainter
+                    p = QPainter(img_copy)
+                    p.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+                    p.drawImage(engine.original_image_pos, engine.floating_image)
+                    p.end()
+
+                snapshot.append((img_filename, img_copy, info))
+
+            worker = _EmergencySaveWorker(snapshot, manifest_info, filepath, parent=self)
+            self.workers[canvas] = worker
+
+            def on_finished(w=worker, c=canvas):
+                if c in self.workers and self.workers[c] == w:
+                    del self.workers[c]
+                w.deleteLater()
+
+            worker.save_finished.connect(lambda ok, path, c=canvas: self._on_save_finished(c, ok))
+            worker.finished.connect(on_finished)
+            worker.start()
         except Exception as e:
-            print(f"[EmergencySave] Error al realizar autoguardado en {filepath}: {e}")
+            print(f"[EmergencySaveManager] Error preparando snapshot de autoguardado: {e}")
+
+    def _on_save_finished(self, canvas, success):
+        if success and self.main_window and hasattr(self.main_window, 'bottom_bar') and self.main_window.bottom_bar:
+            self.main_window.bottom_bar.mostrar_mensaje(t("Autoguardado"), 2000, italic=True)
 
     def eliminar_respaldo_canvas(self, canvas):
         """Elimina el archivo de respaldo .pnn del canvas."""

@@ -3,15 +3,72 @@ gui/dialogo_pexels.py — Diálogo de búsqueda e inserción de imágenes desde 
 Manejo seguro de hilos QThread para evitar bloqueos y cierres inesperados.
 """
 import os
+import numpy as np
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QCheckBox, QComboBox, QScrollArea, QWidget, QGridLayout,
     QProgressBar, QMessageBox
 )
-from PyQt6.QtCore import Qt, QSize, QThread, pyqtSignal, QRect, QRectF
+from PyQt6.QtCore import Qt, QSize, QThread, pyqtSignal, QRect, QRectF, QObject, QRunnable, QThreadPool
 from PyQt6.QtGui import QIcon, QPixmap, QImage, QPainter, QColor, QPen, QFont, QBrush
 from core.i18n import t
 from core.pexels import PexelsAPIClient
+
+
+def _hacer_fondo_blanco_transparente(qimg: QImage, threshold: int = 238) -> QImage:
+    """
+    Si la imagen no posee un canal alfa con píxeles transparentes (o es JPG/PNG con fondo blanco sólido),
+    realiza un flood-fill desde los bordes para convertir el fondo blanco/casi blanco en transparente (alpha=0).
+    """
+    if qimg.isNull():
+        return qimg
+
+    img = qimg.convertToFormat(QImage.Format.Format_ARGB32)
+    w, h = img.width(), img.height()
+    if w <= 0 or h <= 0:
+        return img
+
+    ptr = img.bits()
+    ptr.setsize(h * w * 4)
+    arr = np.frombuffer(ptr, np.uint8).reshape((h, w, 4))
+
+    # Si la imagen ya tiene píxeles transparentes reales (alfa < 250), se respeta la transparencia nativa
+    if qimg.hasAlphaChannel() and np.any(arr[:, :, 3] < 250):
+        return qimg
+
+    # Verificar si al menos una esquina es cercana al blanco
+    corners = [(0, 0), (0, w - 1), (h - 1, 0), (h - 1, w - 1)]
+    has_white_corner = False
+    for r, c in corners:
+        b, g, r_val, a = arr[r, c]
+        if r_val >= threshold and g >= threshold and b >= threshold:
+            has_white_corner = True
+            break
+
+    if not has_white_corner:
+        return img
+
+    try:
+        import cv2
+        white_mask = ((arr[:, :, 0] >= threshold) & (arr[:, :, 1] >= threshold) & (arr[:, :, 2] >= threshold)).astype(np.uint8) * 255
+        mask = np.zeros((h + 2, w + 2), np.uint8)
+
+        for r in range(h):
+            for c in (0, w - 1):
+                if white_mask[r, c] == 255 and mask[r + 1, c + 1] == 0:
+                    cv2.floodFill(white_mask, mask, (c, r), 128)
+        for c in range(w):
+            for r in (0, h - 1):
+                if white_mask[r, c] == 255 and mask[r + 1, c + 1] == 0:
+                    cv2.floodFill(white_mask, mask, (c, r), 128)
+
+        bg_indices = (mask[1:-1, 1:-1] == 1)
+        arr[bg_indices, 3] = 0
+    except Exception:
+        pass
+
+    return img
+
 
 
 # Workers asíncronos para búsquedas y descargas con cancelación segura
@@ -40,6 +97,42 @@ class _SearchWorker(QThread):
                 self.results_ready.emit([], str(e))
 
 
+class _DownloadSignals(QObject):
+    download_finished = pyqtSignal(bytes, str)
+
+
+class _DownloadRunnable(QRunnable):
+    def __init__(self, url: str):
+        super().__init__()
+        self.url = url
+        self.signals = _DownloadSignals()
+        self._is_cancelled = False
+
+    def cancel(self):
+        self._is_cancelled = True
+
+    def run(self):
+        if self._is_cancelled:
+            return
+        try:
+            data = PexelsAPIClient.download_bytes(self.url)
+            if self._is_cancelled:
+                return
+            try:
+                if data:
+                    self.signals.download_finished.emit(data, "")
+                else:
+                    self.signals.download_finished.emit(b"", "Error al descargar la imagen.")
+            except (RuntimeError, AttributeError):
+                pass
+        except Exception as e:
+            if not self._is_cancelled:
+                try:
+                    self.signals.download_finished.emit(b"", str(e))
+                except (RuntimeError, AttributeError):
+                    pass
+
+
 class _DownloadWorker(QThread):
     download_finished = pyqtSignal(bytes, str)
 
@@ -54,15 +147,19 @@ class _DownloadWorker(QThread):
     def run(self):
         try:
             data = PexelsAPIClient.download_bytes(self.url)
-            if self._is_cancelled:
-                return
-            if data:
-                self.download_finished.emit(data, "")
-            else:
-                self.download_finished.emit(b"", "Error al descargar la imagen.")
+            if not self._is_cancelled:
+                if data:
+                    self.download_finished.emit(data, "")
+                else:
+                    self.download_finished.emit(b"", "Error al descargar la imagen.")
         except Exception as e:
             if not self._is_cancelled:
                 self.download_finished.emit(b"", str(e))
+
+
+# Pool global para limitar concurrencia a máximo 6 hilos simultáneos
+_THUMB_POOL = QThreadPool()
+_THUMB_POOL.setMaxThreadCount(6)
 
 
 # Tarjeta de Imagen limpia con cancelación de hilo
@@ -77,7 +174,8 @@ class _ImageCardWidget(QPushButton):
         self.parent_dialog = parent_dialog
         self.is_selected = False
         self.pixmap: QPixmap | None = None
-        self.worker: _DownloadWorker | None = None
+        self.runnable: _DownloadRunnable | None = None
+        self.full_runnable: _DownloadRunnable | None = None
         self.setFixedSize(140, 105)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
@@ -88,30 +186,67 @@ class _ImageCardWidget(QPushButton):
         url = self.photo_data.get("preview_url")
         if not url:
             return
-        self.worker = _DownloadWorker(url)
-        self.worker.download_finished.connect(self._on_preview_loaded)
-        if self.parent_dialog and hasattr(self.parent_dialog, '_track_worker'):
-            self.parent_dialog._track_worker(self.worker)
-        self.worker.start()
+        self.runnable = _DownloadRunnable(url)
+        self._download_signals = self.runnable.signals
+        self._download_signals.download_finished.connect(self._on_preview_loaded)
+        _THUMB_POOL.start(self.runnable)
 
     def cancel_download(self):
-        if self.worker:
+        if hasattr(self, '_download_signals') and self._download_signals:
             try:
-                self.worker.download_finished.disconnect()
+                self._download_signals.download_finished.disconnect()
             except Exception:
                 pass
-            self.worker.cancel()
-            if self.worker.isRunning():
-                self.worker.quit()
-                self.worker.wait(50)
-            self.worker = None
+            self._download_signals = None
+        if hasattr(self, '_full_signals') and self._full_signals:
+            try:
+                self._full_signals.download_finished.disconnect()
+            except Exception:
+                pass
+            self._full_signals = None
+        if self.runnable:
+            self.runnable.cancel()
+            self.runnable = None
+        if self.full_runnable:
+            self.full_runnable.cancel()
+            self.full_runnable = None
 
     def _on_preview_loaded(self, data: bytes, err: str):
         if data:
             qimg = QImage.fromData(data)
             if not qimg.isNull():
+                is_trans = self.photo_data.get("is_transparent", False)
+                if not is_trans and self.parent_dialog and hasattr(self.parent_dialog, 'chk_transparent'):
+                    is_trans = self.parent_dialog.chk_transparent.isChecked()
+
+                if is_trans:
+                    qimg = _hacer_fondo_blanco_transparente(qimg)
+
                 self.pixmap = QPixmap.fromImage(qimg)
                 self.update()
+
+                download_url = self.photo_data.get("download_url")
+                preview_url = self.photo_data.get("preview_url")
+                if is_trans and download_url and download_url != preview_url and not self.full_runnable:
+                    self.full_runnable = _DownloadRunnable(download_url)
+                    self._full_signals = self.full_runnable.signals
+                    self._full_signals.download_finished.connect(self._on_full_preview_loaded)
+                    _THUMB_POOL.start(self.full_runnable)
+
+    def _on_full_preview_loaded(self, data: bytes, err: str):
+        if data:
+            qimg = QImage.fromData(data)
+            if not qimg.isNull():
+                is_trans = self.photo_data.get("is_transparent", False)
+                if not is_trans and self.parent_dialog and hasattr(self.parent_dialog, 'chk_transparent'):
+                    is_trans = self.parent_dialog.chk_transparent.isChecked()
+
+                if is_trans:
+                    qimg = _hacer_fondo_blanco_transparente(qimg)
+
+                self.pixmap = QPixmap.fromImage(qimg)
+                self.update()
+
 
     def set_selected(self, selected: bool):
         self.is_selected = selected
@@ -161,8 +296,8 @@ class _ImageCardWidget(QPushButton):
 
         # 1. Fondo de cuadrícula de transparencia
         sq = 6
-        c1 = QColor(240, 240, 240)
-        c2 = QColor(190, 190, 190)
+        from core.theme import ThemeManager
+        c1, c2 = ThemeManager().colores_checkerboard()
         for y in range(4, h - 4, sq):
             for x in range(4, w - 4, sq):
                 c = c1 if ((x // sq) + (y // sq)) % 2 == 0 else c2
@@ -264,12 +399,12 @@ class DialogoBusquedaPexels(QDialog):
 
         self.combo_source = QComboBox()
         self.combo_source.addItems([
-            t("Todas las fuentes (Auto)"),
-            "Bing",
-            "Google",
-            "DuckDuckGo",
-            "Wikimedia",
-            "Unsplash"
+            t("Todas las fuentes activas"),
+            "Wikimedia Commons",
+            "Google Images (Serper)",
+            "Pexels",
+            "Unsplash",
+            "Pixabay"
         ])
         self.combo_source.setToolTip(t("Motor de búsqueda de imágenes"))
         self.combo_source.currentIndexChanged.connect(self._on_new_search)
@@ -368,7 +503,17 @@ class DialogoBusquedaPexels(QDialog):
 
         layout.addLayout(btn_layout)
 
-        # Sin búsqueda predeterminada por defecto
+        self._update_status_bar()
+
+    def _update_status_bar(self):
+        status = PexelsAPIClient.get_search_status()
+        if not status["enabled"]:
+            self.lbl_status.setText(t("Búsqueda online desactivada. Actívala en Preferencias de usuario -> Búsqueda de imágenes online."))
+        elif not status["active_sources"]:
+            self.lbl_status.setText(t("Sin fuentes ni claves activas. Configura tu API Key en Preferencias de usuario."))
+        else:
+            fuentes_str = ", ".join(status["active_sources"])
+            self.lbl_status.setText(t("Fuentes activas: %1. Escribe para buscar.").replace("%1", fuentes_str))
 
     def _track_worker(self, worker):
         if not worker:
@@ -410,6 +555,16 @@ class DialogoBusquedaPexels(QDialog):
         self._fetch_page()
 
     def _fetch_page(self):
+        status = PexelsAPIClient.get_search_status()
+        if not status["enabled"]:
+            self.lbl_status.setText(t("Búsqueda online desactivada. Actívala en Preferencias de usuario -> Búsqueda de imágenes online."))
+            QMessageBox.information(
+                self,
+                t("Búsqueda online desactivada"),
+                t("La búsqueda de imágenes desde internet está desactivada.\n\nPuedes activarla y configurar fuentes o claves de API gratuitas ingresando a Preferencias de usuario (Opciones -> Preferencias...).")
+            )
+            return
+
         query = self.input_search.text().strip()
         if not query:
             return
@@ -526,7 +681,11 @@ class DialogoBusquedaPexels(QDialog):
             self.btn_insert.setEnabled(True)
             return
 
+        if self.chk_transparent.isChecked():
+            qimg = _hacer_fondo_blanco_transparente(qimg)
+
         if self.main_window and hasattr(self.main_window, 'lienzo') and self.main_window.lienzo:
             self.main_window.lienzo.insertar_qimage(qimg)
 
         self.accept()
+

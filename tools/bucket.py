@@ -58,6 +58,9 @@ class BucketTool(BaseTool):
         flood_mask = mask[1:h+1, 1:w+1]
 
         r, g, b, a = color.red(), color.green(), color.blue(), color.alpha()
+        pr = int(r * (a / 255.0))
+        pg = int(g * (a / 255.0))
+        pb = int(b * (a / 255.0))
 
         painter = QPainter(canvas.layer_mgr.buffer)
         if canvas.selection_engine.has_selection():
@@ -71,7 +74,7 @@ class BucketTool(BaseTool):
         f_arr = np.frombuffer(f_ptr, dtype=np.uint8).reshape((h, fill_image.bytesPerLine()))
         f_rgba = f_arr[:, :w * 4].reshape((h, w, 4))
 
-        f_rgba[flood_mask > 0] = [b, g, r, a]
+        f_rgba[flood_mask > 0] = [pb, pg, pr, a]
 
         painter.drawImage(0, 0, fill_image)
         painter.end()

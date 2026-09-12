@@ -73,6 +73,7 @@ class SelectionEngine:
         self.unscaled_floating_image = None
         self.original_raw_image = None
         self.is_transforming = False
+        self.is_new_content = False
         self._reset_transform_state()
 
     def translate(self, dx, dy):
@@ -113,12 +114,16 @@ class SelectionEngine:
         self.is_moving = False
         self.is_rotating = False
 
-    def init_raw_image(self, img):
+    def init_raw_image(self, img, is_new_content=None):
         """Inicializa la imagen original sin degradación para transformaciones compuestas."""
         if img and not img.isNull():
             self.original_raw_image = img.copy()
             self.unscaled_floating_image = img.copy()
             self.floating_image = img.copy()
+            if is_new_content is not None:
+                self.is_new_content = is_new_content
+            elif not hasattr(self, 'is_new_content'):
+                self.is_new_content = False
             self.scale_x = 1.0
             self.scale_y = 1.0
             self.total_rotation = 0.0
@@ -137,9 +142,11 @@ class SelectionEngine:
             raw_w = float(raw.width())
             raw_h = float(raw.height())
 
-            t_img = QTransform()
-            t_img.scale(self.scale_x, self.scale_y)
-            t_img.rotate(self.total_rotation)
+            t_img = (
+                QTransform()
+                .rotate(self.total_rotation)
+                .scale(self.scale_x, self.scale_y)
+            )
 
             # Renderizado suavizado directo desde el original de alta calidad
             self.floating_image = raw.transformed(t_img, Qt.TransformationMode.SmoothTransformation)
@@ -169,9 +176,43 @@ class SelectionEngine:
             self.active_path = t_path.map(self.initial_unrotated_path)
             self.active_rect = self.active_path.boundingRect()
 
+    def _extract_quad_points(self):
+        if not self.active_path or self.active_path.isEmpty():
+            return None
+        pts = []
+        for i in range(self.active_path.elementCount()):
+            elem = self.active_path.elementAt(i)
+            pts.append(QPointF(elem.x, elem.y))
+        if len(pts) >= 5 and (pts[0] - pts[-1]).manhattanLength() < 1e-4:
+            pts.pop()
+        if len(pts) == 4:
+            return pts
+        return None
+
     def get_handles(self, scale_factor=1.0):
         if not self.has_selection():
             return {}
+
+        s = self.HANDLE_SIZE / max(0.001, scale_factor)
+        s2 = s / 2.0
+
+        quad = self._extract_quad_points()
+        if quad:
+            p0, p1, p2, p3 = quad
+            pts_map = {
+                self.HANDLE_TOP_LEFT: p0,
+                self.HANDLE_TOP_RIGHT: p1,
+                self.HANDLE_BOTTOM_RIGHT: p2,
+                self.HANDLE_BOTTOM_LEFT: p3,
+                self.HANDLE_TOP_CENTER: QPointF((p0.x() + p1.x()) / 2.0, (p0.y() + p1.y()) / 2.0),
+                self.HANDLE_BOTTOM_CENTER: QPointF((p3.x() + p2.x()) / 2.0, (p3.y() + p2.y()) / 2.0),
+                self.HANDLE_MIDDLE_LEFT: QPointF((p0.x() + p3.x()) / 2.0, (p0.y() + p3.y()) / 2.0),
+                self.HANDLE_MIDDLE_RIGHT: QPointF((p1.x() + p2.x()) / 2.0, (p1.y() + p2.y()) / 2.0),
+            }
+            handles = {}
+            for handle_id, pt in pts_map.items():
+                handles[handle_id] = QRectF(pt.x() - s2, pt.y() - s2, s, s)
+            return handles
 
         raw = self.original_raw_image or self.unscaled_floating_image
         if raw and not raw.isNull():
@@ -188,9 +229,6 @@ class SelectionEngine:
         rad = math.radians(self.total_rotation)
         cos_a = math.cos(rad)
         sin_a = math.sin(rad)
-
-        s = self.HANDLE_SIZE / max(0.001, scale_factor)
-        s2 = s / 2.0
 
         local_positions = {
             self.HANDLE_TOP_LEFT: (-W / 2.0, -H / 2.0),
