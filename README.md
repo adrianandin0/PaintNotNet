@@ -5,7 +5,7 @@
 <h1 align="center">PaintNotNet</h1>
 
 <p align="center">
-  <b>A Paint.NET tribute image editor primarily focused on Linux.</b>
+  <b>A lightweight, powerful, and modern image editor for Linux inspired by Paint.NET.</b>
 </p>
 
 <p align="center">
