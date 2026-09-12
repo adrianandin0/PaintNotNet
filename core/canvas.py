@@ -671,18 +671,8 @@ class CanvasWidget(QWidget):
         l_height = self.layer_mgr.height
 
         # --- DIBUJAR FONDO CUADRICULADO DEL LIENZO ---
-        if not hasattr(self, '_bg_checker_brush') or self._bg_checker_brush is None:
-            pm = QPixmap(32, 32)
-            p_pm = QPainter(pm)
-            p_pm.fillRect(0, 0, 16, 16, QColor(200, 200, 200))
-            p_pm.fillRect(16, 0, 16, 16, QColor(255, 255, 255))
-            p_pm.fillRect(0, 16, 16, 16, QColor(255, 255, 255))
-            p_pm.fillRect(16, 16, 16, 16, QColor(200, 200, 200))
-            p_pm.end()
-            self._bg_checker_brush = QBrush(pm)
-
-        # Dibujar fondo ajedrezado transparente del lienzo (visible si la capa base está oculta o contiene transparencias)
-        painter.fillRect(0, 0, l_width, l_height, self._bg_checker_brush)
+        if hasattr(self, 'renderer') and self.renderer:
+            self.renderer.draw_checkerboard_pattern(painter, l_width, l_height)
 
         def _dibujar_preview_capa_activa(p_capa):
             is_transforming = (getattr(self.active_tool_obj, 'name', '') == "Transformar" and getattr(self.active_tool_obj, '_is_active', False))
@@ -715,27 +705,9 @@ class CanvasWidget(QWidget):
         if self._cached_composite_pixmap and not self._cached_composite_pixmap.isNull():
             painter.drawPixmap(0, 0, self._cached_composite_pixmap)
 
-        # 2. Dibujar cuadrícula de píxeles si está activada y el zoom es suficiente (>= 150%)
-        if getattr(self, 'show_pixel_grid', False) and self.scale_factor >= 1.5:
-            painter.save()
-            pen_dark = QPen(QColor(0, 0, 0, 100), 0, Qt.PenStyle.SolidLine)
-            pen_dark.setCosmetic(True)
-            pen_light = QPen(QColor(255, 255, 255, 140), 0, Qt.PenStyle.DotLine)
-            pen_light.setCosmetic(True)
-
-            painter.setPen(pen_dark)
-            for x in range(1, l_width):
-                painter.drawLine(QPointF(float(x), 0.0), QPointF(float(x), float(l_height)))
-            for y in range(1, l_height):
-                painter.drawLine(QPointF(0.0, float(y)), QPointF(float(l_width), float(y)))
-
-            painter.setPen(pen_light)
-            for x in range(1, l_width):
-                painter.drawLine(QPointF(float(x), 0.0), QPointF(float(x), float(l_height)))
-            for y in range(1, l_height):
-                painter.drawLine(QPointF(0.0, float(y)), QPointF(float(l_width), float(y)))
-
-            painter.restore()
+        # 2. Dibujar cuadrícula de píxeles si está activada
+        if getattr(self, 'show_pixel_grid', False) and hasattr(self, 'renderer') and self.renderer:
+            self.renderer.draw_pixel_grid(painter, l_width, l_height, self.scale_factor)
 
         # 3. Tiradores y controles interactivos de herramientas
         if hasattr(self.active_tool_obj, 'draw_handles'):
@@ -865,7 +837,13 @@ class CanvasWidget(QWidget):
             self.drawing = True
             color_activo = self.color_primario if ev.button() == Qt.MouseButton.LeftButton else self.color_secundario
 
-            if hasattr(self, 'layer_mgr') and hasattr(self.layer_mgr, 'preparar_para_modificacion'):
+            tool_name = self.active_tool_obj.__class__.__name__ if self.active_tool_obj else ""
+            es_herramienta_lectura = tool_name in (
+                'ZoomTool', 'EyedropperTool', 'SelectRectTool', 'SelectEllipseTool',
+                'SelectFreeTool', 'MagicWandTool', 'MoveSelectOnlyTool'
+            )
+
+            if not es_herramienta_lectura and hasattr(self, 'layer_mgr') and hasattr(self.layer_mgr, 'preparar_para_modificacion'):
                 self.layer_mgr.preparar_para_modificacion()
 
             if hasattr(self.active_tool_obj, 'mouse_press'):

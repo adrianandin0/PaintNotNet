@@ -27,46 +27,7 @@ class CanvasInputHandler(QObject):
             event.modifiers()
         )
 
-    def handle_leave_event(self, event):
-        self.canvas.cursor_pos = None
-        self.canvas.widget_cursor_pos = None
-        self.notify_cursor_position()
-        self.canvas.update()
 
-    def handle_mouse_press(self, event):
-        self.canvas.setFocus()
-        self.canvas.widget_cursor_pos = event.position()
-        ev = self.map_canvas_event(event)
-        self.canvas.cursor_pos = ev.position()
-        self.notify_cursor_position()
-
-        if hasattr(self.canvas, 'layer_mgr') and hasattr(self.canvas.layer_mgr, 'preparar_para_modificacion'):
-            self.canvas.layer_mgr.preparar_para_modificacion()
-
-        tool = getattr(self.canvas, 'active_tool_obj', None)
-        if tool and hasattr(tool, 'mouse_press'):
-            tool.mouse_press(self.canvas, ev)
-        self.canvas.update()
-
-    def handle_mouse_move(self, event):
-        self.canvas.widget_cursor_pos = event.position()
-        ev = self.map_canvas_event(event)
-        self.canvas.cursor_pos = ev.position()
-        self.notify_cursor_position()
-
-        tool = getattr(self.canvas, 'active_tool_obj', None)
-        if tool and hasattr(tool, 'mouse_move'):
-            tool.mouse_move(self.canvas, ev)
-
-        self.canvas.update()
-
-    def handle_mouse_release(self, event):
-        ev = self.map_canvas_event(event)
-        tool = getattr(self.canvas, 'active_tool_obj', None)
-        if tool and hasattr(tool, 'mouse_release'):
-            tool.mouse_release(self.canvas, ev)
-
-        self.canvas.update()
 
     def notify_cursor_position(self):
         main_win = getattr(self.canvas, 'main_window', None)

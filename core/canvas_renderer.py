@@ -33,18 +33,26 @@ class CanvasRenderer:
         painter.restore()
 
     def draw_pixel_grid(self, painter: QPainter, width: int, height: int, scale_factor: float):
-        """Dibuja una rejilla fina de píxeles cuando el nivel de zoom es elevado (>= 400%)."""
-        if scale_factor < 4.0:
+        """Dibuja una rejilla fina de píxeles cuando el nivel de zoom es elevado (>= 150%)."""
+        if scale_factor < 1.5:
             return
 
         painter.save()
-        grid_pen = QPen(QColor(128, 128, 128, 100), 1.0 / scale_factor)
-        grid_pen.setCosmetic(True)
-        painter.setPen(grid_pen)
+        pen_dark = QPen(QColor(0, 0, 0, 100), 0, Qt.PenStyle.SolidLine)
+        pen_dark.setCosmetic(True)
+        pen_light = QPen(QColor(255, 255, 255, 140), 0, Qt.PenStyle.DotLine)
+        pen_light.setCosmetic(True)
 
-        for x in range(width + 1):
+        painter.setPen(pen_dark)
+        for x in range(1, width):
             painter.drawLine(QPointF(float(x), 0.0), QPointF(float(x), float(height)))
-        for y in range(height + 1):
+        for y in range(1, height):
+            painter.drawLine(QPointF(0.0, float(y)), QPointF(float(width), float(y)))
+
+        painter.setPen(pen_light)
+        for x in range(1, width):
+            painter.drawLine(QPointF(float(x), 0.0), QPointF(float(x), float(height)))
+        for y in range(1, height):
             painter.drawLine(QPointF(0.0, float(y)), QPointF(float(width), float(y)))
 
         painter.restore()
@@ -60,10 +68,11 @@ class CanvasRenderer:
 
         has_floating = bool(selection_engine and selection_engine.floating_image and not selection_engine.floating_image.isNull())
 
-        for idx, capa in enumerate(layer_mgr.capas):
+        for i, capa in enumerate(reversed(layer_mgr.capas)):
             if not getattr(capa, 'visible', True):
                 continue
 
+            idx_real = len(layer_mgr.capas) - 1 - i
             op = float(getattr(capa, 'opacity', 1.0))
             p.setOpacity(op)
 
@@ -71,14 +80,14 @@ class CanvasRenderer:
             p.drawImage(0, 0, capa.image)
 
             # Si es la capa activa y hay trazo temporal de pincel activo
-            if idx == layer_mgr.indice_activo and capa_trazo_temp and not capa_trazo_temp.isNull():
+            if idx_real == layer_mgr.indice_activo and capa_trazo_temp and not capa_trazo_temp.isNull():
                 stroke_alpha = float(getattr(layer_mgr, 'active_stroke_alpha', 1.0))
                 p.setOpacity(op * stroke_alpha)
                 p.drawImage(0, 0, capa_trazo_temp)
                 p.setOpacity(op)
 
             # Si es la capa activa y hay selección flotante en movimiento
-            if has_floating and idx == layer_mgr.indice_activo:
+            if has_floating and idx_real == layer_mgr.indice_activo:
                 p.drawImage(selection_engine.original_image_pos, selection_engine.floating_image)
 
         p.end()
