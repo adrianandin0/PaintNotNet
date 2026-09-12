@@ -299,18 +299,7 @@ class MenuImagen:
     def cambiar_tamano_imagen(self):
         from core.i18n import t
         lienzo = self.ventana.lienzo
-        engine = lienzo.selection_engine
-
-        if engine.has_selection():
-            sel_rect = engine.active_rect
-            ancho_init = max(1, int(round(sel_rect.width())))
-            alto_init = max(1, int(round(sel_rect.height())))
-            dialogo = DialogoTamanoBase(t("Cambiar Tamaño de Imagen..."), ancho_init, alto_init, self.ventana, incluir_anclaje=False)
-            if dialogo.exec() == QDialog.DialogCode.Accepted:
-                nuevo_w, nuevo_h = dialogo.obtener_dimensiones_finales()
-                lienzo.escalar_seleccion(nuevo_w, nuevo_h)
-        else:
-            dialogo = DialogoTamanoBase(t("Cambiar Tamaño de Imagen..."), lienzo.layer_mgr.width, lienzo.layer_mgr.height, self.ventana, incluir_anclaje=False)
-            if dialogo.exec() == QDialog.DialogCode.Accepted:
-                nuevo_w, nuevo_h = dialogo.obtener_dimensiones_finales()
-                lienzo.escalar_imagen(nuevo_w, nuevo_h)
+        dialogo = DialogoTamanoBase(t("Cambiar Tamaño de Imagen..."), lienzo.layer_mgr.width, lienzo.layer_mgr.height, self.ventana, incluir_anclaje=False)
+        if dialogo.exec() == QDialog.DialogCode.Accepted:
+            nuevo_w, nuevo_h = dialogo.obtener_dimensiones_finales()
+            lienzo.escalar_imagen(nuevo_w, nuevo_h)

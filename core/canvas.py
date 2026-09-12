@@ -1013,8 +1013,7 @@ class CanvasWidget(QWidget):
 
     def redimensionar_lienzo(self, nuevo_ancho, nuevo_alto, anchor="top-left", fill_color="transparent"):
         """Redimensiona el lienzo expandiendo con el relleno seleccionado (transparente o blanco) en la nueva área."""
-        from tools.move_select_pixels import MoveSelectPixelsTool
-        MoveSelectPixelsTool.commit_floating_image(self)
+        self.commit_pending_tool_changes()
 
         old_w = self.layer_mgr.width
         old_h = self.layer_mgr.height
@@ -1058,20 +1057,28 @@ class CanvasWidget(QWidget):
 
         self.layer_mgr.width = nuevo_ancho
         self.layer_mgr.height = nuevo_alto
+
+        if self.selection_engine.has_selection() and (dest_x != 0 or dest_y != 0):
+            self.selection_engine.active_path.translate(float(dest_x), float(dest_y))
+            self.selection_engine.active_rect = self.selection_engine.active_path.boundingRect()
+
         self._ajustar_tamano_widget(nuevo_ancho, nuevo_alto)
 
         # Reajustar la capa temporal de trazos
         self.capa_trazo_temp = QImage(nuevo_ancho, nuevo_alto, QImage.Format.Format_ARGB32_Premultiplied)
         self.capa_trazo_temp.fill(Qt.GlobalColor.transparent)
 
+        self.invalidate_cache()
         # Registrar el cambio en el historial
         self.push_document_state("Tamaño del lienzo")
         self.update()
 
     def escalar_imagen(self, nuevo_ancho, nuevo_alto):
         """Escala proporcional/suavemente el contenido de todas las capas al nuevo tamaño y lo registra en el historial."""
-        from tools.move_select_pixels import MoveSelectPixelsTool
-        MoveSelectPixelsTool.commit_floating_image(self)
+        self.commit_pending_tool_changes()
+
+        old_w = float(self.layer_mgr.width)
+        old_h = float(self.layer_mgr.height)
 
         for capa in self.layer_mgr.capas:
             scaled = capa.image.scaled(
@@ -1083,11 +1090,22 @@ class CanvasWidget(QWidget):
 
         self.layer_mgr.width = nuevo_ancho
         self.layer_mgr.height = nuevo_alto
+
+        if self.selection_engine.has_selection() and old_w > 0 and old_h > 0:
+            scale_x = nuevo_ancho / old_w
+            scale_y = nuevo_alto / old_h
+            from PyQt6.QtGui import QTransform
+            t = QTransform()
+            t.scale(scale_x, scale_y)
+            self.selection_engine.active_path = t.map(self.selection_engine.active_path)
+            self.selection_engine.active_rect = self.selection_engine.active_path.boundingRect()
+
         self._ajustar_tamano_widget(nuevo_ancho, nuevo_alto)
 
         self.capa_trazo_temp = QImage(nuevo_ancho, nuevo_alto, QImage.Format.Format_ARGB32_Premultiplied)
         self.capa_trazo_temp.fill(Qt.GlobalColor.transparent)
 
+        self.invalidate_cache()
         # Registrar el cambio en el historial
         self.push_document_state("Tamaño de la imagen")
         self.update()
