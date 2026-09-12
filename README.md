@@ -93,6 +93,10 @@
 | Eyedropper | Sample color directly from the canvas |
 | Zoom | Zoom in/out or select a specific area to focus |
 
+<p align="center">
+  <img src="gui/options_2.png" alt="PaintNotNet Tools Preview" width="90%">
+</p>
+
 ---
 
 ## Technical Details
@@ -128,6 +132,10 @@ PaintNotNet is structured into modular components:
 ### Platforms
 
 - **Linux** (Debian/Ubuntu, Fedora, Arch Linux, openSUSE, and derivatives)
+
+<p align="center">
+  <img src="gui/options_3.png" alt="PaintNotNet Platforms Preview" width="90%">
+</p>
 
 ---
 
