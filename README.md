@@ -57,6 +57,10 @@
 - **Image and Color Adjustments**: Exposure, color temperature, levels (input/output black & white points), sepia, posterize, brightness, contrast, hue/saturation, invert, and desaturate.
 - **Advanced Color Panel**: Color wheel, RGB/HSV/CMYK sliders, and saved palette history.
 
+<p align="center">
+  <img src="gui/options.png" alt="PaintNotNet Options and Features Preview" width="90%">
+</p>
+
 ---
 
 ## Tools
