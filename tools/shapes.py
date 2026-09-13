@@ -1,6 +1,6 @@
 import math
 from PyQt6.QtCore import Qt, QPointF, QRectF
-from PyQt6.QtGui import QPainter, QPen, QBrush, QImage, QPainterPath, QPolygonF, QColor
+from PyQt6.QtGui import QPainter, QPen, QBrush, QImage, QPainterPath, QPolygonF, QColor, QTransform
 from tools.base_tool import BaseTool
 
 
@@ -14,10 +14,11 @@ HANDLE_MIDDLE_RIGHT = 6
 HANDLE_BOTTOM_LEFT = 7
 HANDLE_BOTTOM_CENTER = 8
 HANDLE_BOTTOM_RIGHT = 9
+HANDLE_ROTATE = 10
 
 
 class ShapesTool(BaseTool):
-    """Herramienta para insertar formas geométricas ajustables con soporte para Shift (relación 1:1 simétrica)."""
+    """Herramienta para insertar formas geométricas ajustables con rotación y soporte para Shift (relación 1:1 y saltos de 15°)."""
     def __init__(self):
         super().__init__("Insertar Formas", "gui/iconos/shapes.png")
         self.start_point = None
@@ -25,10 +26,14 @@ class ShapesTool(BaseTool):
         self.is_drawing = False
         self.is_moving = False
         self.is_resizing = False
+        self.is_rotating = False
+        self.rotation_angle = 0.0
         self.active_shape_rect = None
         self.active_handle = HANDLE_NONE
         self.drag_start_pos = None
         self.orig_rect = None
+        self.initial_mouse_angle = 0.0
+        self.base_rotation_angle = 0.0
 
     def get_icon_path(self, canvas):
         tipo = "Rectángulo"
@@ -65,6 +70,22 @@ class ShapesTool(BaseTool):
             return rect
         return tight
 
+    def _get_canvas_bounding_rect(self, canvas, rect=None):
+        if rect is None:
+            rect = self.active_shape_rect
+        if not rect or rect.width() < 1 or rect.height() < 1:
+            return QRectF()
+        tipo, estilo, redondeado, grosor, col_prim, col_sec = self._get_shape_config(canvas)
+        full_path = self._get_full_shape_path(rect, tipo, redondeado)
+        if self.rotation_angle != 0.0:
+            center = rect.center()
+            t = QTransform().translate(center.x(), center.y()).rotate(self.rotation_angle).translate(-center.x(), -center.y())
+            full_path = t.map(full_path)
+        tight = full_path.boundingRect()
+        if tight.width() < 1 or tight.height() < 1:
+            return rect
+        return tight
+
     def _get_handle_at(self, pt, canvas):
         if not self.active_shape_rect:
             return HANDLE_NONE
@@ -75,6 +96,16 @@ class ShapesTool(BaseTool):
         sf = max(0.001, getattr(canvas, 'scale_factor', 1.0))
         handle_size = 12.0 / sf
         half_h = handle_size / 2.0
+
+        center = self.active_shape_rect.center()
+        if self.rotation_angle != 0.0:
+            t_inv, ok = QTransform().translate(center.x(), center.y()).rotate(-self.rotation_angle).translate(-center.x(), -center.y()).inverted()
+            if ok:
+                test_pt = t_inv.map(pt)
+            else:
+                test_pt = pt
+        else:
+            test_pt = pt
 
         pts = {
             HANDLE_TOP_LEFT: QPointF(tight.left(), tight.top()),
@@ -89,10 +120,10 @@ class ShapesTool(BaseTool):
 
         for h_type, p in pts.items():
             h_rect = QRectF(p.x() - half_h, p.y() - half_h, handle_size, handle_size)
-            if h_rect.contains(pt):
+            if h_rect.contains(test_pt):
                 return h_type
 
-        if tight.contains(pt) or self.active_shape_rect.contains(pt):
+        if tight.contains(test_pt) or self.active_shape_rect.contains(test_pt):
             return HANDLE_MOVE
 
         return HANDLE_NONE
@@ -101,18 +132,32 @@ class ShapesTool(BaseTool):
         canvas.actualizar_cursor_herramienta(self)
 
     def mouse_press(self, canvas, event, color_activo=None):
-        if event.button() == Qt.MouseButton.LeftButton:
-            pos = event.position()
+        pos = event.position()
 
-            if self.active_shape_rect:
+        if self.active_shape_rect:
+            if event.button() == Qt.MouseButton.RightButton:
+                self.is_rotating = True
+                self.active_handle = HANDLE_ROTATE
+                self.drag_start_pos = pos
+                center = self.active_shape_rect.center()
+                self.initial_mouse_angle = math.atan2(pos.y() - center.y(), pos.x() - center.x())
+                self.base_rotation_angle = self.rotation_angle
+                return
+            elif event.button() == Qt.MouseButton.LeftButton:
                 handle = self._get_handle_at(pos, canvas)
                 if handle != HANDLE_NONE:
                     self.active_handle = handle
                     self.drag_start_pos = pos
                     self.orig_rect = QRectF(self.active_shape_rect)
                     self.orig_tight = self._get_tight_rect(canvas)
+                    self.orig_center = QPointF(self.active_shape_rect.center())
                     if handle == HANDLE_MOVE:
                         self.is_moving = True
+                    elif handle == HANDLE_ROTATE:
+                        self.is_rotating = True
+                        center = self.active_shape_rect.center()
+                        self.initial_mouse_angle = math.atan2(pos.y() - center.y(), pos.x() - center.x())
+                        self.base_rotation_angle = self.rotation_angle
                     else:
                         self.is_resizing = True
                     return
@@ -120,10 +165,12 @@ class ShapesTool(BaseTool):
                     self.commit_shape(canvas)
                     return
 
+        if event.button() == Qt.MouseButton.LeftButton:
             self.is_drawing = True
             self.start_point = pos
             self.current_point = pos
             self.active_shape_rect = QRectF(pos, pos)
+            self.rotation_angle = 0.0
             canvas.update()
 
     def mouse_move(self, canvas, event, color_activo=None):
@@ -133,14 +180,39 @@ class ShapesTool(BaseTool):
             self.current_point = pos
             self.active_shape_rect = self._calc_rect(canvas, event)
             canvas.update()
+        elif self.is_rotating and self.active_shape_rect:
+            center = self.active_shape_rect.center()
+            curr_angle = math.atan2(pos.y() - center.y(), pos.x() - center.x())
+            delta_deg = math.degrees(curr_angle - self.initial_mouse_angle)
+            raw_rot = (self.base_rotation_angle + delta_deg) % 360.0
+
+            modifiers = event.modifiers() if hasattr(event, 'modifiers') else Qt.KeyboardModifier.NoModifier
+            if modifiers & Qt.KeyboardModifier.ShiftModifier:
+                self.rotation_angle = round(raw_rot / 15.0) * 15.0 % 360.0
+            else:
+                self.rotation_angle = raw_rot
+            canvas.update()
         elif self.is_moving and self.orig_rect and self.drag_start_pos:
             dx = pos.x() - self.drag_start_pos.x()
             dy = pos.y() - self.drag_start_pos.y()
             self.active_shape_rect = self.orig_rect.translated(dx, dy)
             canvas.update()
         elif self.is_resizing and self.orig_rect and self.drag_start_pos and getattr(self, 'orig_tight', None):
-            dx = pos.x() - self.drag_start_pos.x()
-            dy = pos.y() - self.drag_start_pos.y()
+            center = getattr(self, 'orig_center', self.orig_rect.center())
+
+            if self.rotation_angle != 0.0:
+                t_inv, ok = QTransform().translate(center.x(), center.y()).rotate(-self.rotation_angle).translate(-center.x(), -center.y()).inverted()
+                if ok:
+                    unrot_pos = t_inv.map(pos)
+                    unrot_start = t_inv.map(self.drag_start_pos)
+                else:
+                    unrot_pos = pos
+                    unrot_start = self.drag_start_pos
+                dx = unrot_pos.x() - unrot_start.x()
+                dy = unrot_pos.y() - unrot_start.y()
+            else:
+                dx = pos.x() - self.drag_start_pos.x()
+                dy = pos.y() - self.drag_start_pos.y()
 
             left = self.orig_tight.left()
             top = self.orig_tight.top()
@@ -180,7 +252,15 @@ class ShapesTool(BaseTool):
                 new_rect_w = self.orig_rect.width() * scale_x
                 new_rect_h = self.orig_rect.height() * scale_y
 
-                self.active_shape_rect = QRectF(new_rect_left, new_rect_top, new_rect_w, new_rect_h)
+                unrot_center_delta = new_tight.center() - self.orig_tight.center()
+                if self.rotation_angle != 0.0:
+                    t_rot = QTransform().rotate(self.rotation_angle)
+                    canvas_center_delta = t_rot.map(unrot_center_delta)
+                else:
+                    canvas_center_delta = unrot_center_delta
+
+                new_center = center + canvas_center_delta
+                self.active_shape_rect = QRectF(new_center.x() - new_rect_w / 2.0, new_center.y() - new_rect_h / 2.0, new_rect_w, new_rect_h)
             canvas.update()
         else:
             self._update_cursor(canvas, pos)
@@ -195,9 +275,10 @@ class ShapesTool(BaseTool):
             else:
                 self.active_shape_rect = rect
             canvas.update()
-        elif self.is_moving or self.is_resizing:
+        elif self.is_moving or self.is_resizing or self.is_rotating:
             self.is_moving = False
             self.is_resizing = False
+            self.is_rotating = False
             self.active_handle = HANDLE_NONE
             canvas.update()
 
@@ -783,6 +864,12 @@ class ShapesTool(BaseTool):
         painter.save()
         canvas.aplicar_clip_seleccion(painter)
 
+        if self.rotation_angle != 0.0:
+            center = rect.center()
+            painter.translate(center.x(), center.y())
+            painter.rotate(self.rotation_angle)
+            painter.translate(-center.x(), -center.y())
+
         # Dibujar la forma activa calculada en tiempo real
         self._draw_shape_to_painter(painter, rect, tipo, estilo, redondeado, grosor, col_prim, col_sec, suavizado)
 
@@ -801,6 +888,13 @@ class ShapesTool(BaseTool):
         tight_rect = full_path.boundingRect()
         if tight_rect.width() < 1 or tight_rect.height() < 1:
             tight_rect = rect
+
+        painter.save()
+        center = rect.center()
+        if self.rotation_angle != 0.0:
+            painter.translate(center.x(), center.y())
+            painter.rotate(self.rotation_angle)
+            painter.translate(-center.x(), -center.y())
 
         # Bounding box azul guionzado — cosmético: 1px en pantalla sin importar el zoom
         pen_box = QPen(QColor(0, 120, 215), 1.0, Qt.PenStyle.DashLine)
@@ -834,11 +928,15 @@ class ShapesTool(BaseTool):
             h_rect = QRectF(pt.x() - half_h, pt.y() - half_h, handle_size, handle_size)
             painter.drawRect(h_rect)
 
+        painter.restore()
+
     def clear_active_shape(self, canvas):
         self.active_shape_rect = None
         self.is_drawing = False
         self.is_moving = False
         self.is_resizing = False
+        self.is_rotating = False
+        self.rotation_angle = 0.0
         self.active_handle = HANDLE_NONE
         if canvas:
             canvas.update()
@@ -850,7 +948,7 @@ class ShapesTool(BaseTool):
         cw = float(canvas.layer_mgr.width)
         ch = float(canvas.layer_mgr.height)
 
-        tight = self._get_tight_rect(canvas)
+        tight = self._get_canvas_bounding_rect(canvas)
         r = tight if (tight and tight.width() >= 1 and tight.height() >= 1) else self.active_shape_rect
         w, h = r.width(), r.height()
 
@@ -895,6 +993,13 @@ class ShapesTool(BaseTool):
             p = QPainter(layer.image)
             p.setRenderHint(QPainter.RenderHint.Antialiasing, suavizado)
             canvas.aplicar_clip_seleccion(p)
+
+            if self.rotation_angle != 0.0:
+                center = rect.center()
+                p.translate(center.x(), center.y())
+                p.rotate(self.rotation_angle)
+                p.translate(-center.x(), -center.y())
+
             self._draw_shape_to_painter(p, rect, tipo, estilo, redondeado, grosor, col_prim, col_sec, suavizado)
             p.end()
             canvas.push_document_state("Insertar Forma")
@@ -908,9 +1013,16 @@ class ShapesTool(BaseTool):
         rect = self.active_shape_rect
         tipo, estilo, redondeado, grosor, col_prim, col_sec = self._get_shape_config(canvas)
 
+        shape_path_global = self._get_full_shape_path(rect, tipo, redondeado)
+        if self.rotation_angle != 0.0:
+            center = rect.center()
+            t = QTransform().translate(center.x(), center.y()).rotate(self.rotation_angle).translate(-center.x(), -center.y())
+            shape_path_global = t.map(shape_path_global)
+
+        tight_global = shape_path_global.boundingRect()
         margin = grosor + 4
-        img_w = int(rect.width()) + margin * 2
-        img_h = int(rect.height()) + margin * 2
+        img_w = max(1, int(tight_global.width()) + margin * 2)
+        img_h = max(1, int(tight_global.height()) + margin * 2)
 
         shape_img = QImage(img_w, img_h, QImage.Format.Format_ARGB32_Premultiplied)
         shape_img.fill(Qt.GlobalColor.transparent)
@@ -918,8 +1030,14 @@ class ShapesTool(BaseTool):
         suavizado = getattr(canvas, 'suavizado_pincel', True)
         p = QPainter(shape_img)
         p.setRenderHint(QPainter.RenderHint.Antialiasing, suavizado)
-        rect_local = QRectF(margin, margin, rect.width(), rect.height())
-        self._draw_shape_to_painter(p, rect_local, tipo, estilo, redondeado, grosor, col_prim, col_sec, suavizado)
+        p.translate(-tight_global.x() + margin, -tight_global.y() + margin)
+        if self.rotation_angle != 0.0:
+            center = rect.center()
+            p.translate(center.x(), center.y())
+            p.rotate(self.rotation_angle)
+            p.translate(-center.x(), -center.y())
+
+        self._draw_shape_to_painter(p, rect, tipo, estilo, redondeado, grosor, col_prim, col_sec, suavizado)
         p.end()
 
         from PyQt6.QtWidgets import QApplication
@@ -933,9 +1051,16 @@ class ShapesTool(BaseTool):
         rect = self.active_shape_rect
         tipo, estilo, redondeado, grosor, col_prim, col_sec = self._get_shape_config(canvas)
 
+        shape_path_global = self._get_full_shape_path(rect, tipo, redondeado)
+        if self.rotation_angle != 0.0:
+            center = rect.center()
+            t = QTransform().translate(center.x(), center.y()).rotate(self.rotation_angle).translate(-center.x(), -center.y())
+            shape_path_global = t.map(shape_path_global)
+
+        tight_global = shape_path_global.boundingRect()
         margin = grosor + 4
-        img_w = int(rect.width()) + margin * 2
-        img_h = int(rect.height()) + margin * 2
+        img_w = max(1, int(tight_global.width()) + margin * 2)
+        img_h = max(1, int(tight_global.height()) + margin * 2)
 
         shape_img = QImage(img_w, img_h, QImage.Format.Format_ARGB32_Premultiplied)
         shape_img.fill(Qt.GlobalColor.transparent)
@@ -943,12 +1068,17 @@ class ShapesTool(BaseTool):
         suavizado = getattr(canvas, 'suavizado_pincel', True)
         p = QPainter(shape_img)
         p.setRenderHint(QPainter.RenderHint.Antialiasing, suavizado)
-        rect_local = QRectF(margin, margin, rect.width(), rect.height())
-        self._draw_shape_to_painter(p, rect_local, tipo, estilo, redondeado, grosor, col_prim, col_sec, suavizado)
+        p.translate(-tight_global.x() + margin, -tight_global.y() + margin)
+        if self.rotation_angle != 0.0:
+            center = rect.center()
+            p.translate(center.x(), center.y())
+            p.rotate(self.rotation_angle)
+            p.translate(-center.x(), -center.y())
+
+        self._draw_shape_to_painter(p, rect, tipo, estilo, redondeado, grosor, col_prim, col_sec, suavizado)
         p.end()
 
-        shape_path_global = self._get_full_shape_path(rect, tipo, redondeado)
-        pos_global = QPointF(rect.x() - margin, rect.y() - margin)
+        pos_global = QPointF(tight_global.x() - margin, tight_global.y() - margin)
 
         canvas.selection_engine.floating_image = shape_img
         canvas.selection_engine.unscaled_floating_image = shape_img.copy()

@@ -7,7 +7,14 @@ from PyQt6.QtGui import QIcon
 from gui.dialogo_archivo import DialogoArchivo
 
 
+import unicodedata
 from core.i18n import t
+
+
+def _slugify_filename(text: str) -> str:
+    nfkd = unicodedata.normalize('NFKD', text)
+    no_accent = ''.join([c for c in nfkd if not unicodedata.combining(c)])
+    return no_accent.lower().replace(" ", "_")
 
 
 class DialogoNuevoArchivo(QDialog):
@@ -541,7 +548,7 @@ class MenuArchivo:
         elif canvas and canvas.archivo_actual:
             base_nombre = os.path.splitext(os.path.basename(canvas.archivo_actual))[0]
         else:
-            base_nombre = "sin_titulo"
+            base_nombre = _slugify_filename(t("Sin Título"))
 
         fmt_config = self.settings.value("default_format", None)
 

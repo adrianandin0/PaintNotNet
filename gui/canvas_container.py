@@ -46,8 +46,28 @@ class CanvasContainerWidget(QWidget):
         grid.addWidget(self.left_ruler, 1, 0)
         grid.addWidget(self.area_scroll, 1, 1)
 
+        if self.area_scroll and self.area_scroll.viewport():
+            self.area_scroll.viewport().installEventFilter(self)
+
         # Ocultas por defecto hasta que se active el checkbox "Reglas"
         self.set_rulers_visible(False)
+
+    def eventFilter(self, watched, event):
+        from PyQt6.QtCore import QEvent, QPointF, Qt
+        if event.type() == QEvent.Type.Wheel and (event.modifiers() & Qt.KeyboardModifier.ControlModifier):
+            delta = event.angleDelta().y()
+            if delta == 0:
+                delta = event.angleDelta().x()
+            if delta != 0 and self.canvas:
+                factor = 1.15 if delta > 0 else (1.0 / 1.15)
+                pos_in_canvas = self.canvas.mapFromGlobal(event.globalPosition().toPoint())
+                off_x, off_y = self.canvas.obtener_offset_canvas()
+                raw = QPointF(pos_in_canvas) - QPointF(float(off_x), float(off_y))
+                sf = self.canvas.scale_factor if self.canvas.scale_factor > 0 else 1.0
+                point_doc = QPointF(raw.x() / sf, raw.y() / sf)
+                self.canvas.zoom_at_point(point_doc, self.canvas.scale_factor * factor)
+                return True
+        return super().eventFilter(watched, event)
 
     def set_rulers_visible(self, visible: bool):
         self.corner.setVisible(visible)

@@ -835,6 +835,22 @@ class CanvasWidget(QWidget):
     def mouseReleaseEvent(self, event):
         self.input_handler.handle_mouse_release(event)
 
+    def wheelEvent(self, event):
+        if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+            delta = event.angleDelta().y()
+            if delta == 0:
+                delta = event.angleDelta().x()
+            if delta != 0:
+                factor = 1.15 if delta > 0 else (1.0 / 1.15)
+                off_x, off_y = self.obtener_offset_canvas()
+                raw = event.position() - QPointF(float(off_x), float(off_y))
+                sf = self.scale_factor if self.scale_factor > 0 else 1.0
+                point_doc = QPointF(raw.x() / sf, raw.y() / sf)
+                self.zoom_at_point(point_doc, self.scale_factor * factor)
+                event.accept()
+                return
+        super().wheelEvent(event)
+
     # Funciones de Menús (Archivo, Editar, Imagen)
     def crear_nuevo_lienzo(self, ancho, alto, es_transparente=False):
         self._ajustar_tamano_widget(ancho, alto)

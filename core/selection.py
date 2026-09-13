@@ -369,7 +369,11 @@ class SelectionEngine:
             delta_rad = curr_angle - self.initial_mouse_angle
             delta_deg = math.degrees(delta_rad)
 
-            self.total_rotation = (self.base_rotation_angle + delta_deg) % 360.0
+            raw_rot = (self.base_rotation_angle + delta_deg) % 360.0
+            if is_shift:
+                self.total_rotation = round(raw_rot / 15.0) * 15.0 % 360.0
+            else:
+                self.total_rotation = raw_rot
             self._apply_compound_transform()
 
         elif self.is_moving:

@@ -235,6 +235,8 @@ class LineTool(BaseTool):
                 current_angle = math.atan2(dy, dx)
                 delta_rad = current_angle - self.initial_angle
                 deg = math.degrees(delta_rad)
+                if is_shift:
+                    deg = round(deg / 15.0) * 15.0
 
                 t = QTransform()
                 t.translate(self.rotation_center.x(), self.rotation_center.y())
