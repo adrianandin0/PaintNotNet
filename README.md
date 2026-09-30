@@ -163,7 +163,7 @@ Open your terminal and run the command corresponding to your distribution:
 
 - **Arch Linux / Manjaro / EndeavourOS**:
   ```bash
-  sudo pacman -Sy --needed --noconfirm python python-pip git base-devel libxcb libegl libgl dbus
+  sudo pacman -Sy --needed --noconfirm python python-pip git base-devel libxcb xcb-util xcb-util-cursor xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm libegl libgl dbus
   ```
 
 - **openSUSE / SUSE Linux Enterprise**:

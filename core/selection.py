@@ -196,28 +196,13 @@ class SelectionEngine:
         s = self.HANDLE_SIZE / max(0.001, scale_factor)
         s2 = s / 2.0
 
-        quad = self._extract_quad_points()
-        if quad:
-            p0, p1, p2, p3 = quad
-            pts_map = {
-                self.HANDLE_TOP_LEFT: p0,
-                self.HANDLE_TOP_RIGHT: p1,
-                self.HANDLE_BOTTOM_RIGHT: p2,
-                self.HANDLE_BOTTOM_LEFT: p3,
-                self.HANDLE_TOP_CENTER: QPointF((p0.x() + p1.x()) / 2.0, (p0.y() + p1.y()) / 2.0),
-                self.HANDLE_BOTTOM_CENTER: QPointF((p3.x() + p2.x()) / 2.0, (p3.y() + p2.y()) / 2.0),
-                self.HANDLE_MIDDLE_LEFT: QPointF((p0.x() + p3.x()) / 2.0, (p0.y() + p3.y()) / 2.0),
-                self.HANDLE_MIDDLE_RIGHT: QPointF((p1.x() + p2.x()) / 2.0, (p1.y() + p2.y()) / 2.0),
-            }
-            handles = {}
-            for handle_id, pt in pts_map.items():
-                handles[handle_id] = QRectF(pt.x() - s2, pt.y() - s2, s, s)
-            return handles
-
         raw = self.original_raw_image or self.unscaled_floating_image
         if raw and not raw.isNull():
             W = float(raw.width()) * self.scale_x
             H = float(raw.height()) * self.scale_y
+        elif self.initial_unrotated_rect and self.initial_unrotated_rect.isValid():
+            W = float(self.initial_unrotated_rect.width()) * self.scale_x
+            H = float(self.initial_unrotated_rect.height()) * self.scale_y
         else:
             r = self.active_rect
             W = r.width()
@@ -276,37 +261,34 @@ class SelectionEngine:
         if not self.has_selection() or (not horizontal and not vertical):
             return
 
+        if not self.original_raw_image and self.floating_image and not self.floating_image.isNull():
+            self.init_raw_image(self.floating_image)
+
         # 1. Voltear todos los buffers de imagen almacenados
-        if self.floating_image and not self.floating_image.isNull():
-            self.floating_image = self.floating_image.mirrored(horizontal, vertical)
-
-        if self.unscaled_floating_image and not self.unscaled_floating_image.isNull():
-            self.unscaled_floating_image = self.unscaled_floating_image.mirrored(horizontal, vertical)
-
         if self.original_raw_image and not self.original_raw_image.isNull():
             self.original_raw_image = self.original_raw_image.mirrored(horizontal, vertical)
 
-        # 2. Espejar los trazados (paths) de la máscara de selección respecto al centro del rectángulo
-        if self.active_rect and self.active_rect.isValid():
-            cx = self.active_rect.center().x()
-            cy = self.active_rect.center().y()
-            sx = -1.0 if horizontal else 1.0
-            sy = -1.0 if vertical else 1.0
+        if not self.initial_unrotated_rect or not self.initial_unrotated_rect.isValid():
+            self.initial_unrotated_rect = QRectF(self.active_rect)
+            self.initial_unrotated_path = QPainterPath(self.active_path)
 
-            t_mirror = QTransform().translate(cx, cy).scale(sx, sy).translate(-cx, -cy)
+        # 2. Espejar los trazados de la máscara respecto al centro del rectángulo desrotado
+        ucx = self.initial_unrotated_rect.center().x()
+        ucy = self.initial_unrotated_rect.center().y()
+        sx = -1.0 if horizontal else 1.0
+        sy = -1.0 if vertical else 1.0
 
-            if self.active_path and not self.active_path.isEmpty():
-                self.active_path = t_mirror.map(self.active_path)
-
-            if self.initial_unrotated_path and not self.initial_unrotated_path.isEmpty():
-                self.initial_unrotated_path = t_mirror.map(self.initial_unrotated_path)
-
-            if self.initial_unrotated_rect and self.initial_unrotated_rect.isValid():
-                self.initial_unrotated_rect = t_mirror.map(self.initial_unrotated_path).boundingRect()
+        t_unr_mirror = QTransform().translate(ucx, ucy).scale(sx, sy).translate(-ucx, -ucy)
+        if self.initial_unrotated_path and not self.initial_unrotated_path.isEmpty():
+            self.initial_unrotated_path = t_unr_mirror.map(self.initial_unrotated_path)
+            self.initial_unrotated_rect = self.initial_unrotated_path.boundingRect()
 
         # 3. Si hay rotación previa, invertir el ángulo total de rotación
         if getattr(self, 'total_rotation', 0.0) != 0.0 and (horizontal != vertical):
             self.total_rotation = (-self.total_rotation) % 360.0
+
+        # 4. Sincronizar imagen flotante, trazado activo y posición exacta
+        self._apply_compound_transform()
 
     def rotate_floating_image(self, degrees):
         if not self.has_selection():
@@ -314,6 +296,10 @@ class SelectionEngine:
 
         if not self.original_raw_image and self.floating_image:
             self.init_raw_image(self.floating_image)
+
+        if not self.initial_unrotated_rect or not self.initial_unrotated_rect.isValid():
+            self.initial_unrotated_rect = QRectF(self.active_rect)
+            self.initial_unrotated_path = QPainterPath(self.active_path)
 
         self.total_rotation = (self.total_rotation + degrees) % 360.0
         self._apply_compound_transform()
@@ -470,7 +456,7 @@ class SelectionEngine:
                 else:
                     b1 = t1 + new_h
 
-        if new_w > 2 and new_h > 2:
+        if new_w >= 2 and new_h >= 2:
             self.scale_x = max(0.001, new_w / raw_w)
             self.scale_y = max(0.001, new_h / raw_h)
 

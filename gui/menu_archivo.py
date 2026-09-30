@@ -669,7 +669,10 @@ class MenuArchivo:
             from PyQt6.QtGui import QImage
             return QImage()
 
-        img_capas = canvas.layer_mgr.get_qimage()
+        if hasattr(canvas, 'commit_pending_tool_changes'):
+            canvas.commit_pending_tool_changes()
+
+        img_capas = canvas.obtener_imagen_compuesta() if hasattr(canvas, 'obtener_imagen_compuesta') else canvas.layer_mgr.get_qimage()
 
         from PyQt6.QtGui import QImage, QPainter
         from PyQt6.QtCore import Qt

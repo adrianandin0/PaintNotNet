@@ -164,7 +164,8 @@ elif command -v dnf &> /dev/null; then
 elif command -v pacman &> /dev/null; then
     echo -e "${MSG_DISTRO_ARCH}"
     pacman -Sy --needed --noconfirm python python-pip base-devel \
-        libxcb libegl libgl dbus &> /dev/null
+        libxcb xcb-util xcb-util-cursor xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm \
+        libegl libgl dbus &> /dev/null
 
 elif command -v zypper &> /dev/null; then
     echo -e "${MSG_DISTRO_SUSE}"

@@ -876,7 +876,14 @@ class CanvasWidget(QWidget):
             self.main_window.layers_panel.reconstruir_lista_capas()
         self.update()
 
+    def obtener_imagen_compuesta(self):
+        """Devuelve una QImage compuesta con todas las capas y elementos flotantes activos sin alterar el estado de edición."""
+        if hasattr(self, 'renderer') and self.renderer:
+            return self.renderer.render_layers_composite(self.layer_mgr, self.selection_engine, getattr(self, 'capa_trazo_temp', None))
+        return self.layer_mgr.get_qimage()
+
     def guardar_imagen(self, ruta, opciones=None):
+        self.commit_pending_tool_changes()
         opciones = opciones or {}
         _, ext = os.path.splitext(ruta)
         ext = ext.lower()
@@ -887,7 +894,7 @@ class CanvasWidget(QWidget):
                 return True
             return False
 
-        img_a_guardar = self.layer_mgr.get_qimage()
+        img_a_guardar = self.obtener_imagen_compuesta()
         quality = opciones.get('quality', 90)
 
         if ext in ['.jpg', '.jpeg']:
